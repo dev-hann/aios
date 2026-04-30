@@ -8,7 +8,6 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
-import io.flutter.plugin.common.EventChannel
 
 class LlmService : Service() {
 
@@ -19,8 +18,6 @@ class LlmService : Service() {
     private val binder = LlmBinder()
     private val llamaBridge = LlamaBridge()
     private var agentEngine: AgentEngine? = null
-
-    var tokenSink: EventChannel.EventSink? = null
 
     inner class LlmBinder : Binder() {
         fun getService(): LlmService = this@LlmService
@@ -46,7 +43,6 @@ class LlmService : Service() {
 
     override fun onDestroy() {
         llamaBridge.nativeReleaseModel()
-        tokenSink = null
         agentEngine = null
         Log.i(TAG, "LlmService destroyed")
         super.onDestroy()
@@ -66,10 +62,6 @@ class LlmService : Service() {
 
     fun generateStream(prompt: String, maxTokens: Int): Int {
         return llamaBridge.nativeGenerateStream(prompt, maxTokens)
-    }
-
-    fun generateStreamStandalone(prompt: String, maxTokens: Int): Int {
-        return llamaBridge.nativeGenerateStreamStandalone(prompt, maxTokens)
     }
 
     fun resetContext() {

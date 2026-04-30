@@ -13,10 +13,12 @@ static llama_context *g_ctx = nullptr;
 static const llama_vocab *g_vocab = nullptr;
 
 static std::vector<llama_chat_message> g_chat_messages;
+static std::vector<std::string> g_chat_strings;
 static int g_n_past = 0;
 
 static void reset_kv_cache() {
     g_chat_messages.clear();
+    g_chat_strings.clear();
     g_n_past = 0;
 }
 
@@ -139,7 +141,8 @@ static jint generate_stream_internal(
     const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
     if (!prompt_str) return -1;
 
-    g_chat_messages.push_back({"user", prompt_str});
+    g_chat_strings.emplace_back(prompt_str);
+    g_chat_messages.push_back({"user", g_chat_strings.back().c_str()});
     env->ReleaseStringUTFChars(prompt, prompt_str);
 
     std::string formatted = apply_chat_template_full(g_chat_messages);
@@ -205,7 +208,8 @@ static jint generate_stream_internal(
 
     llama_sampler_free(smpl);
 
-    g_chat_messages.push_back({"assistant", result});
+    g_chat_strings.push_back(result);
+    g_chat_messages.push_back({"assistant", g_chat_strings.back().c_str()});
 
     LOGI("%s done: %d tokens (n_past=%d)", stream ? "Stream" : "Generate", n_decoded, g_n_past);
     return n_decoded;
@@ -303,7 +307,7 @@ Java_com_agent_aios_LlamaBridge_nativeResetContext(
         JNIEnv *env, jobject thiz) {
     reset_kv_cache();
     if (g_ctx) {
-        llama_kv_cache_clear(g_ctx);
+        llama_memory_clear(llama_get_memory(g_ctx), true);
         LOGI("KV cache cleared, context reset");
     }
 }

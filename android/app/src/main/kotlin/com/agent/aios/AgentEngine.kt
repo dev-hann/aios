@@ -1,6 +1,11 @@
 package com.agent.aios
 
 import android.util.Log
+import com.agent.aios.agent.tools.AppLauncherTool
+import com.agent.aios.agent.tools.NotificationTool
+import com.agent.aios.agent.tools.ScreenActionTool
+import com.agent.aios.agent.tools.ScreenFindTool
+import com.agent.aios.agent.tools.ScreenReaderTool
 import org.json.JSONObject
 
 data class AgentStep(
@@ -18,12 +23,31 @@ class AgentEngine(private val service: LlmService) {
     private var onCancelled = false
 
     private val notes = mutableMapOf<String, String>()
-    private val tools: Map<String, AgentTool> = listOf(
+
+    interface ExtendedTool {
+        val name: String
+        val description: String
+        val parameters: String
+        fun execute(args: String): String
+    }
+
+    private val basicTools: Map<String, AgentTool> = listOf(
         CalculatorTool(),
         TimerTool(),
         DeviceInfoTool(),
         NotePadTool(notes)
     ).associateBy { it.name }
+
+    private val extendedTools: Map<String, ExtendedTool> = listOf<ExtendedTool>(
+        ScreenReaderTool(),
+        ScreenFindTool(),
+        ScreenActionTool(),
+        AppLauncherTool(),
+        NotificationTool()
+    ).associateBy { it.name }
+
+    private val allToolNames: Set<String>
+        get() = basicTools.keys + extendedTools.keys
 
     fun setStepCallback(cb: ((AgentStep) -> Unit)?) {
         onStep = cb
@@ -34,9 +58,13 @@ class AgentEngine(private val service: LlmService) {
     }
 
     fun getToolManifest(): String {
-        return tools.values.joinToString("\n") { tool ->
+        val basicManifest = basicTools.values.joinToString("\n") { tool ->
             "${tool.name}: ${tool.description}\n  Args: ${tool.parameters}"
         }
+        val extendedManifest = extendedTools.values.joinToString("\n") { tool ->
+            "${tool.name}: ${tool.description}\n  Args: ${tool.parameters}"
+        }
+        return "--- Basic Tools ---\n$basicManifest\n\n--- Phone Control Tools ---\n$extendedManifest"
     }
 
     fun run(userPrompt: String, maxIterations: Int = 5): List<AgentStep> {
@@ -72,12 +100,7 @@ class AgentEngine(private val service: LlmService) {
                     ))
                     onStep?.invoke(steps.last())
 
-                    val tool = tools[actionName]
-                    val observation = if (tool != null) {
-                        tool.execute(actionArgs)
-                    } else {
-                        "Error: Unknown tool '$actionName'. Available: ${tools.keys.joinToString(", ")}"
-                    }
+                    val observation = executeTool(actionName, actionArgs)
 
                     steps.add(AgentStep("observation", observation,
                         toolName = actionName, toolResult = observation))
@@ -111,11 +134,21 @@ class AgentEngine(private val service: LlmService) {
         return steps
     }
 
+    private fun executeTool(name: String, args: String): String {
+        val basicTool = basicTools[name]
+        if (basicTool != null) return basicTool.execute(args)
+
+        val extendedTool = extendedTools[name]
+        if (extendedTool != null) return extendedTool.execute(args)
+
+        return "Error: Unknown tool '$name'. Available: ${allToolNames.joinToString(", ")}"
+    }
+
     private val cancelled: Boolean get() = onCancelled
 
     private fun buildSystemPrompt(): String {
         val toolList = getToolManifest()
-        return """You are an AI agent that can think and use tools to help the user.
+        return """You are an AI agent that can think and use tools to help the user. You can control the user's Android phone.
 
 AVAILABLE TOOLS:
 $toolList
@@ -130,7 +163,12 @@ INSTRUCTIONS:
 - You can use multiple tools in sequence
 - After receiving an Observation, either use another tool or give your final Answer
 - Be concise and accurate
-- For math calculations, always use the calculator tool"""
+- For math calculations, always use the calculator tool
+- To interact with the phone, first use screen_reader to see what's on screen, then use screen_action to tap/type/scroll
+- To open an app, use app_launcher with open_app action
+- To read notifications, use notification_reader
+- When searching for UI elements, use screen_find first, then screen_action to interact with them
+- Common app package names: com.google.android.apps.messaging (Messages), com.google.android.dialer (Phone), com.google.android.apps.photos (Photos), com.android.settings (Settings), com.android.chrome (Chrome)"""
     }
 
     private fun parseResponse(response: String): Map<String, String> {

@@ -1,0 +1,146 @@
+package com.agent.aios
+
+import android.app.Application
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.IBinder
+import android.util.Log
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+
+class AIOSApp : Application() {
+
+    private val TAG = "AIOS-App"
+
+    var llmService: LlmService? = null
+        private set
+    var isBound = false
+        private set
+
+    private val _tokenFlow = MutableSharedFlow<String>(extraBufferCapacity = 64)
+    val tokenFlow: SharedFlow<String> = _tokenFlow.asSharedFlow()
+
+    private val _agentStepFlow = MutableSharedFlow<AgentStep>(extraBufferCapacity = 64)
+    val agentStepFlow: SharedFlow<AgentStep> = _agentStepFlow.asSharedFlow()
+
+    private val _serviceState = MutableSharedFlow<ServiceState>(replay = 1)
+    val serviceState: SharedFlow<ServiceState> = _serviceState.asSharedFlow()
+
+    enum class ServiceState {
+        DISCONNECTED, CONNECTING, READY, MODEL_LOADED, GENERATING, AGENT_RUNNING
+    }
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as LlmService.LlmBinder
+            llmService = binder.getService()
+            isBound = true
+            llmService!!.setTokenCallback { token ->
+                _tokenFlow.tryEmit(token)
+            }
+            _serviceState.tryEmit(ServiceState.READY)
+            Log.i(TAG, "Service connected")
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            llmService = null
+            isBound = false
+            _serviceState.tryEmit(ServiceState.DISCONNECTED)
+            Log.i(TAG, "Service disconnected")
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+        bindLlmService()
+    }
+
+    private fun bindLlmService() {
+        _serviceState.tryEmit(ServiceState.CONNECTING)
+        val intent = Intent(this, LlmService::class.java)
+        startForegroundService(intent)
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    fun loadModel(path: String, contextSize: Int = 1024, onResult: (Boolean) -> Unit) {
+        val svc = llmService
+        if (svc == null) {
+            onResult(false)
+            return
+        }
+        _serviceState.tryEmit(ServiceState.GENERATING)
+        Thread {
+            svc.updateNotification("Loading model...")
+            val success = svc.loadModel(path, contextSize)
+            if (success) {
+                _serviceState.tryEmit(ServiceState.MODEL_LOADED)
+                svc.updateNotification("Model loaded - Ready")
+            } else {
+                _serviceState.tryEmit(ServiceState.READY)
+            }
+            onResult(success)
+        }.start()
+    }
+
+    fun generateStream(prompt: String, maxTokens: Int = 128, onComplete: (Int) -> Unit) {
+        val svc = llmService
+        if (svc == null) {
+            onComplete(-1)
+            return
+        }
+        _serviceState.tryEmit(ServiceState.GENERATING)
+        Thread {
+            svc.updateNotification("Generating...")
+            val count = svc.generateStream(prompt, maxTokens)
+            _serviceState.tryEmit(ServiceState.MODEL_LOADED)
+            svc.updateNotification("Ready")
+            onComplete(count)
+        }.start()
+    }
+
+    fun runAgent(prompt: String, maxIterations: Int = 5, onComplete: (List<AgentStep>) -> Unit) {
+        val svc = llmService
+        if (svc == null) {
+            onComplete(emptyList())
+            return
+        }
+        val engine = svc.getAgentEngine()
+        if (engine == null) {
+            onComplete(emptyList())
+            return
+        }
+        _serviceState.tryEmit(ServiceState.AGENT_RUNNING)
+        Thread {
+            svc.updateNotification("Agent running...")
+            engine.setStepCallback { step ->
+                _agentStepFlow.tryEmit(step)
+            }
+            val steps = engine.run(prompt, maxIterations)
+            _serviceState.tryEmit(ServiceState.MODEL_LOADED)
+            svc.updateNotification("Ready")
+            onComplete(steps)
+        }.start()
+    }
+
+    fun releaseModel() {
+        llmService?.releaseModel()
+        llmService?.updateNotification("Ready")
+        _serviceState.tryEmit(ServiceState.READY)
+    }
+
+    override fun onTerminate() {
+        if (isBound) {
+            try { unbindService(serviceConnection) } catch (_: Exception) {}
+        }
+        super.onTerminate()
+    }
+
+    companion object {
+        lateinit var instance: AIOSApp
+            private set
+    }
+}
