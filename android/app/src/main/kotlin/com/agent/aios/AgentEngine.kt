@@ -71,19 +71,25 @@ class AgentEngine(private val service: LlmService) {
         onCancelled = false
         val steps = mutableListOf<AgentStep>()
 
-        val systemPrompt = buildSystemPrompt()
-        val conversation = StringBuilder()
-
         steps.add(AgentStep("thought", "Processing: $userPrompt"))
         onStep?.invoke(steps.last())
 
+        service.resetContext()
+
+        val systemPrompt = buildSystemPrompt()
+        val conversation = StringBuilder()
+
+        conversation.append("System: $systemPrompt\n\n")
         conversation.append("User: $userPrompt\n")
 
         for (i in 0 until maxIterations) {
             if (cancelled) break
 
-            val llmInput = "$systemPrompt\n\n$conversation\nThought:"
-            val response = service.generate(llmInput, 256)
+            steps.add(AgentStep("thought", "Thinking (step ${i + 1})..."))
+            onStep?.invoke(steps.last())
+
+            val llmInput = "$conversation\nThought:"
+            val response = collectStream(llmInput, 256)
             Log.i(TAG, "Iteration $i LLM: ${response.take(200)}")
 
             conversation.append("Thought: $response\n")
@@ -132,6 +138,19 @@ class AgentEngine(private val service: LlmService) {
         }
 
         return steps
+    }
+
+    private fun collectStream(prompt: String, maxTokens: Int): String {
+        val buffer = StringBuffer()
+        val originalCb = service.swapTokenCallback { token ->
+            buffer.append(token)
+        }
+
+        service.generateStream(prompt, maxTokens)
+
+        service.swapTokenCallback { originalCb?.invoke(it) }
+
+        return buffer.toString()
     }
 
     private fun executeTool(name: String, args: String): String {

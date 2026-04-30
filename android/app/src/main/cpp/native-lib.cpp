@@ -22,7 +22,21 @@ static void reset_kv_cache() {
     g_n_past = 0;
 }
 
+static void add_chat_message(const char *role, const char *content) {
+    g_chat_strings.emplace_back(content);
+    g_chat_messages.push_back({role, g_chat_strings.back().c_str()});
+}
+
+static void remove_last_chat_message() {
+    if (!g_chat_messages.empty()) {
+        g_chat_messages.pop_back();
+        g_chat_strings.pop_back();
+    }
+}
+
 static std::string apply_chat_template_full(const std::vector<llama_chat_message> &messages) {
+    if (messages.empty()) return "";
+
     std::vector<char> buf(4096);
     int32_t res = llama_chat_apply_template(
         nullptr,
@@ -66,6 +80,7 @@ static std::vector<llama_token> tokenize(const char *text, bool add_bos) {
 }
 
 static bool decode_tokens(std::vector<llama_token> &tokens) {
+    if (tokens.empty()) return true;
     llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
     if (llama_decode(g_ctx, batch) != 0) {
         LOGE("Failed to decode batch");
@@ -83,14 +98,47 @@ static llama_sampler *create_sampler() {
     return smpl;
 }
 
+static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *env, jobject thiz, bool stream) {
+    jmethodID onTokenMid = nullptr;
+    if (stream) {
+        jclass clazz = env->GetObjectClass(thiz);
+        onTokenMid = env->GetMethodID(clazz, "onTokenGenerated", "(Ljava/lang/String;)V");
+    }
+
+    std::string result;
+    int n_decoded = 0;
+
+    while (n_decoded < max_tokens) {
+        llama_token new_token = llama_sampler_sample(smpl, g_ctx, -1);
+        if (llama_vocab_is_eog(g_vocab, new_token)) break;
+
+        char buf[256];
+        int n = llama_token_to_piece(g_vocab, new_token, buf, sizeof(buf), 0, true);
+        if (n > 0) {
+            std::string token_str(buf, n);
+            result.append(token_str);
+
+            if (stream && onTokenMid) {
+                jstring jtoken = env->NewStringUTF(token_str.c_str());
+                env->CallVoidMethod(thiz, onTokenMid, jtoken);
+                env->DeleteLocalRef(jtoken);
+            }
+        }
+
+        n_decoded++;
+        g_n_past++;
+        llama_batch batch = llama_batch_get_one(&new_token, 1);
+        if (llama_decode(g_ctx, batch) != 0) break;
+    }
+
+    return result;
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         JNIEnv *env, jobject thiz, jstring model_path, jint context_size) {
     const char *path = env->GetStringUTFChars(model_path, nullptr);
-    if (!path) {
-        LOGE("Failed to get model path string");
-        return JNI_FALSE;
-    }
+    if (!path) return JNI_FALSE;
 
     LOGI("Loading model from: %s", path);
 
@@ -131,185 +179,141 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
     return JNI_TRUE;
 }
 
-static jint generate_stream_internal(
-        JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens, bool stream) {
+extern "C" JNIEXPORT jint JNICALL
+Java_com_agent_aios_LlamaBridge_nativeGenerateStream(
+        JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens) {
 
-    if (!g_ctx || !g_model || !g_vocab) {
-        return -1;
-    }
+    if (!g_ctx || !g_model || !g_vocab) return -1;
 
     const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
     if (!prompt_str) return -1;
 
-    g_chat_strings.emplace_back(prompt_str);
-    g_chat_messages.push_back({"user", g_chat_strings.back().c_str()});
+    add_chat_message("user", prompt_str);
     env->ReleaseStringUTFChars(prompt, prompt_str);
 
     std::string formatted = apply_chat_template_full(g_chat_messages);
     if (formatted.empty()) {
-        g_chat_messages.pop_back();
+        remove_last_chat_message();
         return -1;
     }
 
-    LOGI("%s: template applied (%zu chars, n_past=%d)",
-         stream ? "Stream" : "Generate", formatted.size(), g_n_past);
+    LOGI("Stream: template applied (%zu chars, n_past=%d)", formatted.size(), g_n_past);
 
-    auto tokens = tokenize(formatted.c_str(), g_n_past == 0);
+    bool add_bos = (g_n_past == 0);
+    auto tokens = tokenize(formatted.c_str(), add_bos);
 
-    if (g_n_past > 0 && tokens.size() > 1) {
+    if (g_n_past > 0 && !tokens.empty()) {
         tokens.erase(tokens.begin());
     }
 
-    if (!tokens.empty()) {
-        if (!decode_tokens(tokens)) {
-            g_chat_messages.pop_back();
-            return -1;
-        }
-        g_n_past += static_cast<int>(tokens.size());
+    if (!decode_tokens(tokens)) {
+        remove_last_chat_message();
+        return -1;
     }
+    g_n_past += static_cast<int>(tokens.size());
 
-    jmethodID onTokenMid = nullptr;
-    if (stream) {
-        jclass clazz = env->GetObjectClass(thiz);
-        onTokenMid = env->GetMethodID(clazz, "onTokenGenerated", "(Ljava/lang/String;)V");
-        if (!onTokenMid) {
-            LOGE("onTokenGenerated method not found");
-            return -1;
-        }
-    }
-
-    int n_decoded = 0;
-    std::string result;
     llama_sampler *smpl = create_sampler();
-
-    while (n_decoded < max_tokens) {
-        llama_token new_token = llama_sampler_sample(smpl, g_ctx, -1);
-
-        if (llama_vocab_is_eog(g_vocab, new_token)) break;
-
-        char buf[256];
-        int n = llama_token_to_piece(g_vocab, new_token, buf, sizeof(buf), 0, true);
-        if (n > 0) {
-            std::string token_str(buf, n);
-            result.append(token_str);
-
-            if (stream && onTokenMid) {
-                jstring jtoken = env->NewStringUTF(token_str.c_str());
-                env->CallVoidMethod(thiz, onTokenMid, jtoken);
-                env->DeleteLocalRef(jtoken);
-            }
-        }
-
-        n_decoded++;
-        g_n_past++;
-        llama_batch batch = llama_batch_get_one(&new_token, 1);
-        if (llama_decode(g_ctx, batch) != 0) break;
-    }
-
+    std::string result = sample_response(smpl, max_tokens, env, thiz, true);
     llama_sampler_free(smpl);
 
-    g_chat_strings.push_back(result);
-    g_chat_messages.push_back({"assistant", g_chat_strings.back().c_str()});
+    add_chat_message("assistant", result.c_str());
 
-    LOGI("%s done: %d tokens (n_past=%d)", stream ? "Stream" : "Generate", n_decoded, g_n_past);
-    return n_decoded;
+    LOGI("Stream done: %zu tokens (n_past=%d)", result.size(), g_n_past);
+    return static_cast<jint>(result.size());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGenerate(
         JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens) {
+
     if (!g_ctx || !g_model || !g_vocab) {
         return env->NewStringUTF("Error: model not loaded");
     }
 
     const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
-    if (!prompt_str) {
-        return env->NewStringUTF("Error: invalid prompt");
-    }
+    if (!prompt_str) return env->NewStringUTF("Error: invalid prompt");
 
     reset_kv_cache();
 
-    std::string formatted;
-    {
-        std::vector<llama_chat_message> msgs = {
-            {"system", "You are an AI agent. Respond EXACTLY in one of these formats:\n1. Action: tool_name\\nArgs: {\"param\": \"value\"}\n2. Answer: your response\nBe concise."},
-            {"user", prompt_str}
-        };
-        formatted = apply_chat_template_full(msgs);
-    }
+    std::vector<llama_chat_message> agent_msgs;
+    std::vector<std::string> agent_strings;
+
+    agent_strings.emplace_back("You are an AI agent. Respond EXACTLY in one of these formats:\n1. Action: tool_name\\nArgs: {\"param\": \"value\"}\n2. Answer: your response\nBe concise.");
+    agent_msgs.push_back({"system", agent_strings[0].c_str()});
+
+    agent_strings.emplace_back(prompt_str);
+    agent_msgs.push_back({"user", agent_strings[1].c_str()});
     env->ReleaseStringUTFChars(prompt, prompt_str);
 
-    if (formatted.empty()) {
-        return env->NewStringUTF("Error: template failed");
-    }
+    std::string formatted = apply_chat_template_full(agent_msgs);
+    if (formatted.empty()) return env->NewStringUTF("Error: template failed");
 
     LOGI("Generate (standalone): template applied (%zu chars)", formatted.size());
 
     auto tokens = tokenize(formatted.c_str(), true);
-    if (!decode_tokens(tokens)) {
-        return env->NewStringUTF("Error: decode failed");
-    }
+    if (!decode_tokens(tokens)) return env->NewStringUTF("Error: decode failed");
+    g_n_past = static_cast<int>(tokens.size());
 
-    std::string result;
-    int n_decoded = 0;
     llama_sampler *smpl = create_sampler();
-
-    while (n_decoded < max_tokens) {
-        llama_token new_token = llama_sampler_sample(smpl, g_ctx, -1);
-        if (llama_vocab_is_eog(g_vocab, new_token)) break;
-
-        char buf[256];
-        int n = llama_token_to_piece(g_vocab, new_token, buf, sizeof(buf), 0, true);
-        if (n > 0) result.append(buf, n);
-
-        n_decoded++;
-        llama_batch batch = llama_batch_get_one(&new_token, 1);
-        if (llama_decode(g_ctx, batch) != 0) break;
-    }
-
+    std::string result = sample_response(smpl, max_tokens, env, thiz, false);
     llama_sampler_free(smpl);
-    LOGI("Generated %d tokens", n_decoded);
-    return env->NewStringUTF(result.c_str());
-}
 
-extern "C" JNIEXPORT jint JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGenerateStream(
-        JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens) {
-    return generate_stream_internal(env, thiz, prompt, max_tokens, true);
+    LOGI("Generated %zu chars", result.size());
+    return env->NewStringUTF(result.c_str());
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGenerateStreamStandalone(
         JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens) {
+
+    if (!g_ctx || !g_model || !g_vocab) return -1;
+
+    const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
+    if (!prompt_str) return -1;
+
     reset_kv_cache();
-    return generate_stream_internal(env, thiz, prompt, max_tokens, true);
+
+    std::vector<llama_chat_message> standalone_msgs;
+    std::vector<std::string> standalone_strings;
+
+    standalone_strings.emplace_back("You are a helpful AI assistant. Be concise and accurate.");
+    standalone_msgs.push_back({"system", standalone_strings[0].c_str()});
+
+    standalone_strings.emplace_back(prompt_str);
+    standalone_msgs.push_back({"user", standalone_strings[1].c_str()});
+    env->ReleaseStringUTFChars(prompt, prompt_str);
+
+    std::string formatted = apply_chat_template_full(standalone_msgs);
+    if (formatted.empty()) return -1;
+
+    LOGI("StreamStandalone: template applied (%zu chars)", formatted.size());
+
+    auto tokens = tokenize(formatted.c_str(), true);
+    if (!decode_tokens(tokens)) return -1;
+    g_n_past = static_cast<int>(tokens.size());
+
+    llama_sampler *smpl = create_sampler();
+    std::string result = sample_response(smpl, max_tokens, env, thiz, true);
+    llama_sampler_free(smpl);
+
+    LOGI("StreamStandalone done: %zu tokens (n_past=%d)", result.size(), g_n_past);
+    return static_cast<jint>(result.size());
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeReleaseModel(
         JNIEnv *env, jobject thiz) {
     reset_kv_cache();
-    if (g_ctx) {
-        llama_free(g_ctx);
-        g_ctx = nullptr;
-        LOGI("Context released");
-    }
-    if (g_model) {
-        llama_model_free(g_model);
-        g_model = nullptr;
-        g_vocab = nullptr;
-        LOGI("Model released");
-    }
+    if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
+    if (g_model) { llama_model_free(g_model); g_model = nullptr; g_vocab = nullptr; }
+    LOGI("Model released");
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeResetContext(
         JNIEnv *env, jobject thiz) {
     reset_kv_cache();
-    if (g_ctx) {
-        llama_memory_clear(llama_get_memory(g_ctx), true);
-        LOGI("KV cache cleared, context reset");
-    }
+    LOGI("Context reset, KV cache cleared");
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -321,9 +325,7 @@ Java_com_agent_aios_LlamaBridge_nativeIsModelLoaded(
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(
         JNIEnv *env, jobject thiz) {
-    if (!g_model) {
-        return env->NewStringUTF("No model loaded");
-    }
+    if (!g_model) return env->NewStringUTF("No model loaded");
 
     int n_ctx_train = llama_model_n_ctx_train(g_model);
     int n_embd = llama_model_n_embd(g_model);

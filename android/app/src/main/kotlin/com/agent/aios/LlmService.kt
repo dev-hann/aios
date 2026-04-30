@@ -64,6 +64,10 @@ class LlmService : Service() {
         return llamaBridge.nativeGenerateStream(prompt, maxTokens)
     }
 
+    fun generateStreamStandalone(prompt: String, maxTokens: Int): Int {
+        return llamaBridge.nativeGenerateStreamStandalone(prompt, maxTokens)
+    }
+
     fun resetContext() {
         llamaBridge.nativeResetContext()
     }
@@ -83,6 +87,12 @@ class LlmService : Service() {
 
     fun setTokenCallback(cb: ((String) -> Unit)?) {
         llamaBridge.onTokenCallback = cb
+    }
+
+    fun swapTokenCallback(cb: ((String) -> Unit)?): ((String) -> Unit)? {
+        val prev = llamaBridge.onTokenCallback
+        llamaBridge.onTokenCallback = cb
+        return prev
     }
 
     fun getAgentEngine(): AgentEngine? = agentEngine

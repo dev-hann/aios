@@ -1,5 +1,6 @@
 package com.agent.aios.ui.viewmodel
 
+import android.os.Environment
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -98,13 +99,54 @@ class ChatViewModel : ViewModel() {
     }
 
     fun refreshModels() {
+        val found = mutableListOf<ModelInfo>()
+
         val dir = File(app.filesDir, "models")
         if (!dir.exists()) dir.mkdirs()
-        val found = dir.listFiles()
+        dir.listFiles()
             ?.filter { it.extension == "gguf" }
-            ?.map { ModelInfo(it.name, it.length(), it.absolutePath) }
-            ?: emptyList()
+            ?.mapTo(found) { ModelInfo(it.name, it.length(), it.absolutePath) }
+
+        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        if (downloadDir.exists()) {
+            downloadDir.listFiles()
+                ?.filter { it.name.endsWith(".gguf") }
+                ?.mapTo(found) { ModelInfo(it.name, it.length(), it.absolutePath) }
+        }
+
         _models.value = found
+    }
+
+    fun restoreModel(name: String, onResult: (Boolean) -> Unit) {
+        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val src = File(downloadDir, name)
+        val dst = File(File(app.filesDir, "models"), name)
+
+        if (!src.exists()) {
+            onResult(false)
+            return
+        }
+        if (dst.exists()) {
+            onResult(true)
+            return
+        }
+
+        Thread {
+            try {
+                dst.parentFile?.mkdirs()
+                src.inputStream().use { input ->
+                    dst.outputStream().use { output ->
+                        input.copyTo(output, 8192)
+                    }
+                }
+                Log.i("ChatVM", "Model restored: ${dst.length()} bytes")
+                refreshModels()
+                onResult(true)
+            } catch (e: Exception) {
+                Log.e("ChatVM", "Restore failed: ${e.message}")
+                onResult(false)
+            }
+        }.start()
     }
 
     private fun checkModelLoaded() {
