@@ -7,7 +7,11 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,8 +32,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -41,7 +48,9 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,34 +59,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agent.aios.AIOSApp
 import com.agent.aios.BuildConfig
+import com.agent.aios.crash.CrashLogManager
 import com.agent.aios.service.AIOSAccessibilityService
+import com.agent.aios.service.OverlayService
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.SettingsViewModel
-import java.io.File
-import java.text.CharacterIterator
-import java.text.StringCharacterIterator
-
-private fun formatFileSize(bytes: Long): String {
-    val absB = if (bytes == Long.MIN_VALUE) Long.MAX_VALUE else Math.abs(bytes)
-    if (absB < 1024) return "$bytes B"
-    val ci: CharacterIterator = StringCharacterIterator("KMGTPE")
-    var value = absB.toDouble()
-    while (value >= 1024) {
-        value /= 1024
-        ci.next()
-    }
-    return String.format("%.1f %ciB", value, ci.current())
-}
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -100,24 +103,32 @@ fun SettingsScreen(
     val agentMaxIterations by viewModel.agentMaxIterations.collectAsState()
     val repeatPenalty by viewModel.repeatPenalty.collectAsState()
 
-    val modelsDir = File(context.filesDir, "models")
-    val modelFiles = modelsDir.listFiles()?.filter { it.extension == "gguf" } ?: emptyList()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var refreshKey by remember { mutableStateOf(0) }
 
-    val isAccessibilityEnabled = AIOSAccessibilityService.isEnabled(context)
-    val isOverlayPermission = Settings.canDrawOverlays(context)
-    val isNotifListener = isNotificationListenerEnabled(context)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refreshKey++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val isAccessibilityEnabled = remember(refreshKey) { AIOSAccessibilityService.isEnabled(context) }
+    val isOverlayPermission = remember(refreshKey) { Settings.canDrawOverlays(context) }
+    val isNotifListener = remember(refreshKey) { isNotificationListenerEnabled(context) }
     val phoneControlCount = listOf(isAccessibilityEnabled, isOverlayPermission, isNotifListener).count { it }
 
-    var contactsGranted by remember {
+    var contactsGranted by remember(refreshKey) {
         mutableStateOf(context.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED)
     }
-    var smsGranted by remember {
+    var smsGranted by remember(refreshKey) {
         mutableStateOf(
             context.checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED &&
             context.checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
         )
     }
-    var callGranted by remember {
+    var callGranted by remember(refreshKey) {
         mutableStateOf(context.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED)
     }
     val commCount = listOf(contactsGranted, smsGranted, callGranted).count { it }
@@ -130,7 +141,9 @@ fun SettingsScreen(
         callGranted = permissions[Manifest.permission.CALL_PHONE] == true
     }
 
-    var overlayServiceEnabled by remember { mutableStateOf(false) }
+    var overlayServiceEnabled by remember(refreshKey) { mutableStateOf(OverlayService.isRunning) }
+
+    var advancedExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -175,28 +188,9 @@ fun SettingsScreen(
                 }
             } else {
                 Text("Not loaded", fontSize = 14.sp, color = AIOSColors.TextTertiary, fontWeight = FontWeight.Medium)
+                Spacer(modifier = Modifier.height(6.dp))
+                Text("Use the Model button in Chat to import or load a model.", fontSize = 12.sp, color = AIOSColors.TextTertiary)
             }
-        }
-
-        SettingsCard("Models Directory") {
-            Text(modelsDir.absolutePath, fontSize = 11.sp, color = AIOSColors.TextTertiary, fontFamily = FontFamily.Monospace)
-            Spacer(modifier = Modifier.height(8.dp))
-            if (modelFiles.isEmpty()) {
-                Text("No GGUF files found", fontSize = 13.sp, color = AIOSColors.TextSecondary)
-            } else {
-                modelFiles.forEach { file ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(file.name, fontSize = 12.sp, color = AIOSColors.TextSecondary, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
-                        Text(formatFileSize(file.length()), fontSize = 11.sp, color = AIOSColors.TextTertiary, fontFamily = FontFamily.Monospace)
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text("adb push model.gguf ${modelsDir.absolutePath}/", fontSize = 11.sp, color = AIOSColors.TextTertiary, fontFamily = FontFamily.Monospace)
         }
 
         // Phone Control
@@ -213,6 +207,39 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             PermissionRow("Overlay", "Floating AI button on any app", isOverlayPermission) {
                 context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
+            }
+            if (isOverlayPermission) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 48.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column {
+                        Text("Overlay Service", fontSize = 13.sp, color = AIOSColors.TextSecondary, fontWeight = FontWeight.Medium)
+                        Text(
+                            if (overlayServiceEnabled) "Running" else "Stopped",
+                            fontSize = 11.sp,
+                            color = if (overlayServiceEnabled) AIOSColors.StatusReady else AIOSColors.TextTertiary
+                        )
+                    }
+                    Switch(
+                        checked = overlayServiceEnabled,
+                        onCheckedChange = { enabled ->
+                            overlayServiceEnabled = enabled
+                            val intent = Intent(context, OverlayService::class.java)
+                            if (enabled) context.startService(intent) else context.stopService(intent)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedTrackColor = AIOSColors.Accent,
+                            checkedThumbColor = Color.White,
+                            uncheckedTrackColor = AIOSColors.SurfaceVariant,
+                            uncheckedThumbColor = AIOSColors.TextTertiary,
+                        ),
+                    )
+                }
             }
         }
 
@@ -233,84 +260,74 @@ fun SettingsScreen(
             }
         }
 
-        // Overlay Service
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // ── ADVANCED ───────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(AIOSColors.Surface)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { advancedExpanded = !advancedExpanded }
+                .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column {
-                Text("Overlay Service", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = AIOSColors.TextPrimary)
-                Text(if (overlayServiceEnabled) "Running" else "Stopped", fontSize = 12.sp, color = if (overlayServiceEnabled) AIOSColors.StatusReady else AIOSColors.TextTertiary)
-            }
-            Switch(
-                checked = overlayServiceEnabled,
-                onCheckedChange = { enabled ->
-                    overlayServiceEnabled = enabled
-                    val intent = Intent(context, Class.forName("com.agent.aios.service.OverlayService"))
-                    if (enabled) context.startService(intent) else context.stopService(intent)
-                },
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = AIOSColors.Accent,
-                    checkedThumbColor = Color.White,
-                    uncheckedTrackColor = AIOSColors.SurfaceVariant,
-                    uncheckedThumbColor = AIOSColors.TextTertiary,
-                ),
+            SectionHeader("ADVANCED")
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(20.dp)
+                    .rotate(if (advancedExpanded) 180f else 0f),
+                tint = AIOSColors.TextTertiary,
             )
         }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // ── LLM SETTINGS ──────────────────────────────
-        SectionHeader("LLM SETTINGS")
         HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
-        Spacer(modifier = Modifier.height(2.dp))
 
-        SettingsCard("Context Size") {
-            IntInput(value = contextSize, onValueChange = { viewModel.updateContextSize(it) }, label = "Context Size")
-            Text("Larger values use more memory. Default: 2048", fontSize = 11.sp, color = AIOSColors.TextTertiary)
-        }
+        AnimatedVisibility(
+            visible = advancedExpanded,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Spacer(modifier = Modifier.height(2.dp))
 
-        SettingsCard("Max Tokens") {
-            IntInput(value = maxTokensChat, onValueChange = { viewModel.updateMaxTokensChat(it) }, label = "Chat Max Tokens")
-            Spacer(modifier = Modifier.height(8.dp))
-            IntInput(value = maxTokensAgent, onValueChange = { viewModel.updateMaxTokensAgent(it) }, label = "Agent Max Tokens")
-        }
+                SettingsCard("Context Size") {
+                    IntInput(value = contextSize, onValueChange = { viewModel.updateContextSize(it) }, label = "Context Size")
+                    Text("Larger values use more memory. Default: 2048", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+                }
 
-        SettingsCard("Temperature") {
-            SliderInput(value = temperature, onValueChange = { viewModel.updateTemperature(it) }, valueRange = 0f..2f, label = "Temperature")
-            Text("Higher = more creative, Lower = more focused", fontSize = 11.sp, color = AIOSColors.TextTertiary)
-        }
+                SettingsCard("Max Tokens") {
+                    IntInput(value = maxTokensChat, onValueChange = { viewModel.updateMaxTokensChat(it) }, label = "Chat Max Tokens")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    IntInput(value = maxTokensAgent, onValueChange = { viewModel.updateMaxTokensAgent(it) }, label = "Agent Max Tokens")
+                }
 
-        SettingsCard("Top K") {
-            IntInput(value = topK, onValueChange = { viewModel.updateTopK(it) }, label = "Top K")
-            Text("Limits sampling to top K tokens. Default: 40", fontSize = 11.sp, color = AIOSColors.TextTertiary)
-        }
+                SettingsCard("Temperature") {
+                    SliderInput(value = temperature, onValueChange = { viewModel.updateTemperature(it) }, valueRange = 0f..2f, label = "Temperature")
+                    Text("Higher = more creative, Lower = more focused", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+                }
 
-        SettingsCard("Top P") {
-            SliderInput(value = topP, onValueChange = { viewModel.updateTopP(it) }, valueRange = 0f..1f, label = "Top P")
-            Text("Nucleus sampling threshold. Default: 0.9", fontSize = 11.sp, color = AIOSColors.TextTertiary)
-        }
+                SettingsCard("Top K") {
+                    IntInput(value = topK, onValueChange = { viewModel.updateTopK(it) }, label = "Top K")
+                    Text("Limits sampling to top K tokens. Default: 40", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+                }
 
-        SettingsCard("Repeat Penalty") {
-            SliderInput(value = repeatPenalty, onValueChange = { viewModel.updateRepeatPenalty(it) }, valueRange = 0f..2f, label = "Repeat Penalty")
-            Text("Penalizes repeated tokens. Default: 1.1", fontSize = 11.sp, color = AIOSColors.TextTertiary)
-        }
+                SettingsCard("Top P") {
+                    SliderInput(value = topP, onValueChange = { viewModel.updateTopP(it) }, valueRange = 0f..1f, label = "Top P")
+                    Text("Nucleus sampling threshold. Default: 0.9", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+                }
 
-        Spacer(modifier = Modifier.height(6.dp))
+                SettingsCard("Repeat Penalty") {
+                    SliderInput(value = repeatPenalty, onValueChange = { viewModel.updateRepeatPenalty(it) }, valueRange = 0f..2f, label = "Repeat Penalty")
+                    Text("Penalizes repeated tokens. Default: 1.1", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+                }
 
-        // ── AGENT SETTINGS ─────────────────────────────
-        SectionHeader("AGENT SETTINGS")
-        HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
-        Spacer(modifier = Modifier.height(2.dp))
-
-        SettingsCard("Max Iterations") {
-            IntInput(value = agentMaxIterations, onValueChange = { viewModel.updateAgentMaxIterations(it) }, label = "Agent Max Iterations")
-            Text("Maximum ReAct loop iterations. Default: 5", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+                SettingsCard("Max Iterations") {
+                    IntInput(value = agentMaxIterations, onValueChange = { viewModel.updateAgentMaxIterations(it) }, label = "Agent Max Iterations")
+                    Text("Maximum ReAct loop iterations. Default: 5", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -320,11 +337,18 @@ fun SettingsScreen(
         HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
         Spacer(modifier = Modifier.height(2.dp))
 
-        // Service Status
         val statusColor = when (serviceState) {
             AIOSApp.ServiceState.MODEL_LOADED -> AIOSColors.StatusReady
             AIOSApp.ServiceState.DISCONNECTED -> AIOSColors.StatusError
             else -> AIOSColors.StatusRunning
+        }
+        val statusLabel = when (serviceState) {
+            AIOSApp.ServiceState.DISCONNECTED -> "Disconnected"
+            AIOSApp.ServiceState.CONNECTING -> "Connecting..."
+            AIOSApp.ServiceState.READY -> "Ready"
+            AIOSApp.ServiceState.MODEL_LOADED -> "Model Loaded"
+            AIOSApp.ServiceState.GENERATING -> "Generating..."
+            AIOSApp.ServiceState.AGENT_RUNNING -> "Agent Running"
         }
         Column(
             modifier = Modifier
@@ -345,12 +369,11 @@ fun SettingsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(statusColor))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(serviceState.name, fontSize = 13.sp, color = AIOSColors.TextSecondary)
+                    Text(statusLabel, fontSize = 13.sp, color = AIOSColors.TextSecondary)
                 }
             }
         }
 
-        // Update
         SettingsCard("App Update") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -378,7 +401,6 @@ fun SettingsScreen(
             }
         }
 
-        // Version Info
         SettingsCard("About") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(imageVector = Icons.Filled.SmartToy, contentDescription = null, tint = AIOSColors.TextPrimary, modifier = Modifier.size(20.dp))
@@ -389,6 +411,92 @@ fun SettingsScreen(
             Text("Android Local LLM Agent Runtime", fontSize = 13.sp, color = AIOSColors.TextSecondary)
             Spacer(modifier = Modifier.height(4.dp))
             Text("v${BuildConfig.VERSION_NAME} · Powered by llama.cpp", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+        }
+
+        val crashLogs = remember(refreshKey) { CrashLogManager.getCrashLogs(context) }
+        var showLogDialog by remember { mutableStateOf<String?>(null) }
+
+        if (showLogDialog != null) {
+            val logContent = remember(showLogDialog) {
+                showLogDialog?.let { CrashLogManager.getLogContent(context, it) }
+            }
+            AlertDialog(
+                onDismissRequest = { showLogDialog = null },
+                title = { Text("Crash Log", fontWeight = FontWeight.SemiBold, color = AIOSColors.TextPrimary) },
+                text = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 400.dp)
+                    ) {
+                        Text(
+                            text = logContent ?: "Log not found",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = AIOSColors.TextSecondary,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLogDialog = null }) {
+                        Text("Close", color = AIOSColors.Primary)
+                    }
+                },
+                containerColor = AIOSColors.Surface,
+            )
+        }
+
+        SettingsCard("Crash Logs") {
+            if (crashLogs.isEmpty()) {
+                Text("No crash logs", fontSize = 13.sp, color = AIOSColors.TextTertiary)
+            } else {
+                crashLogs.take(3).forEach { log ->
+                    val dateStr = remember(log.timestamp) {
+                        SimpleDateFormat("MM/dd HH:mm", Locale.getDefault()).format(Date(log.timestamp))
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(AIOSColors.SurfaceVariant)
+                            .clickable { showLogDialog = log.filename }
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(log.summary, fontSize = 12.sp, color = AIOSColors.TextPrimary, maxLines = 1)
+                            Text(dateStr, fontSize = 10.sp, color = AIOSColors.TextTertiary)
+                        }
+                    }
+                    if (log != crashLogs.take(3).last()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+                if (crashLogs.size > 3) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("+${crashLogs.size - 3} more", fontSize = 11.sp, color = AIOSColors.TextTertiary)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            if (crashLogs.isNotEmpty()) showLogDialog = crashLogs.first().filename
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Text("View", fontSize = 12.sp, color = AIOSColors.Primary)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            CrashLogManager.clearLogs(context)
+                            refreshKey++
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Text("Clear", fontSize = 12.sp, color = AIOSColors.StatusError)
+                    }
+                }
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.util.Log
+import com.agent.aios.crash.CrashLogManager
 import com.agent.aios.settings.SettingsRepository
 import com.agent.aios.update.UpdateChecker
 import com.agent.aios.update.UpdateResult
@@ -67,11 +68,15 @@ class AIOSApp : Application() {
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            if (service == null) {
+                Log.e(TAG, "onServiceConnected: null binder")
+                return
+            }
             val binder = service as LlmService.LlmBinder
             llmService = binder.getService()
             isBound = true
             retryCount = 0
-            llmService!!.setTokenCallback { token ->
+            llmService?.setTokenCallback { token ->
                 _tokenFlow.tryEmit(token)
             }
             _serviceState.tryEmit(ServiceState.READY)
@@ -111,6 +116,7 @@ class AIOSApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        CrashLogManager.init(this)
         settingsRepository = SettingsRepository(this)
         bindLlmService()
         checkForUpdateBackground()
@@ -168,25 +174,6 @@ class AIOSApp : Application() {
         }
     }
 
-    fun generateStream(prompt: String, maxTokens: Int? = null, onComplete: (Int) -> Unit) {
-        val svc = llmService
-        if (svc == null) {
-            onComplete(-1)
-            return
-        }
-        _serviceState.tryEmit(ServiceState.GENERATING)
-        inferenceJob = appScope.launch {
-            val tokens = maxTokens ?: settingsRepository.maxTokensChat.first()
-            withContext(Dispatchers.IO) {
-                svc.updateNotification("Generating...")
-                val count = svc.generateStream(prompt, tokens)
-                _serviceState.tryEmit(ServiceState.MODEL_LOADED)
-                svc.updateNotification("Ready")
-                onComplete(count)
-            }
-        }
-    }
-
     fun runAgent(prompt: String, maxIterations: Int? = null, maxTokensAgent: Int = 512, onComplete: (List<AgentStep>) -> Unit) {
         val svc = llmService
         if (svc == null) {
@@ -218,6 +205,14 @@ class AIOSApp : Application() {
 
     fun resolveConfirmation(approved: Boolean) {
         currentAgentEngine?.resolveConfirmation(approved)
+    }
+
+    fun cancelInference() {
+        currentAgentEngine?.cancel()
+        inferenceJob?.cancel()
+        currentAgentEngine = null
+        _serviceState.tryEmit(ServiceState.MODEL_LOADED)
+        llmService?.updateNotification("Ready")
     }
 
     fun releaseModel() {

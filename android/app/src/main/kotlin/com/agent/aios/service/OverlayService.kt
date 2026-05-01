@@ -18,6 +18,11 @@ import kotlinx.coroutines.launch
 
 class OverlayService : Service() {
 
+    companion object {
+        var isRunning = false
+            private set
+    }
+
     private var overlayView: View? = null
     private var windowManager: WindowManager? = null
     private var params: WindowManager.LayoutParams? = null
@@ -28,6 +33,7 @@ class OverlayService : Service() {
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         params = WindowManager.LayoutParams(
@@ -111,6 +117,7 @@ class OverlayService : Service() {
     }
 
     override fun onDestroy() {
+        isRunning = false
         stateJob?.cancel()
         super.onDestroy()
         overlayView?.let {

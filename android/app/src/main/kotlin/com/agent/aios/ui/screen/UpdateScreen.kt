@@ -32,6 +32,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -57,6 +58,10 @@ fun UpdateScreen(
     val updateInfo by vm.updateInfo.collectAsState()
     val downloadProgress by vm.downloadProgress.collectAsState()
     val error by vm.error.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (status == UpdateStatus.IDLE) vm.checkForUpdate()
+    }
 
     Column(
         modifier = Modifier
@@ -84,9 +89,7 @@ fun UpdateScreen(
         }
 
         when (status) {
-            UpdateStatus.IDLE -> {
-                vm.checkForUpdate()
-            }
+            UpdateStatus.IDLE -> {}
 
             UpdateStatus.CHECKING -> {
                 Box(

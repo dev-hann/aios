@@ -7,7 +7,6 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.io.File
-import java.io.FileOutputStream
 
 class LlamaBridgeInstrumentedTest {
 
@@ -37,9 +36,9 @@ class LlamaBridgeInstrumentedTest {
     }
 
     @Test
-    fun testGenerate_noModel() {
-        val result = bridge.nativeGenerate("Hello", 32)
-        assertTrue("Should return error message", result.contains("Error"))
+    fun testInfer_noModel() {
+        val result = bridge.nativeInfer("Hello", 32)
+        assertEquals("Should return -1 for no model", -1, result)
     }
 
     @Test
@@ -55,10 +54,15 @@ class LlamaBridgeInstrumentedTest {
     }
 
     @Test
+    fun testFormatChat_noModel() {
+        val result = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Hello"))
+        assertEquals("Should return empty string for no model", "", result)
+    }
+
+    @Test
     fun testLoadModel_validModel() {
         val modelsDir = File(context.filesDir, "models")
         modelsDir.mkdirs()
-        val modelFile = File(modelsDir, "test.gguf")
 
         val assets = InstrumentationRegistry.getInstrumentation().context.assets
         val assetFiles = assets.list("") ?: emptyArray()
@@ -79,9 +83,15 @@ class LlamaBridgeInstrumentedTest {
             assertFalse("Model info should not be empty", info.isEmpty())
             assertFalse("Model info should not say 'No model'", info.startsWith("No"))
 
-            val response = bridge.nativeGenerate("Hello", 16)
-            assertFalse("Response should not be an error", response.startsWith("Error"))
-            assertFalse("Response should not be empty", response.isEmpty())
+            val formatted = bridge.nativeFormatChat(
+                arrayOf("user"),
+                arrayOf("Hello")
+            )
+            assertFalse("Formatted chat should not be empty", formatted.isEmpty())
+
+            bridge.nativeResetContext()
+            val tokenCount = bridge.nativeInfer("Hello, how are you?", 16)
+            assertTrue("Should generate some tokens", tokenCount > 0)
 
             bridge.nativeReleaseModel()
             assertFalse(bridge.nativeIsModelLoaded())

@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import android.net.Uri
 import java.io.File
@@ -44,8 +43,6 @@ data class ConfirmationRequest(
     val timeoutMs: Long = 60000L,
 )
 
-enum class AgentMode { CHAT, AGENT }
-
 class ChatViewModel : ViewModel() {
 
     private val app: AIOSApp
@@ -67,9 +64,6 @@ class ChatViewModel : ViewModel() {
 
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
-
-    private val _agentMode = MutableStateFlow(AgentMode.CHAT)
-    val agentMode: StateFlow<AgentMode> = _agentMode.asStateFlow()
 
     private val _pendingConfirmation = MutableStateFlow<ConfirmationRequest?>(null)
     val pendingConfirmation: StateFlow<ConfirmationRequest?> = _pendingConfirmation.asStateFlow()
@@ -167,10 +161,6 @@ class ChatViewModel : ViewModel() {
         _inputText.value = text
     }
 
-    fun toggleMode() {
-        _agentMode.value = if (_agentMode.value == AgentMode.CHAT) AgentMode.AGENT else AgentMode.CHAT
-    }
-
     fun refreshModels() {
         val found = mutableListOf<ModelInfo>()
 
@@ -227,16 +217,18 @@ class ChatViewModel : ViewModel() {
     }
 
     fun loadModel(path: String) {
-        val contextSize = runCatching {
-            runBlocking { app.settingsRepository.contextSize.first() }
-        }.getOrNull() ?: 2048
         _isGenerating.value = true
-        app.loadModel(path, contextSize) { success ->
-            viewModelScope.launch {
-                _isModelLoaded.value = success
-                _isGenerating.value = false
-                if (!success) {
-                    _messages.value = _messages.value + Message("system", "Failed to load model. Check if the file is a valid GGUF.")
+        viewModelScope.launch {
+            val contextSize = runCatching {
+                app.settingsRepository.contextSize.first()
+            }.getOrNull() ?: 2048
+            app.loadModel(path, contextSize) { success ->
+                viewModelScope.launch {
+                    _isModelLoaded.value = success
+                    _isGenerating.value = false
+                    if (!success) {
+                        _messages.value = _messages.value + Message("system", "Failed to load model. Check if the file is a valid GGUF.")
+                    }
                 }
             }
         }
@@ -253,31 +245,12 @@ class ChatViewModel : ViewModel() {
         _tokenCount.value = 0
         generateStartTime = System.currentTimeMillis()
 
-        when (_agentMode.value) {
-            AgentMode.CHAT -> {
-                _messages.value = _messages.value + Message("assistant", "")
-                val idx = _messages.value.lastIndex
-                app.generateStream(text) { count ->
-                    _tokenCount.value = count
-                    _elapsedMs.value = System.currentTimeMillis() - generateStartTime
-                    _isGenerating.value = false
-                    val finalText = _currentGeneratingText.value
-                    _messages.value = _messages.value.toMutableList().apply {
-                        this[idx] = Message("assistant", finalText)
-                    }
-                    _currentGeneratingText.value = ""
-                    persistMessage("assistant", finalText)
-                    updateContextUsage()
-                }
-            }
-            AgentMode.AGENT -> {
-                app.runAgent(text) { steps ->
-                    _isGenerating.value = false
-                    Log.i("ChatVM", "Agent completed with ${steps.size} steps")
-                    updateContextUsage()
-                    persistAllMessages()
-                }
-            }
+        app.runAgent(text) { steps ->
+            _isGenerating.value = false
+            Log.i("ChatVM", "Agent completed with ${steps.size} steps")
+            _elapsedMs.value = System.currentTimeMillis() - generateStartTime
+            updateContextUsage()
+            persistAllMessages()
         }
     }
 
@@ -300,6 +273,13 @@ class ChatViewModel : ViewModel() {
         _pendingConfirmation.value = null
         _messages.value = _messages.value + Message("system", "Denied: ${req.toolName}")
         app.resolveConfirmation(false)
+    }
+
+    fun cancelGeneration() {
+        app.cancelInference()
+        _isGenerating.value = false
+        _currentGeneratingText.value = ""
+        _pendingConfirmation.value = null
     }
 
     fun getTokensPerSecond(): Float {

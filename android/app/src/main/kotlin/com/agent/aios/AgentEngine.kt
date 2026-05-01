@@ -52,7 +52,7 @@ class AgentEngine(private val service: LlmService) {
     @Volatile
     private var confirmationApproved = false
 
-    private val conversationHistory: MutableList<Pair<String, String>> = mutableListOf()
+    private val promptBuilder = PromptBuilder(service)
 
     interface ExtendedTool {
         val name: String
@@ -156,64 +156,42 @@ class AgentEngine(private val service: LlmService) {
         return "--- Basic Tools ---\n$basicManifest\n\n--- Phone Control Tools ---\n$extendedManifest"
     }
 
-    fun getConversationHistory(): List<Pair<String, String>> = conversationHistory.toList()
+    fun getConversationHistory(): List<Pair<String, String>> = promptBuilder.getHistory()
 
     fun clearHistory() {
-        conversationHistory.clear()
-        service.resetContext()
-    }
-
-    private fun trimHistory() {
-        val usage = service.getContextUsage()
-        val parts = usage.split("/")
-        if (parts.size != 2) return
-        val used = parts[0].toIntOrNull() ?: return
-        val total = parts[1].toIntOrNull() ?: return
-        if (total == 0) return
-
-        val usageRatio = used.toFloat() / total.toFloat()
-        if (usageRatio > 0.8f && conversationHistory.size > 4) {
-            val toRemove = conversationHistory.size / 4
-            repeat(toRemove) {
-                if (conversationHistory.size > 2) {
-                    conversationHistory.removeAt(0)
-                }
-            }
-            service.resetContext()
-            Log.i(TAG, "Trimmed history: removed $toRemove entries, ratio was $usageRatio")
-        }
+        promptBuilder.clearHistory()
     }
 
     fun run(userPrompt: String, maxIterations: Int = 8): List<AgentStep> {
         onCancelled = false
         agentThread = Thread.currentThread()
         val steps = mutableListOf<AgentStep>()
+        val systemPrompt = promptBuilder.buildSystemPrompt(getToolManifest())
 
         try {
             steps.add(AgentStep("thought", "Processing: $userPrompt"))
             onStep?.invoke(steps.last())
 
-            val systemPrompt = buildSystemPrompt()
-            conversationHistory.add("system" to systemPrompt)
-            conversationHistory.add("user" to userPrompt)
+            promptBuilder.addUserMessage(userPrompt)
 
             for (i in 0 until maxIterations) {
                 if (cancelled) break
 
-                trimHistory()
+                promptBuilder.trimIfNeeded()
 
                 steps.add(AgentStep("thought", "Thinking (step ${i + 1})..."))
                 onStep?.invoke(steps.last())
 
                 onStep?.invoke(AgentStep("thinking_start", ""))
 
-                val llmInput = buildPromptFromHistory()
-                val response = collectStream(llmInput, 512)
+                service.resetContext()
+                val formattedPrompt = promptBuilder.buildPromptForInfer(systemPrompt)
+                val response = collectStream(formattedPrompt, 512)
                 Log.i(TAG, "Iteration $i LLM: ${response.take(200)}")
 
                 onStep?.invoke(AgentStep("thinking_end", ""))
 
-                conversationHistory.add("assistant" to response)
+                promptBuilder.addAssistantMessage(response)
 
                 val parsed = parseResponse(response)
                 when {
@@ -233,7 +211,7 @@ class AgentEngine(private val service: LlmService) {
                             toolName = actionName, toolResult = observation))
                         onStep?.invoke(steps.last())
 
-                        conversationHistory.add("observation" to "Action: $actionName($actionArgs)\nResult: $observation")
+                        promptBuilder.addObservation("Action: $actionName($actionArgs)\nResult: $observation")
                     }
                     parsed.containsKey("answer") -> {
                         val answer = parsed["answer"]!!
@@ -275,21 +253,6 @@ class AgentEngine(private val service: LlmService) {
         return steps
     }
 
-    private fun buildPromptFromHistory(): String {
-        val sb = StringBuilder()
-        for ((role, content) in conversationHistory) {
-            when (role) {
-                "system" -> sb.append("System: $content\n\n")
-                "user" -> sb.append("User: $content\n")
-                "assistant" -> sb.append("Assistant: $content\n")
-                "observation" -> sb.append("$content\n")
-                else -> sb.append("$role: $content\n")
-            }
-        }
-        sb.append("Thought:")
-        return sb.toString()
-    }
-
     private fun collectStream(prompt: String, maxTokens: Int): String {
         val buffer = StringBuffer()
         var originalCb: ((String) -> Unit)? = null
@@ -299,9 +262,11 @@ class AgentEngine(private val service: LlmService) {
         }
         originalCb = service.swapTokenCallback(forwardCb)
 
-        service.generateStream(prompt, maxTokens)
-
-        service.swapTokenCallback { originalCb?.invoke(it) }
+        try {
+            service.infer(prompt, maxTokens)
+        } finally {
+            service.swapTokenCallback { originalCb?.invoke(it) }
+        }
 
         return buffer.toString()
     }
@@ -354,35 +319,6 @@ class AgentEngine(private val service: LlmService) {
     }
 
     private val cancelled: Boolean get() = onCancelled
-
-    private fun buildSystemPrompt(): String {
-        val toolList = getToolManifest()
-        return """You are an AI agent that can think and use tools to help the user. You can control the user's Android phone.
-
-AVAILABLE TOOLS:
-$toolList
-
-INSTRUCTIONS:
-- Think step by step about what to do
-- If you need to use a tool, respond with EXACTLY this format:
-  Action: tool_name
-  Args: {"param": "value"}
-- If you know the answer directly, respond with EXACTLY this format:
-  Answer: your response here
-- You can use multiple tools in sequence
-- After receiving an Observation, either use another tool or give your final Answer
-- Be concise and accurate
-- For math calculations, always use the calculator tool
-- To interact with the phone, first use screen_reader to see what's on screen, then use screen_action to tap/type/scroll
-- To open an app, use app_launcher with open_app action
-- To read notifications, use notification_reader
-- When searching for UI elements, use screen_find first, then screen_action to interact with them
-- To search contacts by name or phone number, use contact_search
-- To send an SMS, use sms_sender with action "send", providing "to" (phone number) and "body" (message text)
-- To read recent SMS messages, use sms_sender with action "read"
-- To make a phone call, use phone_caller with action "call" (requires permission) or "dial" (opens dialer)
-- Common app package names: com.google.android.apps.messaging (Messages), com.google.android.dialer (Phone), com.google.android.apps.photos (Photos), com.android.settings (Settings), com.android.chrome (Chrome)"""
-    }
 
     private fun parseResponse(response: String): Map<String, String> {
         val trimmed = response.trim()

@@ -17,6 +17,7 @@ class LlmService : Service() {
 
     private val binder = LlmBinder()
     private val llamaBridge = LlamaBridge()
+    @Volatile
     private var agentEngine: AgentEngine? = null
     private val callbackLock = Any()
 
@@ -49,6 +50,7 @@ class LlmService : Service() {
         super.onDestroy()
     }
 
+    @Synchronized
     fun loadModel(path: String, contextSize: Int): Boolean {
         val result = llamaBridge.nativeLoadModel(path, contextSize)
         if (result) {
@@ -57,16 +59,12 @@ class LlmService : Service() {
         return result
     }
 
-    fun generate(prompt: String, maxTokens: Int): String {
-        return llamaBridge.nativeGenerate(prompt, maxTokens)
+    fun formatChat(roles: Array<String>, contents: Array<String>): String {
+        return llamaBridge.nativeFormatChat(roles, contents)
     }
 
-    fun generateStream(prompt: String, maxTokens: Int): Int {
-        return llamaBridge.nativeGenerateStream(prompt, maxTokens)
-    }
-
-    fun generateStreamStandalone(prompt: String, maxTokens: Int): Int {
-        return llamaBridge.nativeGenerateStreamStandalone(prompt, maxTokens)
+    fun infer(prompt: String, maxTokens: Int): Int {
+        return llamaBridge.nativeInfer(prompt, maxTokens)
     }
 
     fun resetContext() {

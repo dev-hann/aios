@@ -82,4 +82,4 @@ ${NOTES}
 2. Open on your Android device
 3. Allow installation when prompted" 2>&1 || true
 
-echo "[pre-push] ${TAG} deployed!"
+echo "[pre-push] ${TAG} deployed! (GitHub)"

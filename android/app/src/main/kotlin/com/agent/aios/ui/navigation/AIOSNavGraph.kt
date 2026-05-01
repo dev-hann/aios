@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -39,7 +38,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.agent.aios.rememberModelImportLauncher
-import com.agent.aios.ui.screen.AccessibilitySetupScreen
 import com.agent.aios.ui.screen.ChatScreen
 import com.agent.aios.ui.screen.SettingsScreen
 import com.agent.aios.ui.screen.UpdateScreen
@@ -106,50 +104,52 @@ fun AIOSApp(
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 8.dp)
-                    .navigationBarsPadding()
-            ) {
-                Row(
+            if (currentRoute != Screen.Update.route) {
+                Box(
                     modifier = Modifier
-                        .shadow(8.dp, RoundedCornerShape(24.dp))
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(AIOSColors.SurfaceElevated)
-                        .border(1.dp, AIOSColors.SurfaceVariant, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 8.dp)
+                        .navigationBarsPadding()
                 ) {
-                    screens.forEach { screen ->
-                        val isSelected = currentRoute == screen.route
-                        Column(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
+                    Row(
+                        modifier = Modifier
+                            .shadow(8.dp, RoundedCornerShape(24.dp))
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(AIOSColors.SurfaceElevated)
+                            .border(1.dp, AIOSColors.SurfaceVariant, RoundedCornerShape(24.dp))
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        screens.forEach { screen ->
+                            val isSelected = currentRoute == screen.route
+                            Column(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable {
+                                        navController.navigate(screen.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
                                     }
-                                }
-                                .padding(horizontal = 24.dp, vertical = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Icon(
-                                screen.icon,
-                                contentDescription = screen.label,
-                                tint = if (isSelected) AIOSColors.Primary else AIOSColors.TextTertiary,
-                                modifier = Modifier.size(22.dp),
-                            )
-                            Text(
-                                screen.label,
-                                fontSize = 11.sp,
-                                color = if (isSelected) AIOSColors.Primary else AIOSColors.TextTertiary,
-                            )
+                                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Icon(
+                                    screen.icon,
+                                    contentDescription = screen.label,
+                                    tint = if (isSelected) AIOSColors.Primary else AIOSColors.TextTertiary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                                Text(
+                                    screen.label,
+                                    fontSize = 11.sp,
+                                    color = if (isSelected) AIOSColors.Primary else AIOSColors.TextTertiary,
+                                )
+                            }
                         }
                     }
                 }

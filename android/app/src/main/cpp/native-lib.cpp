@@ -13,8 +13,6 @@ static llama_model *g_model = nullptr;
 static llama_context *g_ctx = nullptr;
 static const llama_vocab *g_vocab = nullptr;
 
-static std::vector<llama_chat_message> g_chat_messages;
-static std::vector<std::string> g_chat_strings;
 static int g_n_past = 0;
 static int g_n_ctx = 2048;
 
@@ -29,7 +27,6 @@ static int g_cpu_count = 4;
 static bool g_flash_attn = false;
 static bool g_use_mmap = true;
 
-static std::string apply_chat_template_full(const std::vector<llama_chat_message> &messages);
 static std::vector<llama_token> tokenize(const char *text, bool add_bos);
 static bool decode_tokens(std::vector<llama_token> &tokens);
 
@@ -37,61 +34,8 @@ static int estimate_tokens(const char *text) {
     return static_cast<int>(strlen(text) / 3.5f);
 }
 
-static bool check_context_overflow(int estimated_new_tokens) {
-    int remaining = g_n_ctx - g_n_past - estimated_new_tokens;
-    int safety_margin = g_n_ctx / 8;
-    return remaining < safety_margin;
-}
-
 static void reset_kv_cache() {
-    g_chat_messages.clear();
-    g_chat_strings.clear();
     g_n_past = 0;
-}
-
-static void add_chat_message(const char *role, const char *content) {
-    g_chat_strings.emplace_back(content);
-    g_chat_messages.push_back({role, g_chat_strings.back().c_str()});
-}
-
-static void remove_last_chat_message() {
-    if (!g_chat_messages.empty()) {
-        g_chat_messages.pop_back();
-        g_chat_strings.pop_back();
-    }
-}
-
-static std::string apply_chat_template_full(const std::vector<llama_chat_message> &messages) {
-    if (messages.empty()) return "";
-
-    std::vector<char> buf(4096);
-    int32_t res = llama_chat_apply_template(
-        nullptr,
-        const_cast<llama_chat_message*>(messages.data()),
-        static_cast<int32_t>(messages.size()),
-        true,
-        buf.data(),
-        static_cast<int32_t>(buf.size())
-    );
-
-    if (res < 0) {
-        LOGE("llama_chat_apply_template failed");
-        return "";
-    }
-
-    if (res >= static_cast<int32_t>(buf.size())) {
-        buf.resize(res + 1);
-        llama_chat_apply_template(
-            nullptr,
-            const_cast<llama_chat_message*>(messages.data()),
-            static_cast<int32_t>(messages.size()),
-            true,
-            buf.data(),
-            static_cast<int32_t>(buf.size())
-        );
-    }
-
-    return std::string(buf.data(), res);
 }
 
 static std::vector<llama_token> tokenize(const char *text, bool add_bos) {
@@ -114,49 +58,6 @@ static bool decode_tokens(std::vector<llama_token> &tokens) {
         return false;
     }
     return true;
-}
-
-static void rebuild_kv_cache() {
-    if (g_chat_messages.empty()) {
-        g_n_past = 0;
-        return;
-    }
-
-    llama_memory_t mem = llama_get_memory(g_ctx);
-    llama_memory_clear(mem, true);
-    g_n_past = 0;
-
-    std::string formatted = apply_chat_template_full(g_chat_messages);
-    if (formatted.empty()) return;
-
-    auto tokens = tokenize(formatted.c_str(), true);
-
-    if (!decode_tokens(tokens)) {
-        LOGE("Failed to rebuild KV cache");
-        return;
-    }
-    g_n_past = static_cast<int>(tokens.size());
-
-    LOGI("KV cache rebuilt: %d/%d tokens, %zu messages", g_n_past, g_n_ctx, g_chat_messages.size());
-}
-
-static void rebuild_chat_message_pointers() {
-    if (g_chat_strings.size() != g_chat_messages.size()) return;
-    for (size_t i = 0; i < g_chat_strings.size(); i++) {
-        const char *role = g_chat_messages[i].role;
-        g_chat_messages[i] = {role, g_chat_strings[i].c_str()};
-    }
-}
-
-static void apply_sliding_window(int estimated_new_tokens) {
-    while (g_chat_strings.size() > 2 && check_context_overflow(estimated_new_tokens)) {
-        g_chat_strings.erase(g_chat_strings.begin());
-        g_chat_messages.erase(g_chat_messages.begin());
-        rebuild_chat_message_pointers();
-        LOGI("Sliding window: removed oldest message, %zu remaining", g_chat_messages.size());
-    }
-
-    rebuild_kv_cache();
 }
 
 static llama_sampler *create_sampler() {
@@ -261,13 +162,77 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
     }
 
     reset_kv_cache();
-    LOGI("Context created (n_ctx=%d, n_batch=%d, n_threads=%d, n_layers=%d, cpu=%d, flash_attn=%d, mmap=%d)",
-         context_size, g_n_batch, g_n_threads, n_layers, g_cpu_count, g_flash_attn, g_use_mmap);
+    LOGI("Context created (n_ctx=%d, n_batch=%d, n_threads=%d, n_layers=%d, cpu=%d)",
+         context_size, g_n_batch, g_n_threads, n_layers, g_cpu_count);
     return JNI_TRUE;
 }
 
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_agent_aios_LlamaBridge_nativeFormatChat(
+        JNIEnv *env, jobject thiz, jobjectArray roles, jobjectArray contents) {
+    if (!g_model) return env->NewStringUTF("");
+
+    jsize len = env->GetArrayLength(roles);
+    if (len == 0) return env->NewStringUTF("");
+
+    std::vector<llama_chat_message> messages;
+    std::vector<std::string> strings;
+
+    strings.reserve(len);
+    messages.reserve(len);
+
+    for (jsize i = 0; i < len; i++) {
+        auto *role_str = (jstring) env->GetObjectArrayElement(roles, i);
+        auto *content_str = (jstring) env->GetObjectArrayElement(contents, i);
+
+        const char *role = env->GetStringUTFChars(role_str, nullptr);
+        const char *content = env->GetStringUTFChars(content_str, nullptr);
+
+        strings.emplace_back(role);
+        strings.emplace_back(content);
+
+        env->ReleaseStringUTFChars(role_str, role);
+        env->ReleaseStringUTFChars(content_str, content);
+        env->DeleteLocalRef(role_str);
+        env->DeleteLocalRef(content_str);
+    }
+
+    for (size_t i = 0; i < strings.size(); i += 2) {
+        messages.push_back({strings[i].c_str(), strings[i + 1].c_str()});
+    }
+
+    std::vector<char> buf(4096);
+    int32_t res = llama_chat_apply_template(
+        nullptr,
+        messages.data(),
+        static_cast<int32_t>(messages.size()),
+        true,
+        buf.data(),
+        static_cast<int32_t>(buf.size())
+    );
+
+    if (res < 0) {
+        LOGE("llama_chat_apply_template failed");
+        return env->NewStringUTF("");
+    }
+
+    if (res >= static_cast<int32_t>(buf.size())) {
+        buf.resize(res + 1);
+        llama_chat_apply_template(
+            nullptr,
+            messages.data(),
+            static_cast<int32_t>(messages.size()),
+            true,
+            buf.data(),
+            static_cast<int32_t>(buf.size())
+        );
+    }
+
+    return env->NewStringUTF(std::string(buf.data(), res).c_str());
+}
+
 extern "C" JNIEXPORT jint JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGenerateStream(
+Java_com_agent_aios_LlamaBridge_nativeInfer(
         JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens) {
 
     if (!g_ctx || !g_model || !g_vocab) return -1;
@@ -275,32 +240,13 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateStream(
     const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
     if (!prompt_str) return -1;
 
-    int estimated = estimate_tokens(prompt_str);
-    if (check_context_overflow(estimated + max_tokens)) {
-        LOGI("Context overflow detected (%d/%d), applying sliding window", g_n_past, g_n_ctx);
-        apply_sliding_window(estimated + max_tokens);
-    }
-
-    add_chat_message("user", prompt_str);
-    env->ReleaseStringUTFChars(prompt, prompt_str);
-
-    std::string formatted = apply_chat_template_full(g_chat_messages);
-    if (formatted.empty()) {
-        remove_last_chat_message();
-        return -1;
-    }
-
-    LOGI("Stream: template applied (%zu chars, n_past=%d)", formatted.size(), g_n_past);
+    LOGI("Infer: tokenizing prompt (%zu chars, n_past=%d)", strlen(prompt_str), g_n_past);
 
     bool add_bos = (g_n_past == 0);
-    auto tokens = tokenize(formatted.c_str(), add_bos);
-
-    if (g_n_past > 0 && !tokens.empty()) {
-        tokens.erase(tokens.begin());
-    }
+    auto tokens = tokenize(prompt_str, add_bos);
+    env->ReleaseStringUTFChars(prompt, prompt_str);
 
     if (!decode_tokens(tokens)) {
-        remove_last_chat_message();
         return -1;
     }
     g_n_past += static_cast<int>(tokens.size());
@@ -309,87 +255,7 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateStream(
     std::string result = sample_response(smpl, max_tokens, env, thiz, true);
     llama_sampler_free(smpl);
 
-    add_chat_message("assistant", result.c_str());
-
-    LOGI("Stream done: %zu chars (n_past=%d/%d)", result.size(), g_n_past, g_n_ctx);
-    return static_cast<jint>(result.size());
-}
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGenerate(
-        JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens) {
-
-    if (!g_ctx || !g_model || !g_vocab) {
-        return env->NewStringUTF("Error: model not loaded");
-    }
-
-    const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
-    if (!prompt_str) return env->NewStringUTF("Error: invalid prompt");
-
-    reset_kv_cache();
-
-    std::vector<llama_chat_message> agent_msgs;
-    std::vector<std::string> agent_strings;
-
-    agent_strings.emplace_back("You are an AI agent. Respond EXACTLY in one of these formats:\n1. Action: tool_name\nArgs: {\"param\": \"value\"}\n2. Answer: your response\nBe concise.");
-    agent_msgs.push_back({"system", agent_strings[0].c_str()});
-
-    agent_strings.emplace_back(prompt_str);
-    agent_msgs.push_back({"user", agent_strings[1].c_str()});
-    env->ReleaseStringUTFChars(prompt, prompt_str);
-
-    std::string formatted = apply_chat_template_full(agent_msgs);
-    if (formatted.empty()) return env->NewStringUTF("Error: template failed");
-
-    LOGI("Generate (standalone): template applied (%zu chars)", formatted.size());
-
-    auto tokens = tokenize(formatted.c_str(), true);
-    if (!decode_tokens(tokens)) return env->NewStringUTF("Error: decode failed");
-    g_n_past = static_cast<int>(tokens.size());
-
-    llama_sampler *smpl = create_sampler();
-    std::string result = sample_response(smpl, max_tokens, env, thiz, false);
-    llama_sampler_free(smpl);
-
-    LOGI("Generated %zu chars", result.size());
-    return env->NewStringUTF(result.c_str());
-}
-
-extern "C" JNIEXPORT jint JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGenerateStreamStandalone(
-        JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens) {
-
-    if (!g_ctx || !g_model || !g_vocab) return -1;
-
-    const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
-    if (!prompt_str) return -1;
-
-    reset_kv_cache();
-
-    std::vector<llama_chat_message> standalone_msgs;
-    std::vector<std::string> standalone_strings;
-
-    standalone_strings.emplace_back("You are a helpful AI assistant. Be concise and accurate.");
-    standalone_msgs.push_back({"system", standalone_strings[0].c_str()});
-
-    standalone_strings.emplace_back(prompt_str);
-    standalone_msgs.push_back({"user", standalone_strings[1].c_str()});
-    env->ReleaseStringUTFChars(prompt, prompt_str);
-
-    std::string formatted = apply_chat_template_full(standalone_msgs);
-    if (formatted.empty()) return -1;
-
-    LOGI("StreamStandalone: template applied (%zu chars)", formatted.size());
-
-    auto tokens = tokenize(formatted.c_str(), true);
-    if (!decode_tokens(tokens)) return -1;
-    g_n_past = static_cast<int>(tokens.size());
-
-    llama_sampler *smpl = create_sampler();
-    std::string result = sample_response(smpl, max_tokens, env, thiz, true);
-    llama_sampler_free(smpl);
-
-    LOGI("StreamStandalone done: %zu chars (n_past=%d)", result.size(), g_n_past);
+    LOGI("Infer done: %zu chars (n_past=%d/%d)", result.size(), g_n_past, g_n_ctx);
     return static_cast<jint>(result.size());
 }
 
@@ -426,8 +292,8 @@ Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(
 
     char info[512];
     snprintf(info, sizeof(info),
-             "n_ctx_train=%d, n_embd=%d, n_layer=%d, threads=%d, batch=%d, cpu=%d, flash_attn=%d, mmap=%d",
-             n_ctx_train, n_embd, n_layer, g_n_threads, g_n_batch, g_cpu_count, g_flash_attn, g_use_mmap);
+             "n_ctx_train=%d, n_embd=%d, n_layer=%d, threads=%d, batch=%d, cpu=%d",
+             n_ctx_train, n_embd, n_layer, g_n_threads, g_n_batch, g_cpu_count);
     return env->NewStringUTF(info);
 }
 
