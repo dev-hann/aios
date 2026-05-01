@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,40 +86,11 @@ fun ModelPicker(
                         .padding(vertical = 24.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "No models found",
-                            color = AIOSColors.TextSecondary,
-                            fontSize = 15.sp,
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = onImportFile,
-                            enabled = !isImporting,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AIOSColors.Primary,
-                            ),
-                        ) {
-                            if (isImporting) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = AIOSColors.TextPrimary,
-                                    strokeWidth = 2.dp,
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Importing...", fontSize = 13.sp)
-                            } else {
-                                Icon(
-                                    Icons.Filled.UploadFile,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Import from Files", fontSize = 13.sp)
-                            }
-                        }
-                    }
+                    Text(
+                        text = "No models found",
+                        color = AIOSColors.TextSecondary,
+                        fontSize = 15.sp,
+                    )
                 }
             }
 
@@ -129,6 +101,7 @@ fun ModelPicker(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(if (isActive) AIOSColors.PrimaryDim else Color.Transparent)
+                        .clickable { onSelect(model) }
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,

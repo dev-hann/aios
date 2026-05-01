@@ -18,6 +18,7 @@ class LlmService : Service() {
     private val binder = LlmBinder()
     private val llamaBridge = LlamaBridge()
     private var agentEngine: AgentEngine? = null
+    private val callbackLock = Any()
 
     inner class LlmBinder : Binder() {
         fun getService(): LlmService = this@LlmService
@@ -86,13 +87,17 @@ class LlmService : Service() {
     }
 
     fun setTokenCallback(cb: ((String) -> Unit)?) {
-        llamaBridge.onTokenCallback = cb
+        synchronized(callbackLock) {
+            llamaBridge.onTokenCallback = cb
+        }
     }
 
     fun swapTokenCallback(cb: ((String) -> Unit)?): ((String) -> Unit)? {
-        val prev = llamaBridge.onTokenCallback
-        llamaBridge.onTokenCallback = cb
-        return prev
+        synchronized(callbackLock) {
+            val prev = llamaBridge.onTokenCallback
+            llamaBridge.onTokenCallback = cb
+            return prev
+        }
     }
 
     fun getAgentEngine(): AgentEngine? = agentEngine

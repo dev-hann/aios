@@ -1,5 +1,7 @@
 package com.agent.aios.ui.navigation
 
+import android.net.Uri
+import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +24,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +38,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.agent.aios.rememberModelImportLauncher
 import com.agent.aios.ui.screen.AccessibilitySetupScreen
 import com.agent.aios.ui.screen.ChatScreen
 import com.agent.aios.ui.screen.DashboardScreen
@@ -50,9 +55,21 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 }
 
 @Composable
-fun AIOSApp() {
+fun AIOSApp(
+    onPickModelFile: (ActivityResultLauncher<Array<String>>) -> Unit = {},
+    pendingImportUri: Uri? = null,
+    pendingImportName: String? = null,
+    onImportConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
     val screens = listOf(Screen.Chat, Screen.Dashboard, Screen.Settings)
+
+    val pendingImportCallback = remember { mutableStateOf<((Uri, String) -> Unit)?>(null) }
+
+    val modelImportLauncher = rememberModelImportLauncher { uri, name ->
+        pendingImportCallback.value?.invoke(uri, name)
+        pendingImportCallback.value = null
+    }
 
     Scaffold(
         containerColor = AIOSColors.Background,
@@ -67,7 +84,16 @@ fun AIOSApp() {
                 startDestination = Screen.Chat.route,
                 modifier = Modifier.fillMaxSize()
             ) {
-                composable(Screen.Chat.route) { ChatScreen() }
+                composable(Screen.Chat.route) {
+                    ChatScreen(
+                        onImportFile = {
+                            pendingImportCallback.value = { uri, name ->
+                                com.agent.aios.AIOSApp.instance.chatViewModel?.importModelFromUri(uri, name)
+                            }
+                            onPickModelFile(modelImportLauncher)
+                        }
+                    )
+                }
                 composable(Screen.Dashboard.route) {
                     DashboardScreen(
                         onSetupAccessibility = {

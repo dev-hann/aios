@@ -8,6 +8,7 @@ import com.agent.aios.update.ApkInstaller
 import com.agent.aios.update.UpdateChecker
 import com.agent.aios.update.UpdateDownloader
 import com.agent.aios.update.UpdateInfo
+import com.agent.aios.update.UpdateResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,19 +45,25 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             _status.value = UpdateStatus.CHECKING
             _error.value = ""
             try {
-                val info = kotlinx.coroutines.Dispatchers.IO.let { io ->
+                val result = kotlinx.coroutines.Dispatchers.IO.let { io ->
                     kotlinx.coroutines.withContext(io) { checker.checkForUpdate() }
                 }
-                if (info == null) {
-                    _status.value = UpdateStatus.ERROR
-                    _error.value = "No APK found in latest release"
-                    return@launch
-                }
-                _updateInfo.value = info
-                _status.value = if (info.isUpdateAvailable) {
-                    UpdateStatus.AVAILABLE
-                } else {
-                    UpdateStatus.NOT_AVAILABLE
+                when (result) {
+                    is UpdateResult.Success -> {
+                        _updateInfo.value = result.info
+                        _status.value = if (result.info.isUpdateAvailable) {
+                            UpdateStatus.AVAILABLE
+                        } else {
+                            UpdateStatus.NOT_AVAILABLE
+                        }
+                    }
+                    is UpdateResult.NotAvailable -> {
+                        _status.value = UpdateStatus.NOT_AVAILABLE
+                    }
+                    is UpdateResult.Error -> {
+                        _status.value = UpdateStatus.ERROR
+                        _error.value = result.message
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Check failed: ${e.message}")

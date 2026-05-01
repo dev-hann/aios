@@ -50,14 +50,17 @@ class AIOSAccessibilityService : AccessibilityService() {
 
     fun getScreenText(): String {
         val root = rootInActiveWindow ?: return "Error: No active window"
-        return dumpNodeText(root, 0)
+        val sb = StringBuilder()
+        dumpNodeText(root, 0, sb)
+        return sb.toString()
     }
 
-    private fun dumpNodeText(node: AccessibilityNodeInfo, depth: Int): String {
-        val sb = StringBuilder()
+    private fun dumpNodeText(node: AccessibilityNodeInfo, depth: Int, sb: StringBuilder) {
+        if (depth > 30) return
+        if (sb.length > 8000) return
+
         val text = node.text
         val contentDesc = node.contentDescription
-        val hint = node.hintText
 
         if (text != null && text.isNotBlank()) {
             sb.append("[${node.className}] $text")
@@ -73,11 +76,11 @@ class AIOSAccessibilityService : AccessibilityService() {
         }
 
         for (i in 0 until node.childCount) {
+            if (sb.length > 8000) return
             node.getChild(i)?.let { child ->
-                sb.append(dumpNodeText(child, depth + 1))
+                dumpNodeText(child, depth + 1, sb)
             }
         }
-        return sb.toString()
     }
 
     fun findNodesByText(text: String): List<AccessibilityNodeInfo> {

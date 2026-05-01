@@ -1,9 +1,16 @@
 package com.agent.aios.ui.component
 
+import android.widget.Toast
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,12 +34,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agent.aios.ui.theme.AIOSColors
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     role: String,
@@ -40,9 +51,12 @@ fun MessageBubble(
     toolName: String = "",
     toolArgs: String = "",
     toolResult: String = "",
+    isStreaming: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val isUser = role == "user"
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
     Row(
         modifier = modifier
@@ -111,17 +125,32 @@ fun MessageBubble(
                         )
                     )
                     .background(bubbleBackground)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = {
+                            if (text.isNotBlank()) {
+                                clipboardManager.setText(AnnotatedString(text))
+                                Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 Column {
-                    Text(
-                        text = text,
-                        color = textColor,
-                        fontSize = if (role == "system") 13.sp else 15.sp,
-                        lineHeight = if (role == "system") 18.sp else 21.sp,
-                        fontFamily = if (role == "system") FontFamily.Monospace else FontFamily.Default,
-                        fontWeight = if (role == "agent_answer") FontWeight.Medium else FontWeight.Normal,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = text,
+                            color = textColor,
+                            fontSize = if (role == "system") 13.sp else 15.sp,
+                            lineHeight = if (role == "system") 18.sp else 21.sp,
+                            fontFamily = if (role == "system") FontFamily.Monospace else FontFamily.Default,
+                            fontWeight = if (role == "agent_answer") FontWeight.Medium else FontWeight.Normal,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (isStreaming && text.isNotEmpty()) {
+                            StreamingCursor(color = textColor)
+                        }
+                    }
                     if (role == "agent_action" && toolArgs.isNotBlank()) {
                         Box(
                             modifier = Modifier
@@ -183,6 +212,27 @@ fun MessageBubble(
             UserAvatar()
         }
     }
+}
+
+@Composable
+private fun StreamingCursor(color: Color) {
+    val infiniteTransition = rememberInfiniteTransition()
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "cursor_blink",
+    )
+    Box(
+        modifier = Modifier
+            .padding(start = 2.dp)
+            .size(width = 2.dp, height = 16.dp)
+            .clip(RoundedCornerShape(1.dp))
+            .background(color.copy(alpha = alpha)),
+    )
 }
 
 @Composable

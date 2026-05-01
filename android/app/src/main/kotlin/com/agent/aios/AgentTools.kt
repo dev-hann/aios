@@ -74,8 +74,14 @@ class TimerTool : AgentTool {
         return try {
             val secs = JSONObject(args).optInt("seconds", 0)
             if (secs <= 0 || secs > 300) return "Error: seconds must be 1-300"
-            Thread.sleep(secs * 1000L)
+            val endMs = System.currentTimeMillis() + secs * 1000L
+            while (System.currentTimeMillis() < endMs) {
+                Thread.sleep(100)
+                if (Thread.currentThread().isInterrupted) return "Timer cancelled"
+            }
             "Timer completed: ${secs}s elapsed"
+        } catch (e: InterruptedException) {
+            "Timer cancelled"
         } catch (e: Exception) {
             "Error: ${e.message}"
         }

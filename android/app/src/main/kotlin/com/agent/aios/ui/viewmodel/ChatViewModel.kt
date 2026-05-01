@@ -15,8 +15,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import android.net.Uri
 import java.io.File
 
 data class Message(
@@ -37,6 +40,8 @@ data class ConfirmationRequest(
     val toolName: String,
     val args: String,
     val risk: String,
+    val createdAtMs: Long = System.currentTimeMillis(),
+    val timeoutMs: Long = 60000L,
 )
 
 enum class AgentMode { CHAT, AGENT }
@@ -68,6 +73,9 @@ class ChatViewModel : ViewModel() {
 
     private val _pendingConfirmation = MutableStateFlow<ConfirmationRequest?>(null)
     val pendingConfirmation: StateFlow<ConfirmationRequest?> = _pendingConfirmation.asStateFlow()
+
+    private val _isImporting = MutableStateFlow(false)
+    val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
 
     private val _currentGeneratingText = MutableStateFlow("")
     val currentGeneratingText: StateFlow<String> = _currentGeneratingText.asStateFlow()
@@ -101,6 +109,10 @@ class ChatViewModel : ViewModel() {
                         args = step.toolArgs,
                         risk = step.riskLevel,
                     )
+                } else if (step.type == "thinking_start") {
+                    _currentGeneratingText.value = ""
+                } else if (step.type == "thinking_end") {
+                    _currentGeneratingText.value = ""
                 } else {
                     val msg = when (step.type) {
                         "thought" -> Message("agent_think", step.content)
@@ -110,6 +122,9 @@ class ChatViewModel : ViewModel() {
                         else -> Message("system", step.content)
                     }
                     _messages.value = _messages.value + msg
+                    if (step.type in listOf("action", "observation", "answer")) {
+                        persistAllMessages()
+                    }
                 }
             }
         }
@@ -215,10 +230,14 @@ class ChatViewModel : ViewModel() {
         val contextSize = runCatching {
             runBlocking { app.settingsRepository.contextSize.first() }
         }.getOrNull() ?: 2048
+        _isGenerating.value = true
         app.loadModel(path, contextSize) { success ->
-            _isModelLoaded.value = success
-            if (!success) {
-                _messages.value = _messages.value + Message("system", "Failed to load model")
+            viewModelScope.launch {
+                _isModelLoaded.value = success
+                _isGenerating.value = false
+                if (!success) {
+                    _messages.value = _messages.value + Message("system", "Failed to load model. Check if the file is a valid GGUF.")
+                }
             }
         }
     }
@@ -288,6 +307,32 @@ class ChatViewModel : ViewModel() {
         val elapsed = _elapsedMs.value
         if (elapsed <= 0) return 0f
         return (tokens.toFloat() / elapsed) * 1000f
+    }
+
+    fun importModelFromUri(uri: Uri, fileName: String) {
+        if (_isImporting.value) return
+        _isImporting.value = true
+        viewModelScope.launch {
+            try {
+                val modelsDir = File(app.filesDir, "models")
+                if (!modelsDir.exists()) modelsDir.mkdirs()
+                val safeName = if (fileName.endsWith(".gguf")) fileName else "$fileName.gguf"
+                val dst = File(modelsDir, safeName)
+                withContext(Dispatchers.IO) {
+                    app.contentResolver.openInputStream(uri)?.use { input ->
+                        dst.outputStream().use { output ->
+                            input.copyTo(output, 8192)
+                        }
+                    }
+                }
+                Log.i("ChatVM", "Model imported: ${dst.length()} bytes -> ${dst.absolutePath}")
+                refreshModels()
+            } catch (e: Exception) {
+                Log.e("ChatVM", "Model import failed: ${e.message}")
+            } finally {
+                _isImporting.value = false
+            }
+        }
     }
 
     override fun onCleared() {

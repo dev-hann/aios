@@ -49,6 +49,10 @@ import java.text.CharacterIterator
 import java.text.StringCharacterIterator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SmartToy
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings as AndroidSettings
+import com.agent.aios.service.AIOSAccessibilityService
 
 private fun formatFileSize(bytes: Long): String {
     val absB = if (bytes == Long.MIN_VALUE) Long.MAX_VALUE else Math.abs(bytes)
@@ -366,6 +370,35 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(6.dp))
 
+        SectionHeader("PERMISSIONS")
+        HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
+        Spacer(modifier = Modifier.height(2.dp))
+
+        val accessibilityEnabled = AIOSAccessibilityService.isEnabled(context)
+        val overlayEnabled = AndroidSettings.canDrawOverlays(context)
+        val notifListenerEnabled = isNotificationListenerEnabled(context)
+
+        PermissionCard(
+            name = "Accessibility Service",
+            description = "Screen reading & interaction",
+            isEnabled = accessibilityEnabled,
+            onEnable = { context.startActivity(Intent(AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        )
+        PermissionCard(
+            name = "Display Overlay",
+            description = "Floating AI button",
+            isEnabled = overlayEnabled,
+            onEnable = { context.startActivity(Intent(AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))) }
+        )
+        PermissionCard(
+            name = "Notification Listener",
+            description = "Read system notifications",
+            isEnabled = notifListenerEnabled,
+            onEnable = { context.startActivity(Intent(AndroidSettings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
         SectionHeader("SYSTEM")
         HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
         Spacer(modifier = Modifier.height(2.dp))
@@ -527,4 +560,65 @@ private fun SettingsCard(
         Spacer(modifier = Modifier.height(8.dp))
         content()
     }
+}
+
+@Composable
+private fun PermissionCard(
+    name: String,
+    description: String,
+    isEnabled: Boolean,
+    onEnable: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(AIOSColors.Surface)
+            .padding(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isEnabled) AIOSColors.StatusReady else AIOSColors.StatusError)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        name,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = AIOSColors.TextPrimary,
+                    )
+                }
+                Text(
+                    description,
+                    fontSize = 12.sp,
+                    color = AIOSColors.TextTertiary,
+                    modifier = Modifier.padding(start = 14.dp, top = 2.dp),
+                )
+            }
+            if (!isEnabled) {
+                OutlinedButton(
+                    onClick = onEnable,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(32.dp),
+                ) {
+                    Text("Enable", fontSize = 11.sp, color = AIOSColors.Primary)
+                }
+            }
+        }
+    }
+}
+
+private fun isNotificationListenerEnabled(context: android.content.Context): Boolean {
+    val cn = android.content.ComponentName(context, com.agent.aios.service.NotificationListener::class.java)
+    val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+    return flat?.contains(cn.flattenToString()) == true
 }

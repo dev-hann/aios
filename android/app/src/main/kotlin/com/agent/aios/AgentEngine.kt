@@ -39,6 +39,9 @@ class AgentEngine(private val service: LlmService) {
     private var onStep: ((AgentStep) -> Unit)? = null
     private var onCancelled = false
 
+    @Volatile
+    private var agentThread: Thread? = null
+
     private val notes = mutableMapOf<String, String>()
 
     private val auditLog = mutableListOf<ToolAuditEntry>()
@@ -87,6 +90,7 @@ class AgentEngine(private val service: LlmService) {
         onCancelled = true
         confirmationApproved = false
         confirmationLatch?.countDown()
+        agentThread?.interrupt()
     }
 
     fun classifyRisk(toolName: String, args: String): ToolRisk {
@@ -182,69 +186,90 @@ class AgentEngine(private val service: LlmService) {
 
     fun run(userPrompt: String, maxIterations: Int = 8): List<AgentStep> {
         onCancelled = false
+        agentThread = Thread.currentThread()
         val steps = mutableListOf<AgentStep>()
 
-        steps.add(AgentStep("thought", "Processing: $userPrompt"))
-        onStep?.invoke(steps.last())
-
-        val systemPrompt = buildSystemPrompt()
-        conversationHistory.add("system" to systemPrompt)
-        conversationHistory.add("user" to userPrompt)
-
-        for (i in 0 until maxIterations) {
-            if (cancelled) break
-
-            trimHistory()
-
-            steps.add(AgentStep("thought", "Thinking (step ${i + 1})..."))
+        try {
+            steps.add(AgentStep("thought", "Processing: $userPrompt"))
             onStep?.invoke(steps.last())
 
-            val llmInput = buildPromptFromHistory()
-            val response = collectStream(llmInput, 512)
-            Log.i(TAG, "Iteration $i LLM: ${response.take(200)}")
+            val systemPrompt = buildSystemPrompt()
+            conversationHistory.add("system" to systemPrompt)
+            conversationHistory.add("user" to userPrompt)
 
-            conversationHistory.add("assistant" to response)
+            for (i in 0 until maxIterations) {
+                if (cancelled) break
 
-            val parsed = parseResponse(response)
-            when {
-                parsed.containsKey("action") -> {
-                    val actionName = parsed["action"]!!
-                    val actionArgs = parsed["args"] ?: "{}"
+                trimHistory()
 
-                    steps.add(AgentStep(
-                        "action", "Using tool: $actionName",
-                        toolName = actionName, toolArgs = actionArgs
-                    ))
-                    onStep?.invoke(steps.last())
+                steps.add(AgentStep("thought", "Thinking (step ${i + 1})..."))
+                onStep?.invoke(steps.last())
 
-                    val observation = executeTool(actionName, actionArgs)
+                onStep?.invoke(AgentStep("thinking_start", ""))
 
-                    steps.add(AgentStep("observation", observation,
-                        toolName = actionName, toolResult = observation))
-                    onStep?.invoke(steps.last())
+                val llmInput = buildPromptFromHistory()
+                val response = collectStream(llmInput, 512)
+                Log.i(TAG, "Iteration $i LLM: ${response.take(200)}")
 
-                    conversationHistory.add("observation" to "Action: $actionName($actionArgs)\nResult: $observation")
-                }
-                parsed.containsKey("answer") -> {
-                    val answer = parsed["answer"]!!
-                    steps.add(AgentStep("answer", answer))
-                    onStep?.invoke(steps.last())
-                    break
-                }
-                else -> {
-                    val directAnswer = response.trim()
-                    if (directAnswer.isNotBlank()) {
-                        steps.add(AgentStep("answer", directAnswer))
+                onStep?.invoke(AgentStep("thinking_end", ""))
+
+                conversationHistory.add("assistant" to response)
+
+                val parsed = parseResponse(response)
+                when {
+                    parsed.containsKey("action") -> {
+                        val actionName = parsed["action"]!!
+                        val actionArgs = parsed["args"] ?: "{}"
+
+                        steps.add(AgentStep(
+                            "action", "Using tool: $actionName",
+                            toolName = actionName, toolArgs = actionArgs
+                        ))
                         onStep?.invoke(steps.last())
+
+                        val observation = executeTool(actionName, actionArgs)
+
+                        steps.add(AgentStep("observation", observation,
+                            toolName = actionName, toolResult = observation))
+                        onStep?.invoke(steps.last())
+
+                        conversationHistory.add("observation" to "Action: $actionName($actionArgs)\nResult: $observation")
                     }
-                    break
+                    parsed.containsKey("answer") -> {
+                        val answer = parsed["answer"]!!
+                        steps.add(AgentStep("answer", answer))
+                        onStep?.invoke(steps.last())
+                        break
+                    }
+                    else -> {
+                        val directAnswer = response.trim()
+                        if (directAnswer.isNotBlank()) {
+                            steps.add(AgentStep("answer", directAnswer))
+                            onStep?.invoke(steps.last())
+                        }
+                        break
+                    }
                 }
             }
-        }
 
-        if (steps.none { it.type == "answer" }) {
-            steps.add(AgentStep("answer", "I couldn't complete this task within the iteration limit."))
-            onStep?.invoke(steps.last())
+            if (steps.none { it.type == "answer" }) {
+                steps.add(AgentStep("answer", "I couldn't complete this task within the iteration limit."))
+                onStep?.invoke(steps.last())
+            }
+        } catch (e: InterruptedException) {
+            Log.i(TAG, "Agent run cancelled by user")
+            if (steps.none { it.type == "answer" }) {
+                steps.add(AgentStep("answer", "Task cancelled."))
+                onStep?.invoke(steps.last())
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Agent run crashed: ${e.message}", e)
+            if (steps.none { it.type == "answer" }) {
+                steps.add(AgentStep("answer", "An error occurred during execution: ${e.message}"))
+                onStep?.invoke(steps.last())
+            }
+        } finally {
+            agentThread = null
         }
 
         return steps
@@ -267,9 +292,12 @@ class AgentEngine(private val service: LlmService) {
 
     private fun collectStream(prompt: String, maxTokens: Int): String {
         val buffer = StringBuffer()
-        val originalCb = service.swapTokenCallback { token ->
+        var originalCb: ((String) -> Unit)? = null
+        val forwardCb: (String) -> Unit = { token ->
             buffer.append(token)
+            originalCb?.invoke(token)
         }
+        originalCb = service.swapTokenCallback(forwardCb)
 
         service.generateStream(prompt, maxTokens)
 

@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -74,14 +75,21 @@ import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.AgentMode
 import com.agent.aios.ui.viewmodel.ChatViewModel
 import com.agent.aios.ui.viewmodel.ConfirmationRequest
+import android.content.Intent
+import android.provider.Settings
+import kotlinx.coroutines.delay
 
 @Composable
-fun ChatScreen(vm: ChatViewModel = viewModel()) {
+fun ChatScreen(
+    vm: ChatViewModel = viewModel(),
+    onImportFile: () -> Unit = {},
+) {
     val messages by vm.messages.collectAsState()
     val inputText by vm.inputText.collectAsState()
     val models by vm.models.collectAsState()
     val isModelLoaded by vm.isModelLoaded.collectAsState()
     val isGenerating by vm.isGenerating.collectAsState()
+    val isImporting by vm.isImporting.collectAsState()
     val agentMode by vm.agentMode.collectAsState()
     val serviceState by vm.serviceState.collectAsState()
     val currentGeneratingText by vm.currentGeneratingText.collectAsState()
@@ -89,6 +97,8 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
 
     var showModelPicker by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+
+    com.agent.aios.AIOSApp.instance.chatViewModel = vm
 
     LaunchedEffect(messages.size, currentGeneratingText) {
         if (messages.isNotEmpty()) {
@@ -100,7 +110,15 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
         ModelPicker(
             models = models,
             currentModelPath = null,
-            onSelect = { vm.loadModel(it.path) },
+            isImporting = isImporting,
+            onSelect = {
+                vm.loadModel(it.path)
+                showModelPicker = false
+            },
+            onImportFile = {
+                showModelPicker = false
+                onImportFile()
+            },
             onDismiss = { showModelPicker = false }
         )
     }
@@ -127,7 +145,11 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
         )
 
         if (!isModelLoaded) {
-            EmptyState(onGetStarted = { showModelPicker = true })
+            if (isGenerating && serviceState == AIOSApp.ServiceState.GENERATING) {
+                ModelLoadingView()
+            } else {
+                EmptyState(onGetStarted = { showModelPicker = true })
+            }
         } else {
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 LazyColumn(
@@ -146,11 +168,22 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
                             toolResult = msg.toolResult,
                         )
                     }
+                    messages.lastOrNull()?.let { lastMsg ->
+                        if (lastMsg.role == "agent_obs" && lastMsg.toolResult.contains("Accessibility service not enabled")) {
+                            item {
+                                AccessibilityPermissionBanner()
+                            }
+                        }
+                    }
                     if (isGenerating && currentGeneratingText.isNotEmpty() &&
                         messages.lastOrNull()?.role == "assistant" && messages.lastOrNull()?.text?.isEmpty() == true
                     ) {
                         item {
-                            MessageBubble(role = "assistant", text = currentGeneratingText)
+                            MessageBubble(role = "assistant", text = currentGeneratingText, isStreaming = true)
+                        }
+                    } else if (isGenerating && currentGeneratingText.isNotEmpty() && agentMode == AgentMode.AGENT) {
+                        item {
+                            MessageBubble(role = "agent_think", text = currentGeneratingText, isStreaming = true)
                         }
                     }
                 }
@@ -163,7 +196,9 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
                         .align(Alignment.TopCenter)
                         .padding(top = 8.dp),
                 ) {
-                    GeneratingIndicator()
+                    GeneratingIndicator(
+                        thinkingText = if (agentMode == AgentMode.AGENT && currentGeneratingText.isNotEmpty()) currentGeneratingText else null
+                    )
                 }
             }
         }
@@ -375,7 +410,7 @@ private fun EmptyState(onGetStarted: () -> Unit) {
 }
 
 @Composable
-private fun GeneratingIndicator() {
+private fun GeneratingIndicator(thinkingText: String? = null) {
     val infiniteTransition = rememberInfiniteTransition()
 
     Row(
@@ -407,6 +442,15 @@ private fun GeneratingIndicator() {
                     .size(6.dp)
                     .clip(CircleShape)
                     .background(AIOSColors.Primary)
+            )
+        }
+        if (!thinkingText.isNullOrBlank()) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = thinkingText.take(60) + if (thinkingText.length > 60) "..." else "",
+                fontSize = 13.sp,
+                color = AIOSColors.TextSecondary,
+                maxLines = 1,
             )
         }
     }
@@ -500,6 +544,19 @@ private fun ConfirmationDialog(
         ToolRisk.CRITICAL -> "CRITICAL"
     }
 
+    var remainingSeconds by remember {
+        val elapsed = (System.currentTimeMillis() - request.createdAtMs) / 1000
+        mutableStateOf(maxOf(0, (request.timeoutMs / 1000 - elapsed).toInt()))
+    }
+
+    LaunchedEffect(request) {
+        while (remainingSeconds > 0) {
+            delay(1000)
+            remainingSeconds--
+        }
+        if (remainingSeconds <= 0) onDeny()
+    }
+
     AlertDialog(
         onDismissRequest = {},
         containerColor = AIOSColors.Surface,
@@ -579,6 +636,22 @@ private fun ConfirmationDialog(
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (remainingSeconds <= 10) AIOSColors.StatusError else AIOSColors.TextTertiary),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Auto-deny in ${remainingSeconds}s",
+                        color = if (remainingSeconds <= 10) AIOSColors.StatusError else AIOSColors.TextTertiary,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -652,5 +725,105 @@ private fun parseArgsForDisplay(toolName: String, args: String): String {
             else -> args
         }
         else -> args
+    }
+}
+
+@Composable
+private fun ModelLoadingView() {
+    val infiniteTransition = rememberInfiniteTransition()
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "loading_pulse",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .scale(pulse)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(AIOSColors.PrimaryDim),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.SmartToy,
+                    contentDescription = null,
+                    tint = AIOSColors.PrimaryVariant,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "Loading model...",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp,
+                color = AIOSColors.TextPrimary,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "This may take a moment",
+                fontSize = 14.sp,
+                color = AIOSColors.TextTertiary,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            androidx.compose.material3.LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth(0.5f)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = AIOSColors.Primary,
+                trackColor = AIOSColors.SurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccessibilityPermissionBanner() {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(AIOSColors.Surface)
+            .border(1.dp, AIOSColors.Primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .clickable {
+                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Accessibility service required",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = AIOSColors.TextPrimary,
+            )
+            Text(
+                text = "Tap to enable in Settings",
+                fontSize = 12.sp,
+                color = AIOSColors.TextTertiary,
+            )
+        }
+        Text(
+            text = "Open",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = AIOSColors.Primary,
+        )
     }
 }

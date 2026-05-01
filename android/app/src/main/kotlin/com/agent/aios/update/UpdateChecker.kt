@@ -14,12 +14,18 @@ data class UpdateInfo(
     val publishedAt: String,
 )
 
+sealed class UpdateResult {
+    data class Success(val info: UpdateInfo) : UpdateResult()
+    data object NotAvailable : UpdateResult()
+    data class Error(val message: String) : UpdateResult()
+}
+
 class UpdateChecker(private val context: Context) {
 
     private val TAG = "UpdateChecker"
     private val api = GitHubReleaseApi(BuildConfig.GITHUB_REPO)
 
-    fun checkForUpdate(): UpdateInfo? {
+    fun checkForUpdate(): UpdateResult {
         return try {
             val release = api.getLatestRelease()
             val latestVersion = release.tag_name.removePrefix("v")
@@ -27,11 +33,11 @@ class UpdateChecker(private val context: Context) {
 
             val apkAsset = release.assets.find {
                 it.name.endsWith(".apk", ignoreCase = true)
-            } ?: return null
+            } ?: return UpdateResult.NotAvailable
 
             val isUpdateAvailable = compareVersions(currentVersion, latestVersion) < 0
 
-            UpdateInfo(
+            UpdateResult.Success(UpdateInfo(
                 isUpdateAvailable = isUpdateAvailable,
                 currentVersion = currentVersion,
                 latestVersion = latestVersion,
@@ -39,10 +45,18 @@ class UpdateChecker(private val context: Context) {
                 fileSize = apkAsset.size,
                 releaseNotes = release.body,
                 publishedAt = release.published_at,
-            )
+            ))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to check for update: ${e.message}")
-            null
+            UpdateResult.Error(e.message ?: "Unknown error")
+        }
+    }
+
+    @Suppress("unused")
+    fun checkForUpdateLegacy(): UpdateInfo? {
+        return when (val result = checkForUpdate()) {
+            is UpdateResult.Success -> result.info
+            else -> null
         }
     }
 

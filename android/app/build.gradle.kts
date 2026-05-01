@@ -13,8 +13,8 @@ android {
         applicationId = "com.agent.aios"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10001
-        versionName = "1.0.1"
+        versionCode = 10005
+        versionName = "1.0.5"
 
         buildConfigField("String", "GITHUB_REPO", "\"dev-hann/aios\"")
 
@@ -52,6 +52,15 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../aios-release.jks")
+            storePassword = "aios2024"
+            keyAlias = "aios"
+            keyPassword = "aios2024"
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -60,7 +69,7 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
