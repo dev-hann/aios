@@ -14,28 +14,36 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Divider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.toUpperCase
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agent.aios.AIOSApp
 import com.agent.aios.BuildConfig
 import com.agent.aios.ui.theme.AIOSColors
+import com.agent.aios.ui.viewmodel.SettingsViewModel
 import java.io.File
 import java.text.CharacterIterator
 import java.text.StringCharacterIterator
@@ -57,6 +65,7 @@ private fun formatFileSize(bytes: Long): String {
 @Composable
 fun SettingsScreen(
     onNavigateToUpdate: () -> Unit = {},
+    viewModel: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val serviceState by AIOSApp.instance.serviceState.collectAsState(AIOSApp.ServiceState.DISCONNECTED)
@@ -64,6 +73,15 @@ fun SettingsScreen(
     val modelInfo = AIOSApp.instance.llmService?.getModelInfo() ?: "N/A"
     val updateAvailable by AIOSApp.instance.updateAvailable.collectAsState()
     val latestVersion by AIOSApp.instance.latestVersion.collectAsState()
+
+    val contextSize by viewModel.contextSize.collectAsState()
+    val maxTokensChat by viewModel.maxTokensChat.collectAsState()
+    val maxTokensAgent by viewModel.maxTokensAgent.collectAsState()
+    val temperature by viewModel.temperature.collectAsState()
+    val topK by viewModel.topK.collectAsState()
+    val topP by viewModel.topP.collectAsState()
+    val agentMaxIterations by viewModel.agentMaxIterations.collectAsState()
+    val repeatPenalty by viewModel.repeatPenalty.collectAsState()
 
     val modelsDir = File(context.filesDir, "models")
     val modelFiles = modelsDir.listFiles()?.filter { it.extension == "gguf" } ?: emptyList()
@@ -83,7 +101,7 @@ fun SettingsScreen(
             color = AIOSColors.TextPrimary,
         )
 
-        SectionHeader("AI MODEL")
+        SectionHeader("LLM SETTINGS")
         HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
         Spacer(modifier = Modifier.height(2.dp))
 
@@ -177,6 +195,107 @@ fun SettingsScreen(
                 fontSize = 11.sp,
                 color = AIOSColors.TextTertiary,
                 fontFamily = FontFamily.Monospace,
+            )
+        }
+
+        SettingsCard("Context Size") {
+            IntInput(
+                value = contextSize,
+                onValueChange = { viewModel.updateContextSize(it) },
+                label = "Context Size",
+            )
+            Text(
+                "Larger values use more memory. Default: 2048",
+                fontSize = 11.sp,
+                color = AIOSColors.TextTertiary,
+            )
+        }
+
+        SettingsCard("Max Tokens") {
+            IntInput(
+                value = maxTokensChat,
+                onValueChange = { viewModel.updateMaxTokensChat(it) },
+                label = "Chat Max Tokens",
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            IntInput(
+                value = maxTokensAgent,
+                onValueChange = { viewModel.updateMaxTokensAgent(it) },
+                label = "Agent Max Tokens",
+            )
+        }
+
+        SettingsCard("Temperature") {
+            SliderInput(
+                value = temperature,
+                onValueChange = { viewModel.updateTemperature(it) },
+                valueRange = 0f..2f,
+                label = "Temperature",
+            )
+            Text(
+                "Higher = more creative, Lower = more focused",
+                fontSize = 11.sp,
+                color = AIOSColors.TextTertiary,
+            )
+        }
+
+        SettingsCard("Top K") {
+            IntInput(
+                value = topK,
+                onValueChange = { viewModel.updateTopK(it) },
+                label = "Top K",
+            )
+            Text(
+                "Limits sampling to top K tokens. Default: 40",
+                fontSize = 11.sp,
+                color = AIOSColors.TextTertiary,
+            )
+        }
+
+        SettingsCard("Top P") {
+            SliderInput(
+                value = topP,
+                onValueChange = { viewModel.updateTopP(it) },
+                valueRange = 0f..1f,
+                label = "Top P",
+            )
+            Text(
+                "Nucleus sampling threshold. Default: 0.9",
+                fontSize = 11.sp,
+                color = AIOSColors.TextTertiary,
+            )
+        }
+
+        SettingsCard("Repeat Penalty") {
+            SliderInput(
+                value = repeatPenalty,
+                onValueChange = { viewModel.updateRepeatPenalty(it) },
+                valueRange = 0f..2f,
+                label = "Repeat Penalty",
+            )
+            Text(
+                "Penalizes repeated tokens. Default: 1.1",
+                fontSize = 11.sp,
+                color = AIOSColors.TextTertiary,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        SectionHeader("AGENT SETTINGS")
+        HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
+        Spacer(modifier = Modifier.height(2.dp))
+
+        SettingsCard("Max Iterations") {
+            IntInput(
+                value = agentMaxIterations,
+                onValueChange = { viewModel.updateAgentMaxIterations(it) },
+                label = "Agent Max Iterations",
+            )
+            Text(
+                "Maximum ReAct loop iterations. Default: 5",
+                fontSize = 11.sp,
+                color = AIOSColors.TextTertiary,
             )
         }
 
@@ -295,6 +414,85 @@ fun SettingsScreen(
             )
         }
     }
+}
+
+@Composable
+private fun SliderInput(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    label: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            label,
+            fontSize = 13.sp,
+            color = AIOSColors.TextSecondary,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            String.format("%.2f", value),
+            fontSize = 13.sp,
+            color = AIOSColors.TextPrimary,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.width(50.dp),
+        )
+    }
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = valueRange,
+        colors = SliderDefaults.colors(
+            thumbColor = AIOSColors.Primary,
+            activeTrackColor = AIOSColors.Primary,
+            inactiveTrackColor = AIOSColors.SurfaceVariant,
+        ),
+    )
+}
+
+@Composable
+private fun IntInput(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    label: String,
+) {
+    var text by remember(value) { mutableStateOf(value.toString()) }
+
+    OutlinedTextField(
+        value = text,
+        onValueChange = { input ->
+            text = input
+            input.toIntOrNull()?.let { onValueChange(it) }
+        },
+        label = {
+            Text(
+                label,
+                fontSize = 12.sp,
+                color = AIOSColors.TextTertiary,
+            )
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = AIOSColors.TextPrimary,
+            unfocusedTextColor = AIOSColors.TextPrimary,
+            focusedBorderColor = AIOSColors.Primary,
+            unfocusedBorderColor = AIOSColors.SurfaceVariant,
+            cursorColor = AIOSColors.Primary,
+            focusedLabelColor = AIOSColors.Primary,
+            unfocusedLabelColor = AIOSColors.TextTertiary,
+        ),
+        shape = RoundedCornerShape(12.dp),
+        textStyle = androidx.compose.ui.text.TextStyle(
+            fontSize = 14.sp,
+            fontFamily = FontFamily.Monospace,
+        ),
+    )
 }
 
 @Composable
