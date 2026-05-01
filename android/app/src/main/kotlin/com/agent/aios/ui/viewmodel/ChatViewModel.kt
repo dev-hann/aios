@@ -33,6 +33,12 @@ data class ModelInfo(
     val path: String,
 )
 
+data class ConfirmationRequest(
+    val toolName: String,
+    val args: String,
+    val risk: String,
+)
+
 enum class AgentMode { CHAT, AGENT }
 
 class ChatViewModel : ViewModel() {
@@ -60,6 +66,9 @@ class ChatViewModel : ViewModel() {
     private val _agentMode = MutableStateFlow(AgentMode.CHAT)
     val agentMode: StateFlow<AgentMode> = _agentMode.asStateFlow()
 
+    private val _pendingConfirmation = MutableStateFlow<ConfirmationRequest?>(null)
+    val pendingConfirmation: StateFlow<ConfirmationRequest?> = _pendingConfirmation.asStateFlow()
+
     private val _currentGeneratingText = MutableStateFlow("")
     val currentGeneratingText: StateFlow<String> = _currentGeneratingText.asStateFlow()
 
@@ -86,14 +95,22 @@ class ChatViewModel : ViewModel() {
         }
         viewModelScope.launch {
             app.agentStepFlow.collect { step ->
-                val msg = when (step.type) {
-                    "thought" -> Message("agent_think", step.content)
-                    "action" -> Message("agent_action", step.content, step.toolName, step.toolArgs)
-                    "observation" -> Message("agent_obs", step.toolResult, step.toolName, toolResult = step.toolResult)
-                    "answer" -> Message("agent_answer", step.content)
-                    else -> Message("system", step.content)
+                if (step.type == "confirmation_required") {
+                    _pendingConfirmation.value = ConfirmationRequest(
+                        toolName = step.toolName,
+                        args = step.toolArgs,
+                        risk = step.riskLevel,
+                    )
+                } else {
+                    val msg = when (step.type) {
+                        "thought" -> Message("agent_think", step.content)
+                        "action" -> Message("agent_action", step.content, step.toolName, step.toolArgs)
+                        "observation" -> Message("agent_obs", step.toolResult, step.toolName, toolResult = step.toolResult)
+                        "answer" -> Message("agent_answer", step.content)
+                        else -> Message("system", step.content)
+                    }
+                    _messages.value = _messages.value + msg
                 }
-                _messages.value = _messages.value + msg
             }
         }
         refreshModels()
@@ -250,6 +267,20 @@ class ChatViewModel : ViewModel() {
         conversationStore.clear()
         app.llmService?.resetContext()
         _contextUsage.value = ""
+    }
+
+    fun approveTool() {
+        val req = _pendingConfirmation.value ?: return
+        _pendingConfirmation.value = null
+        _messages.value = _messages.value + Message("system", "Allowed: ${req.toolName}")
+        app.resolveConfirmation(true)
+    }
+
+    fun denyTool() {
+        val req = _pendingConfirmation.value ?: return
+        _pendingConfirmation.value = null
+        _messages.value = _messages.value + Message("system", "Denied: ${req.toolName}")
+        app.resolveConfirmation(false)
     }
 
     fun getTokensPerSecond(): Float {

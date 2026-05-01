@@ -10,13 +10,27 @@ import com.agent.aios.agent.tools.ScreenFindTool
 import com.agent.aios.agent.tools.ScreenReaderTool
 import com.agent.aios.agent.tools.SmsSenderTool
 import org.json.JSONObject
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+enum class ToolRisk { SAFE, LOW, HIGH, CRITICAL }
+
+data class ToolAuditEntry(
+    val timestamp: Long,
+    val tool: String,
+    val args: String,
+    val risk: ToolRisk,
+    val approved: Boolean,
+    val result: String
+)
 
 data class AgentStep(
     val type: String,
     val content: String,
     val toolName: String = "",
     val toolArgs: String = "",
-    val toolResult: String = ""
+    val toolResult: String = "",
+    val riskLevel: String = ""
 )
 
 class AgentEngine(private val service: LlmService) {
@@ -26,6 +40,14 @@ class AgentEngine(private val service: LlmService) {
     private var onCancelled = false
 
     private val notes = mutableMapOf<String, String>()
+
+    private val auditLog = mutableListOf<ToolAuditEntry>()
+
+    @Volatile
+    private var confirmationLatch: CountDownLatch? = null
+
+    @Volatile
+    private var confirmationApproved = false
 
     private val conversationHistory: MutableList<Pair<String, String>> = mutableListOf()
 
@@ -63,6 +85,61 @@ class AgentEngine(private val service: LlmService) {
 
     fun cancel() {
         onCancelled = true
+        confirmationApproved = false
+        confirmationLatch?.countDown()
+    }
+
+    fun classifyRisk(toolName: String, args: String): ToolRisk {
+        val json = try { JSONObject(args) } catch (_: Exception) { JSONObject() }
+        val action = json.optString("action", "").lowercase()
+        return when (toolName) {
+            "calculator", "timer", "device_info", "notepad" -> ToolRisk.SAFE
+            "screen_reader", "screen_find" -> ToolRisk.SAFE
+            "notification_reader" -> ToolRisk.SAFE
+            "contact_search" -> ToolRisk.SAFE
+            "app_launcher" -> when (action) {
+                "open_settings", "list_apps" -> ToolRisk.LOW
+                "open_app", "open_url" -> ToolRisk.HIGH
+                else -> ToolRisk.LOW
+            }
+            "screen_action" -> when (action) {
+                "global" -> ToolRisk.LOW
+                "type" -> {
+                    val content = json.optString("content", "").lowercase()
+                    val sensitive = listOf("password", "pin", "passcode", "ssn", "social security", "credit card", "cvv", "otp")
+                    if (sensitive.any { content.contains(it) }) ToolRisk.CRITICAL else ToolRisk.HIGH
+                }
+                "tap", "long_click", "scroll", "swipe" -> ToolRisk.HIGH
+                else -> ToolRisk.HIGH
+            }
+            "sms_sender" -> when (action) {
+                "send" -> ToolRisk.CRITICAL
+                "read" -> ToolRisk.HIGH
+                else -> ToolRisk.HIGH
+            }
+            "phone_caller" -> when (action) {
+                "call" -> ToolRisk.CRITICAL
+                "dial" -> ToolRisk.HIGH
+                else -> ToolRisk.HIGH
+            }
+            else -> ToolRisk.HIGH
+        }
+    }
+
+    fun resolveConfirmation(approved: Boolean) {
+        confirmationApproved = approved
+        confirmationLatch?.countDown()
+    }
+
+    fun getAuditLog(): List<ToolAuditEntry> = synchronized(auditLog) { auditLog.toList() }
+
+    private fun addAuditEntry(tool: String, args: String, risk: ToolRisk, approved: Boolean, result: String) {
+        synchronized(auditLog) {
+            auditLog.add(ToolAuditEntry(System.currentTimeMillis(), tool, args, risk, approved, result))
+            if (auditLog.size > 100) {
+                repeat(auditLog.size - 100) { auditLog.removeAt(0) }
+            }
+        }
     }
 
     fun getToolManifest(): String {
@@ -202,11 +279,48 @@ class AgentEngine(private val service: LlmService) {
     }
 
     private fun executeTool(name: String, args: String): String {
+        val risk = classifyRisk(name, args)
+
+        if (risk == ToolRisk.HIGH || risk == ToolRisk.CRITICAL) {
+            confirmationLatch = CountDownLatch(1)
+            confirmationApproved = false
+
+            onStep?.invoke(AgentStep(
+                "confirmation_required",
+                "Requires confirmation: $name",
+                toolName = name,
+                toolArgs = args,
+                riskLevel = risk.name
+            ))
+
+            val approved = try {
+                confirmationLatch?.await(60, TimeUnit.SECONDS) ?: false
+                confirmationApproved
+            } catch (_: Exception) {
+                false
+            } finally {
+                confirmationLatch = null
+            }
+
+            if (!approved) {
+                addAuditEntry(name, args, risk, false, "Cancelled by user")
+                return "Action cancelled by user"
+            }
+        }
+
         val basicTool = basicTools[name]
-        if (basicTool != null) return basicTool.execute(args)
+        if (basicTool != null) {
+            val result = basicTool.execute(args)
+            addAuditEntry(name, args, risk, true, result)
+            return result
+        }
 
         val extendedTool = extendedTools[name]
-        if (extendedTool != null) return extendedTool.execute(args)
+        if (extendedTool != null) {
+            val result = extendedTool.execute(args)
+            addAuditEntry(name, args, risk, true, result)
+            return result
+        }
 
         return "Error: Unknown tool '$name'. Available: ${allToolNames.joinToString(", ")}"
     }

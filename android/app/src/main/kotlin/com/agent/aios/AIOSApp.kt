@@ -29,6 +29,8 @@ class AIOSApp : Application() {
         private set
     var isBound = false
         private set
+    var currentAgentEngine: AgentEngine? = null
+        private set
 
     lateinit var settingsRepository: SettingsRepository
         private set
@@ -153,6 +155,7 @@ class AIOSApp : Application() {
             onComplete(emptyList())
             return
         }
+        currentAgentEngine = engine
         _serviceState.tryEmit(ServiceState.AGENT_RUNNING)
         Thread {
             val iters = runCatching {
@@ -163,10 +166,15 @@ class AIOSApp : Application() {
                 _agentStepFlow.tryEmit(step)
             }
             val steps = engine.run(prompt, iters)
+            currentAgentEngine = null
             _serviceState.tryEmit(ServiceState.MODEL_LOADED)
             svc.updateNotification("Ready")
             onComplete(steps)
         }.start()
+    }
+
+    fun resolveConfirmation(approved: Boolean) {
+        currentAgentEngine?.resolveConfirmation(approved)
     }
 
     fun releaseModel() {

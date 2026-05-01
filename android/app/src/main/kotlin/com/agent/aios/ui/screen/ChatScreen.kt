@@ -38,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +46,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,16 +61,19 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agent.aios.AIOSApp
+import com.agent.aios.ToolRisk
 import com.agent.aios.ui.component.MessageBubble
 import com.agent.aios.ui.component.ModelPicker
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.AgentMode
 import com.agent.aios.ui.viewmodel.ChatViewModel
+import com.agent.aios.ui.viewmodel.ConfirmationRequest
 
 @Composable
 fun ChatScreen(vm: ChatViewModel = viewModel()) {
@@ -80,6 +85,7 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
     val agentMode by vm.agentMode.collectAsState()
     val serviceState by vm.serviceState.collectAsState()
     val currentGeneratingText by vm.currentGeneratingText.collectAsState()
+    val pendingConfirmation by vm.pendingConfirmation.collectAsState()
 
     var showModelPicker by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -96,6 +102,14 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
             currentModelPath = null,
             onSelect = { vm.loadModel(it.path) },
             onDismiss = { showModelPicker = false }
+        )
+    }
+
+    if (pendingConfirmation != null) {
+        ConfirmationDialog(
+            request = pendingConfirmation!!,
+            onApprove = { vm.approveTool() },
+            onDeny = { vm.denyTool() },
         )
     }
 
@@ -463,5 +477,180 @@ private fun InputBar(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun ConfirmationDialog(
+    request: ConfirmationRequest,
+    onApprove: () -> Unit,
+    onDeny: () -> Unit,
+) {
+    val risk = try { ToolRisk.valueOf(request.risk) } catch (_: Exception) { ToolRisk.HIGH }
+    val riskColor = when (risk) {
+        ToolRisk.SAFE -> AIOSColors.StatusReady
+        ToolRisk.LOW -> AIOSColors.StatusRunning
+        ToolRisk.HIGH -> Color(0xFFFF9800)
+        ToolRisk.CRITICAL -> AIOSColors.StatusError
+    }
+    val riskLabel = when (risk) {
+        ToolRisk.SAFE -> "SAFE"
+        ToolRisk.LOW -> "LOW"
+        ToolRisk.HIGH -> "HIGH"
+        ToolRisk.CRITICAL -> "CRITICAL"
+    }
+
+    AlertDialog(
+        onDismissRequest = {},
+        containerColor = AIOSColors.Surface,
+        title = {
+            Column {
+                Text(
+                    text = "Action Confirmation",
+                    color = AIOSColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(riskColor.copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = riskLabel,
+                            color = riskColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+                    Text(
+                        text = request.toolName,
+                        color = AIOSColors.TextSecondary,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    text = "The agent wants to perform:",
+                    color = AIOSColors.TextSecondary,
+                    fontSize = 14.sp,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AIOSColors.SurfaceVariant)
+                        .padding(12.dp),
+                ) {
+                    Text(
+                        text = parseArgsForDisplay(request.toolName, request.args),
+                        color = AIOSColors.TextPrimary,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 18.sp,
+                    )
+                }
+                if (risk == ToolRisk.CRITICAL) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(AIOSColors.StatusError),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "This action is irreversible. Review carefully.",
+                            color = AIOSColors.StatusError,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onApprove,
+                colors = ButtonDefaults.textButtonColors(
+                    containerColor = riskColor.copy(alpha = 0.15f),
+                    contentColor = riskColor,
+                ),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(
+                    text = "Allow",
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDeny,
+                colors = ButtonDefaults.textButtonColors(
+                    containerColor = AIOSColors.SurfaceVariant,
+                    contentColor = AIOSColors.TextSecondary,
+                ),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(
+                    text = "Deny",
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+            }
+        },
+    )
+}
+
+private fun parseArgsForDisplay(toolName: String, args: String): String {
+    val json = try { org.json.JSONObject(args) } catch (_: Exception) { return args }
+    val action = json.optString("action", "")
+    return when (toolName) {
+        "sms_sender" -> when (action) {
+            "send" -> "Send SMS\n  To: ${json.optString("to", "?")}\n  Body: ${json.optString("body", "?")}"
+            "read" -> "Read SMS messages (limit: ${json.optInt("limit", 10)})"
+            else -> args
+        }
+        "phone_caller" -> when (action) {
+            "call" -> "Phone call to ${json.optString("number", "?")}"
+            "dial" -> "Open dialer with ${json.optString("number", "?")}"
+            else -> args
+        }
+        "screen_action" -> when (action) {
+            "tap" -> {
+                val text = json.optString("text", "")
+                val x = json.optDouble("x", -1.0)
+                val y = json.optDouble("y", -1.0)
+                if (text.isNotBlank()) "Tap on \"$text\""
+                else if (x >= 0 && y >= 0) "Tap at ($x, $y)"
+                else args
+            }
+            "type" -> "Type \"${json.optString("content", "")}\""
+            "scroll" -> "Scroll ${json.optString("direction", "?")}"
+            "swipe" -> "Swipe ${json.optString("direction", "?")}"
+            "long_click" -> "Long click on \"${json.optString("text", "")}\""
+            "global" -> "Global action: ${json.optString("global_action", "?")}"
+            else -> args
+        }
+        "app_launcher" -> when (action) {
+            "open_app" -> "Open app: ${json.optString("package_name", "?")}"
+            "open_url" -> "Open URL: ${json.optString("url", "?")}"
+            else -> args
+        }
+        else -> args
     }
 }
