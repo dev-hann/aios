@@ -346,7 +346,7 @@ private fun EmptyState(onGetStarted: () -> Unit) {
                     containerColor = AIOSColors.Primary.copy(alpha = 0.15f),
                     contentColor = AIOSColors.Primary,
                 ),
-                border = ButtonDefaults.outlinedButtonBorder.copy(
+                border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                     brush = SolidColor(AIOSColors.Primary.copy(alpha = 0.4f))
                 ),
             ) {

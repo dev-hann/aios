@@ -47,7 +47,7 @@ class CalculatorTool : AgentTool {
                     values.push(sb.toString().toDouble()); continue
                 }
                 tokens[i] in listOf('+', '-', '*', '/') -> {
-                    while (ops.isNotEmpty() && prec(ops.peek()) >= prec(tokens[i]))
+                    while (ops.isNotEmpty() && prec(ops.peek() ?: '\u0000') >= prec(tokens[i]))
                         applyOp(values, ops.pop())
                     ops.push(tokens[i])
                 }
