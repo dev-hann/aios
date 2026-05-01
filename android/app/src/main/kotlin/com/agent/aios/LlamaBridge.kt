@@ -18,6 +18,8 @@ class LlamaBridge {
     external fun nativeResetContext()
     external fun nativeIsModelLoaded(): Boolean
     external fun nativeGetModelInfo(): String
+    external fun nativeGetContextUsage(): String
+    external fun nativeSetSamplingParams(temperature: Float, topK: Int, topP: Float, repeatPenalty: Float)
 
     fun onTokenGenerated(token: String) {
         onTokenCallback?.invoke(token)

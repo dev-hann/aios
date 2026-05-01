@@ -94,7 +94,12 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
         ModelPicker(
             models = models,
             currentModelPath = null,
+            isImporting = isImporting,
             onSelect = { vm.loadModel(it.path) },
+            onImportFile = {
+                showModelPicker = false
+                onPickModelFile()
+            },
             onDismiss = { showModelPicker = false }
         )
     }

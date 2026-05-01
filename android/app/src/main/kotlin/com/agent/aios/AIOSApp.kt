@@ -142,7 +142,7 @@ class AIOSApp : Application() {
         }.start()
     }
 
-    fun runAgent(prompt: String, maxIterations: Int? = null, onComplete: (List<AgentStep>) -> Unit) {
+    fun runAgent(prompt: String, maxIterations: Int? = null, maxTokensAgent: Int = 512, onComplete: (List<AgentStep>) -> Unit) {
         val svc = llmService
         if (svc == null) {
             onComplete(emptyList())

@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.agent.aios.AIOSApp
 import com.agent.aios.AgentStep
+import com.agent.aios.data.ConversationMessage
+import com.agent.aios.data.ConversationStore
 import com.agent.aios.ui.theme.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,6 +40,8 @@ class ChatViewModel : ViewModel() {
     private val app: AIOSApp
         get() = AIOSApp.instance
 
+    private val conversationStore by lazy { ConversationStore(app) }
+
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages.asStateFlow()
 
@@ -65,12 +69,16 @@ class ChatViewModel : ViewModel() {
     private val _elapsedMs = MutableStateFlow(0L)
     val elapsedMs: StateFlow<Long> = _elapsedMs.asStateFlow()
 
+    private val _contextUsage = MutableStateFlow("")
+    val contextUsage: StateFlow<String> = _contextUsage.asStateFlow()
+
     val serviceState = app.serviceState
         .stateIn(viewModelScope, SharingStarted.Eagerly, AIOSApp.ServiceState.DISCONNECTED)
 
     private var generateStartTime = 0L
 
     init {
+        loadPersistedConversation()
         viewModelScope.launch {
             app.tokenFlow.collect { token ->
                 _currentGeneratingText.value += token
@@ -90,6 +98,37 @@ class ChatViewModel : ViewModel() {
         }
         refreshModels()
         checkModelLoaded()
+    }
+
+    private fun loadPersistedConversation() {
+        val persisted = conversationStore.load()
+        if (persisted.isNotEmpty()) {
+            val restored = persisted.map { msg ->
+                Message(role = msg.role, text = msg.content)
+            }
+            _messages.value = restored
+            Log.i("ChatVM", "Restored ${restored.size} messages from disk")
+        }
+    }
+
+    private fun persistMessage(role: String, content: String) {
+        viewModelScope.launch {
+            conversationStore.appendMessage(role, content)
+        }
+    }
+
+    private fun persistAllMessages() {
+        viewModelScope.launch {
+            val msgs = _messages.value.map { msg ->
+                ConversationMessage(role = msg.role, content = msg.text)
+            }
+            conversationStore.save(msgs)
+        }
+    }
+
+    private fun updateContextUsage() {
+        val svc = app.llmService ?: return
+        _contextUsage.value = svc.getContextUsage()
     }
 
     fun updateInput(text: String) {
@@ -172,6 +211,7 @@ class ChatViewModel : ViewModel() {
         if (text.isEmpty() || _isGenerating.value) return
         _inputText.value = ""
         _messages.value = _messages.value + Message("user", text)
+        persistMessage("user", text)
         _isGenerating.value = true
         _currentGeneratingText.value = ""
         _tokenCount.value = 0
@@ -190,15 +230,26 @@ class ChatViewModel : ViewModel() {
                         this[idx] = Message("assistant", finalText)
                     }
                     _currentGeneratingText.value = ""
+                    persistMessage("assistant", finalText)
+                    updateContextUsage()
                 }
             }
             AgentMode.AGENT -> {
                 app.runAgent(text) { steps ->
                     _isGenerating.value = false
                     Log.i("ChatVM", "Agent completed with ${steps.size} steps")
+                    updateContextUsage()
+                    persistAllMessages()
                 }
             }
         }
+    }
+
+    fun clearConversation() {
+        _messages.value = emptyList()
+        conversationStore.clear()
+        app.llmService?.resetContext()
+        _contextUsage.value = ""
     }
 
     fun getTokensPerSecond(): Float {
@@ -206,5 +257,10 @@ class ChatViewModel : ViewModel() {
         val elapsed = _elapsedMs.value
         if (elapsed <= 0) return 0f
         return (tokens.toFloat() / elapsed) * 1000f
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        persistAllMessages()
     }
 }

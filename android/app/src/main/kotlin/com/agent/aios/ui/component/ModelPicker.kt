@@ -21,6 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,7 +51,9 @@ import com.agent.aios.ui.viewmodel.ModelInfo
 fun ModelPicker(
     models: List<ModelInfo>,
     currentModelPath: String?,
+    isImporting: Boolean = false,
     onSelect: (ModelInfo) -> Unit,
+    onImportFile: () -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -85,12 +91,33 @@ fun ModelPicker(
                             color = AIOSColors.TextSecondary,
                             fontSize = 15.sp,
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "adb push model.gguf\n/data/data/com.agent.aios/files/models/",
-                            color = AIOSColors.TextTertiary,
-                            fontSize = 12.sp,
-                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = onImportFile,
+                            enabled = !isImporting,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AIOSColors.Primary,
+                            ),
+                        ) {
+                            if (isImporting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = AIOSColors.TextPrimary,
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Importing...", fontSize = 13.sp)
+                            } else {
+                                Icon(
+                                    Icons.Filled.UploadFile,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Import from Files", fontSize = 13.sp)
+                            }
+                        }
                     }
                 }
             }
