@@ -1,0 +1,51 @@
+#!/bin/bash
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+VERSION_FILE="$REPO_ROOT/android/app/build.gradle.kts"
+VERSION_NAME=$(grep 'versionName' "$VERSION_FILE" | head -1 | sed 's/.*versionName = "\(.*\)".*/\1/')
+TAG="v$VERSION_NAME"
+
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+    echo "[pre-push] Tag $TAG already exists. Skipping release."
+    exit 0
+fi
+
+echo "[pre-push] New version detected: $TAG"
+echo "[pre-push] Building release APK..."
+
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
+
+cd "$REPO_ROOT/android"
+./gradlew assembleRelease 2>&1 | tail -5
+
+APK_PATH="app/build/outputs/apk/release/app-release.apk"
+if [ ! -f "$APK_PATH" ]; then
+    echo "[pre-push] ERROR: Release APK not found"
+    exit 1
+fi
+
+APK_NAME="aios-$VERSION_NAME.apk"
+cp "$APK_PATH" "/tmp/$APK_NAME"
+
+echo "[pre-push] Creating tag $TAG..."
+cd "$REPO_ROOT"
+git tag "$TAG"
+
+echo "[pre-push] Pushing tags..."
+git push origin "$TAG" 2>&1 || true
+
+echo "[pre-push] Creating GitHub Release..."
+NOTES="## AIOS $TAG
+
+### Install
+1. Download \`$APK_NAME\`
+2. Open on your Android device
+3. Allow installation when prompted"
+
+gh release create "$TAG" "/tmp/$APK_NAME" \
+    --title "AIOS $TAG" \
+    --notes "$NOTES" 2>&1
+
+echo "[pre-push] Release $TAG created successfully!"

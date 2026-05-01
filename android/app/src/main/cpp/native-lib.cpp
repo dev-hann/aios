@@ -236,7 +236,7 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
 
     int n_layers = llama_model_n_layer(g_model);
 
-    g_cpu_count = static_cast<int>(sysconf(_SC_NPROC_ONLN));
+    g_cpu_count = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
     if (g_cpu_count <= 0) g_cpu_count = 4;
 
     g_n_threads = std::max(2, std::min(g_cpu_count * 3 / 5, 8));
@@ -244,14 +244,12 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
 
     g_n_ctx = context_size;
     g_n_batch = std::min(1024, context_size / 2);
-    g_flash_attn = true;
 
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = context_size;
     ctx_params.n_batch = g_n_batch;
     ctx_params.n_threads = g_n_threads;
     ctx_params.n_threads_batch = g_n_threads;
-    ctx_params.flash_attn = g_flash_attn;
 
     g_ctx = llama_init_from_model(g_model, ctx_params);
     if (!g_ctx) {
