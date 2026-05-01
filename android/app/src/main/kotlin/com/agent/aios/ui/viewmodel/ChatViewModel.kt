@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.File
 
 data class Message(
@@ -154,7 +156,10 @@ class ChatViewModel : ViewModel() {
     }
 
     fun loadModel(path: String) {
-        app.loadModel(path) { success ->
+        val contextSize = runCatching {
+            runBlocking { app.settingsRepository.contextSize.first() }
+        }.getOrNull() ?: 2048
+        app.loadModel(path, contextSize) { success ->
             _isModelLoaded.value = success
             if (!success) {
                 _messages.value = _messages.value + Message("system", "Failed to load model")

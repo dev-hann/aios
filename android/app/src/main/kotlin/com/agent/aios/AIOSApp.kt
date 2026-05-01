@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.util.Log
+import com.agent.aios.settings.SettingsRepository
 import com.agent.aios.update.UpdateChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class AIOSApp : Application() {
 
@@ -25,6 +28,9 @@ class AIOSApp : Application() {
     var llmService: LlmService? = null
         private set
     var isBound = false
+        private set
+
+    lateinit var settingsRepository: SettingsRepository
         private set
 
     private val _tokenFlow = MutableSharedFlow<String>(extraBufferCapacity = 64)
@@ -69,6 +75,7 @@ class AIOSApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        settingsRepository = SettingsRepository(this)
         bindLlmService()
         checkForUpdateBackground()
     }
@@ -93,7 +100,7 @@ class AIOSApp : Application() {
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
     }
 
-    fun loadModel(path: String, contextSize: Int = 1024, onResult: (Boolean) -> Unit) {
+    fun loadModel(path: String, contextSize: Int? = null, onResult: (Boolean) -> Unit) {
         val svc = llmService
         if (svc == null) {
             onResult(false)
@@ -101,8 +108,11 @@ class AIOSApp : Application() {
         }
         _serviceState.tryEmit(ServiceState.GENERATING)
         Thread {
+            val ctxSize = runCatching {
+                runBlocking { contextSize ?: settingsRepository.contextSize.first() }
+            }.getOrNull() ?: 2048
             svc.updateNotification("Loading model...")
-            val success = svc.loadModel(path, contextSize)
+            val success = svc.loadModel(path, ctxSize)
             if (success) {
                 _serviceState.tryEmit(ServiceState.MODEL_LOADED)
                 svc.updateNotification("Model loaded - Ready")
@@ -113,7 +123,7 @@ class AIOSApp : Application() {
         }.start()
     }
 
-    fun generateStream(prompt: String, maxTokens: Int = 128, onComplete: (Int) -> Unit) {
+    fun generateStream(prompt: String, maxTokens: Int? = null, onComplete: (Int) -> Unit) {
         val svc = llmService
         if (svc == null) {
             onComplete(-1)
@@ -121,15 +131,18 @@ class AIOSApp : Application() {
         }
         _serviceState.tryEmit(ServiceState.GENERATING)
         Thread {
+            val tokens = runCatching {
+                runBlocking { maxTokens ?: settingsRepository.maxTokensChat.first() }
+            }.getOrNull() ?: 128
             svc.updateNotification("Generating...")
-            val count = svc.generateStream(prompt, maxTokens)
+            val count = svc.generateStream(prompt, tokens)
             _serviceState.tryEmit(ServiceState.MODEL_LOADED)
             svc.updateNotification("Ready")
             onComplete(count)
         }.start()
     }
 
-    fun runAgent(prompt: String, maxIterations: Int = 5, onComplete: (List<AgentStep>) -> Unit) {
+    fun runAgent(prompt: String, maxIterations: Int? = null, onComplete: (List<AgentStep>) -> Unit) {
         val svc = llmService
         if (svc == null) {
             onComplete(emptyList())
@@ -142,11 +155,14 @@ class AIOSApp : Application() {
         }
         _serviceState.tryEmit(ServiceState.AGENT_RUNNING)
         Thread {
+            val iters = runCatching {
+                runBlocking { maxIterations ?: settingsRepository.agentMaxIterations.first() }
+            }.getOrNull() ?: 5
             svc.updateNotification("Agent running...")
             engine.setStepCallback { step ->
                 _agentStepFlow.tryEmit(step)
             }
-            val steps = engine.run(prompt, maxIterations)
+            val steps = engine.run(prompt, iters)
             _serviceState.tryEmit(ServiceState.MODEL_LOADED)
             svc.updateNotification("Ready")
             onComplete(steps)
