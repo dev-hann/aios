@@ -1,24 +1,56 @@
 #!/bin/bash
-set -e
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 VERSION_FILE="$REPO_ROOT/android/app/build.gradle.kts"
+REMOTE="$1"
+URL="$2"
+
+# Only run on push to origin master
+if [ "$REMOTE" != "origin" ]; then
+    exit 0
+fi
+
+# Check if there are commits to push
+ZERO="0000000000000000000000000000000000000000"
+while read local_ref local_sha remote_ref remote_sha; do
+    if [ "$local_sha" = "$ZERO" ]; then
+        exit 0
+    fi
+    if [[ "$remote_ref" != *"master"* ]] && [[ "$remote_ref" != *"main"* ]]; then
+        exit 0
+    fi
+done
+
 VERSION_NAME=$(grep 'versionName' "$VERSION_FILE" | head -1 | sed 's/.*versionName = "\(.*\)".*/\1/')
 TAG="v$VERSION_NAME"
 
 if git rev-parse "$TAG" >/dev/null 2>&1; then
-    echo "[pre-push] Tag $TAG already exists. Skipping release."
-    exit 0
+    IFS='.' read -ra PARTS <<< "$VERSION_NAME"
+    MAJOR="${PARTS[0]:-0}"
+    MINOR="${PARTS[1]:-0}"
+    PATCH="${PARTS[2]:-0}"
+    PATCH=$((PATCH + 1))
+    VERSION_NAME="${MAJOR}.${MINOR}.${PATCH}"
+    VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+    TAG="v$VERSION_NAME"
+
+    OLD_VERSION=$(grep 'versionName' "$VERSION_FILE" | head -1 | sed 's/.*versionName = "\(.*\)".*/\1/')
+    OLD_CODE=$(grep 'versionCode' "$VERSION_FILE" | head -1 | sed 's/.*versionCode = \(.*\)/\1/')
+
+    sed -i "s/versionCode = ${OLD_CODE}/versionCode = ${VERSION_CODE}/" "$VERSION_FILE"
+    sed -i "s/versionName = \"${OLD_VERSION}\"/versionName = \"${VERSION_NAME}\"/" "$VERSION_FILE"
+
+    git add "$VERSION_FILE"
+    git commit -m "chore: bump to ${TAG}" --no-verify
 fi
 
-echo "[pre-push] New version detected: $TAG"
-echo "[pre-push] Building release APK..."
+echo "[pre-push] Deploying ${TAG}..."
 
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
 
 cd "$REPO_ROOT/android"
-./gradlew assembleRelease 2>&1 | tail -5
+./gradlew assembleRelease 2>&1 | tail -3
 
 APK_PATH="app/build/outputs/apk/release/app-release.apk"
 if [ ! -f "$APK_PATH" ]; then
@@ -26,26 +58,28 @@ if [ ! -f "$APK_PATH" ]; then
     exit 1
 fi
 
-APK_NAME="aios-$VERSION_NAME.apk"
+APK_NAME="aios-${VERSION_NAME}.apk"
 cp "$APK_PATH" "/tmp/$APK_NAME"
 
-echo "[pre-push] Creating tag $TAG..."
 cd "$REPO_ROOT"
 git tag "$TAG"
 
-echo "[pre-push] Pushing tags..."
-git push origin "$TAG" 2>&1 || true
-
-echo "[pre-push] Creating GitHub Release..."
-NOTES="## AIOS $TAG
-
-### Install
-1. Download \`$APK_NAME\`
-2. Open on your Android device
-3. Allow installation when prompted"
+PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+if [ -n "$PREV_TAG" ]; then
+    NOTES=$(git log --pretty=format:"- %s" "${PREV_TAG}"..HEAD 2>/dev/null || echo "")
+else
+    NOTES=$(git log --pretty=format:"- %s" HEAD~5..HEAD 2>/dev/null || echo "")
+fi
 
 gh release create "$TAG" "/tmp/$APK_NAME" \
-    --title "AIOS $TAG" \
-    --notes "$NOTES" 2>&1
+    --title "AIOS ${TAG}" \
+    --notes "## AIOS ${TAG}
 
-echo "[pre-push] Release $TAG created successfully!"
+${NOTES}
+
+### Install
+1. Download \`${APK_NAME}\`
+2. Open on your Android device
+3. Allow installation when prompted" 2>&1 || true
+
+echo "[pre-push] ${TAG} deployed!"
