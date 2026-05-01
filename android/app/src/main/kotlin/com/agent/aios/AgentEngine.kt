@@ -24,6 +24,8 @@ class AgentEngine(private val service: LlmService) {
 
     private val notes = mutableMapOf<String, String>()
 
+    private val conversationHistory: MutableList<Pair<String, String>> = mutableListOf()
+
     interface ExtendedTool {
         val name: String
         val description: String
@@ -67,32 +69,58 @@ class AgentEngine(private val service: LlmService) {
         return "--- Basic Tools ---\n$basicManifest\n\n--- Phone Control Tools ---\n$extendedManifest"
     }
 
-    fun run(userPrompt: String, maxIterations: Int = 5): List<AgentStep> {
+    fun getConversationHistory(): List<Pair<String, String>> = conversationHistory.toList()
+
+    fun clearHistory() {
+        conversationHistory.clear()
+        service.resetContext()
+    }
+
+    private fun trimHistory() {
+        val usage = service.getContextUsage()
+        val parts = usage.split("/")
+        if (parts.size != 2) return
+        val used = parts[0].toIntOrNull() ?: return
+        val total = parts[1].toIntOrNull() ?: return
+        if (total == 0) return
+
+        val usageRatio = used.toFloat() / total.toFloat()
+        if (usageRatio > 0.8f && conversationHistory.size > 4) {
+            val toRemove = conversationHistory.size / 4
+            repeat(toRemove) {
+                if (conversationHistory.size > 2) {
+                    conversationHistory.removeAt(0)
+                }
+            }
+            service.resetContext()
+            Log.i(TAG, "Trimmed history: removed $toRemove entries, ratio was $usageRatio")
+        }
+    }
+
+    fun run(userPrompt: String, maxIterations: Int = 8): List<AgentStep> {
         onCancelled = false
         val steps = mutableListOf<AgentStep>()
 
         steps.add(AgentStep("thought", "Processing: $userPrompt"))
         onStep?.invoke(steps.last())
 
-        service.resetContext()
-
         val systemPrompt = buildSystemPrompt()
-        val conversation = StringBuilder()
-
-        conversation.append("System: $systemPrompt\n\n")
-        conversation.append("User: $userPrompt\n")
+        conversationHistory.add("system" to systemPrompt)
+        conversationHistory.add("user" to userPrompt)
 
         for (i in 0 until maxIterations) {
             if (cancelled) break
 
+            trimHistory()
+
             steps.add(AgentStep("thought", "Thinking (step ${i + 1})..."))
             onStep?.invoke(steps.last())
 
-            val llmInput = "$conversation\nThought:"
-            val response = collectStream(llmInput, 256)
+            val llmInput = buildPromptFromHistory()
+            val response = collectStream(llmInput, 512)
             Log.i(TAG, "Iteration $i LLM: ${response.take(200)}")
 
-            conversation.append("Thought: $response\n")
+            conversationHistory.add("assistant" to response)
 
             val parsed = parseResponse(response)
             when {
@@ -112,8 +140,7 @@ class AgentEngine(private val service: LlmService) {
                         toolName = actionName, toolResult = observation))
                     onStep?.invoke(steps.last())
 
-                    conversation.append("Action: $actionName($actionArgs)\n")
-                    conversation.append("Observation: $observation\n")
+                    conversationHistory.add("observation" to "Action: $actionName($actionArgs)\nResult: $observation")
                 }
                 parsed.containsKey("answer") -> {
                     val answer = parsed["answer"]!!
@@ -138,6 +165,21 @@ class AgentEngine(private val service: LlmService) {
         }
 
         return steps
+    }
+
+    private fun buildPromptFromHistory(): String {
+        val sb = StringBuilder()
+        for ((role, content) in conversationHistory) {
+            when (role) {
+                "system" -> sb.append("System: $content\n\n")
+                "user" -> sb.append("User: $content\n")
+                "assistant" -> sb.append("Assistant: $content\n")
+                "observation" -> sb.append("$content\n")
+                else -> sb.append("$role: $content\n")
+            }
+        }
+        sb.append("Thought:")
+        return sb.toString()
     }
 
     private fun collectStream(prompt: String, maxTokens: Int): String {

@@ -97,6 +97,14 @@ class LlmService : Service() {
 
     fun getAgentEngine(): AgentEngine? = agentEngine
 
+    fun getContextUsage(): String {
+        return llamaBridge.nativeGetContextUsage()
+    }
+
+    fun setSamplingParams(temperature: Float, topK: Int, topP: Float, repeatPenalty: Float) {
+        llamaBridge.nativeSetSamplingParams(temperature, topK, topP, repeatPenalty)
+    }
+
     fun updateNotification(text: String) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.notify(NOTIFICATION_ID, buildNotification(text))

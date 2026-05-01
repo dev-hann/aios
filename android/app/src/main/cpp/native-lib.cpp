@@ -15,6 +15,26 @@ static const llama_vocab *g_vocab = nullptr;
 static std::vector<llama_chat_message> g_chat_messages;
 static std::vector<std::string> g_chat_strings;
 static int g_n_past = 0;
+static int g_n_ctx = 2048;
+
+static float g_temperature = 0.7f;
+static int g_top_k = 40;
+static float g_top_p = 0.9f;
+static float g_repeat_penalty = 1.1f;
+
+static std::string apply_chat_template_full(const std::vector<llama_chat_message> &messages);
+static std::vector<llama_token> tokenize(const char *text, bool add_bos);
+static bool decode_tokens(std::vector<llama_token> &tokens);
+
+static int estimate_tokens(const char *text) {
+    return static_cast<int>(strlen(text) / 3.5f);
+}
+
+static bool check_context_overflow(int estimated_new_tokens) {
+    int remaining = g_n_ctx - g_n_past - estimated_new_tokens;
+    int safety_margin = g_n_ctx / 8;
+    return remaining < safety_margin;
+}
 
 static void reset_kv_cache() {
     g_chat_messages.clear();
@@ -89,11 +109,55 @@ static bool decode_tokens(std::vector<llama_token> &tokens) {
     return true;
 }
 
+static void rebuild_kv_cache() {
+    if (g_chat_messages.empty()) {
+        g_n_past = 0;
+        return;
+    }
+
+    llama_memory_t mem = llama_get_memory(g_ctx);
+    llama_memory_clear(mem, true);
+    g_n_past = 0;
+
+    std::string formatted = apply_chat_template_full(g_chat_messages);
+    if (formatted.empty()) return;
+
+    auto tokens = tokenize(formatted.c_str(), true);
+
+    if (!decode_tokens(tokens)) {
+        LOGE("Failed to rebuild KV cache");
+        return;
+    }
+    g_n_past = static_cast<int>(tokens.size());
+
+    LOGI("KV cache rebuilt: %d/%d tokens, %zu messages", g_n_past, g_n_ctx, g_chat_messages.size());
+}
+
+static void rebuild_chat_message_pointers() {
+    if (g_chat_strings.size() != g_chat_messages.size()) return;
+    for (size_t i = 0; i < g_chat_strings.size(); i++) {
+        const char *role = g_chat_messages[i].role;
+        g_chat_messages[i] = {role, g_chat_strings[i].c_str()};
+    }
+}
+
+static void apply_sliding_window(int estimated_new_tokens) {
+    while (g_chat_strings.size() > 2 && check_context_overflow(estimated_new_tokens)) {
+        g_chat_strings.erase(g_chat_strings.begin());
+        g_chat_messages.erase(g_chat_messages.begin());
+        rebuild_chat_message_pointers();
+        LOGI("Sliding window: removed oldest message, %zu remaining", g_chat_messages.size());
+    }
+
+    rebuild_kv_cache();
+}
+
 static llama_sampler *create_sampler() {
     llama_sampler *smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
-    llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.7f));
-    llama_sampler_chain_add(smpl, llama_sampler_init_top_k(40));
-    llama_sampler_chain_add(smpl, llama_sampler_init_top_p(0.9f, 1));
+    llama_sampler_chain_add(smpl, llama_sampler_init_temp(g_temperature));
+    llama_sampler_chain_add(smpl, llama_sampler_init_top_k(g_top_k));
+    llama_sampler_chain_add(smpl, llama_sampler_init_top_p(g_top_p, 1));
+    llama_sampler_chain_add(smpl, llama_sampler_init_penalties(64, 0.0f, g_repeat_penalty, 0.0f));
     llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
     return smpl;
 }
@@ -109,6 +173,11 @@ static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *
     int n_decoded = 0;
 
     while (n_decoded < max_tokens) {
+        if (g_n_past >= g_n_ctx) {
+            LOGE("Context overflow during generation: n_past=%d >= n_ctx=%d", g_n_past, g_n_ctx);
+            break;
+        }
+
         llama_token new_token = llama_sampler_sample(smpl, g_ctx, -1);
         if (llama_vocab_is_eog(g_vocab, new_token)) break;
 
@@ -159,9 +228,11 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
     int n_layers = llama_model_n_layer(g_model);
     int n_threads = (n_layers <= 24) ? 4 : 6;
 
+    g_n_ctx = context_size;
+
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = context_size;
-    ctx_params.n_batch = 1024;
+    ctx_params.n_batch = 512;
     ctx_params.n_threads = n_threads;
     ctx_params.n_threads_batch = n_threads;
 
@@ -175,7 +246,7 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
     }
 
     reset_kv_cache();
-    LOGI("Context created (n_ctx=%d, n_threads=%d, n_layers=%d)", context_size, n_threads, n_layers);
+    LOGI("Context created (n_ctx=%d, n_batch=512, n_threads=%d, n_layers=%d)", context_size, n_threads, n_layers);
     return JNI_TRUE;
 }
 
@@ -187,6 +258,12 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateStream(
 
     const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
     if (!prompt_str) return -1;
+
+    int estimated = estimate_tokens(prompt_str);
+    if (check_context_overflow(estimated + max_tokens)) {
+        LOGI("Context overflow detected (%d/%d), applying sliding window", g_n_past, g_n_ctx);
+        apply_sliding_window(estimated + max_tokens);
+    }
 
     add_chat_message("user", prompt_str);
     env->ReleaseStringUTFChars(prompt, prompt_str);
@@ -218,7 +295,7 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateStream(
 
     add_chat_message("assistant", result.c_str());
 
-    LOGI("Stream done: %zu tokens (n_past=%d)", result.size(), g_n_past);
+    LOGI("Stream done: %zu chars (n_past=%d/%d)", result.size(), g_n_past, g_n_ctx);
     return static_cast<jint>(result.size());
 }
 
@@ -238,7 +315,7 @@ Java_com_agent_aios_LlamaBridge_nativeGenerate(
     std::vector<llama_chat_message> agent_msgs;
     std::vector<std::string> agent_strings;
 
-    agent_strings.emplace_back("You are an AI agent. Respond EXACTLY in one of these formats:\n1. Action: tool_name\\nArgs: {\"param\": \"value\"}\n2. Answer: your response\nBe concise.");
+    agent_strings.emplace_back("You are an AI agent. Respond EXACTLY in one of these formats:\n1. Action: tool_name\nArgs: {\"param\": \"value\"}\n2. Answer: your response\nBe concise.");
     agent_msgs.push_back({"system", agent_strings[0].c_str()});
 
     agent_strings.emplace_back(prompt_str);
@@ -296,7 +373,7 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateStreamStandalone(
     std::string result = sample_response(smpl, max_tokens, env, thiz, true);
     llama_sampler_free(smpl);
 
-    LOGI("StreamStandalone done: %zu tokens (n_past=%d)", result.size(), g_n_past);
+    LOGI("StreamStandalone done: %zu chars (n_past=%d)", result.size(), g_n_past);
     return static_cast<jint>(result.size());
 }
 
@@ -337,4 +414,23 @@ Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(
              "n_ctx_train=%d, n_embd=%d, n_layer=%d, threads=%d",
              n_ctx_train, n_embd, n_layer, n_threads);
     return env->NewStringUTF(info);
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_agent_aios_LlamaBridge_nativeGetContextUsage(
+        JNIEnv *env, jobject thiz) {
+    char usage[64];
+    snprintf(usage, sizeof(usage), "%d/%d", g_n_past, g_n_ctx);
+    return env->NewStringUTF(usage);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_agent_aios_LlamaBridge_nativeSetSamplingParams(
+        JNIEnv *env, jobject thiz, jfloat temperature, jint top_k, jfloat top_p, jfloat repeat_penalty) {
+    g_temperature = temperature;
+    g_top_k = top_k;
+    g_top_p = top_p;
+    g_repeat_penalty = repeat_penalty;
+    LOGI("Sampling params updated: temp=%.2f, top_k=%d, top_p=%.2f, repeat_penalty=%.2f",
+         g_temperature, g_top_k, g_top_p, g_repeat_penalty);
 }

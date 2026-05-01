@@ -93,7 +93,7 @@ class AIOSApp : Application() {
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
     }
 
-    fun loadModel(path: String, contextSize: Int = 1024, onResult: (Boolean) -> Unit) {
+    fun loadModel(path: String, contextSize: Int = 2048, onResult: (Boolean) -> Unit) {
         val svc = llmService
         if (svc == null) {
             onResult(false)
@@ -129,7 +129,7 @@ class AIOSApp : Application() {
         }.start()
     }
 
-    fun runAgent(prompt: String, maxIterations: Int = 5, onComplete: (List<AgentStep>) -> Unit) {
+    fun runAgent(prompt: String, maxIterations: Int = 8, maxTokensAgent: Int = 512, onComplete: (List<AgentStep>) -> Unit) {
         val svc = llmService
         if (svc == null) {
             onComplete(emptyList())
