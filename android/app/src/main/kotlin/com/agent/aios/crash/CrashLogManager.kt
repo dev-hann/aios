@@ -5,6 +5,7 @@ import android.os.Build
 import android.util.Log
 import com.agent.aios.BuildConfig
 import java.io.File
+import java.io.FileOutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.text.SimpleDateFormat
@@ -16,15 +17,36 @@ object CrashLogManager {
     private const val TAG = "AIOS-Crash"
     private const val MAX_LOG_FILES = 10
     private const val LOG_DIR = "crash_logs"
+    private const val SIGNAL_LOG_PREFIX = "signal_"
     private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US)
 
+    private var crashLogDir: String? = null
+
     fun init(context: Context) {
+        crashLogDir = getLogDir(context).absolutePath
+
+        installSignalHandler()
+
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             logCrash(context, thread, throwable)
             defaultHandler?.uncaughtException(thread, throwable)
         }
     }
+
+    private fun installSignalHandler() {
+        try {
+            System.loadLibrary("aios-crash")
+            nativeInstallSignalHandler(crashLogDir)
+            Log.i(TAG, "Native signal handler installed")
+        } catch (e: UnsatisfiedLinkError) {
+            Log.w(TAG, "aios-crash library not available, signal handling disabled")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to install signal handler", e)
+        }
+    }
+
+    private external fun nativeInstallSignalHandler(logDir: String?)
 
     fun logCrash(context: Context, thread: Thread, throwable: Throwable) {
         try {
@@ -66,6 +88,45 @@ object CrashLogManager {
         }
     }
 
+    fun logSignalCrash(context: Context, signal: Int, timestamp: Long) {
+        try {
+            val logDir = getLogDir(context)
+            if (!logDir.exists()) logDir.mkdirs()
+
+            val filename = "${SIGNAL_LOG_PREFIX}${DATE_FORMAT.format(Date(timestamp))}.log"
+            val file = File(logDir, filename)
+
+            val sb = StringBuilder()
+            sb.appendLine("=== AIOS Native Crash Log ===")
+            sb.appendLine("Time: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(timestamp))}")
+            sb.appendLine("Signal: $signal (${signalName(signal)})")
+            sb.appendLine("App Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+            sb.appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, SDK ${Build.VERSION.SDK_INT})")
+            sb.appendLine()
+            sb.appendLine("This was a native crash (SIGSEGV/SIGABRT/etc).")
+            sb.appendLine("Check logcat for detailed stack trace.")
+            sb.appendLine()
+            sb.appendLine("To reproduce: adb logcat | grep AIOS-Native")
+
+            file.writeText(sb.toString())
+            trimOldLogs(logDir)
+            Log.i(TAG, "Signal crash log written: $filename")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to write signal crash log", e)
+        }
+    }
+
+    private fun signalName(sig: Int): String = when (sig) {
+        6 -> "SIGABRT"
+        7 -> "SIGBUS"
+        8 -> "SIGFPE"
+        9 -> "SIGKILL"
+        11 -> "SIGSEGV"
+        13 -> "SIGPIPE"
+        15 -> "SIGTERM"
+        else -> "SIG$sig"
+    }
+
     fun getCrashLogs(context: Context): List<CrashLog> {
         val logDir = getLogDir(context)
         if (!logDir.exists()) return emptyList()
@@ -73,14 +134,21 @@ object CrashLogManager {
         return logDir.listFiles()
             ?.filter { it.isFile && it.name.endsWith(".log") }
             ?.map { file ->
-                val firstLine = file.readLines()
-                    .dropWhile { !it.startsWith("Exception:") }
+                val lines = file.readLines()
+                val exceptionLine = lines
+                    .dropWhile { !it.startsWith("Exception:") && !it.startsWith("Signal:") }
                     .firstOrNull()
                     ?: "Unknown"
+                val summary = when {
+                    exceptionLine.startsWith("Exception:") -> exceptionLine.removePrefix("Exception: ").trim()
+                    exceptionLine.startsWith("Signal:") -> exceptionLine.removePrefix("Signal: ").trim()
+                    else -> exceptionLine
+                }
+                val isNative = file.name.startsWith(SIGNAL_LOG_PREFIX)
                 CrashLog(
                     filename = file.name,
                     timestamp = file.lastModified(),
-                    summary = firstLine.removePrefix("Exception: ").trim(),
+                    summary = if (isNative) "[Native] $summary" else summary,
                 )
             }
             ?.sortedByDescending { it.timestamp }

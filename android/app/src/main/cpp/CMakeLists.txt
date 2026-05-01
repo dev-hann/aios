@@ -23,6 +23,8 @@ add_subdirectory(${LLAMA_DIR} llama_cpp_build)
 
 add_library(aios-native SHARED native-lib.cpp)
 
+add_library(aios-crash SHARED crash-handler.cpp)
+
 target_include_directories(aios-native PRIVATE
     ${LLAMA_DIR}/include
     ${LLAMA_DIR}/ggml/include
@@ -32,5 +34,9 @@ target_include_directories(aios-native PRIVATE
 target_link_libraries(aios-native
     llama
     ggml
+    log
+)
+
+target_link_libraries(aios-crash
     log
 )

@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include <vector>
+#include <mutex>
 #include <android/log.h>
 #include <unistd.h>
 #include <llama.h>
@@ -27,6 +28,26 @@ static int g_cpu_count = 4;
 static bool g_flash_attn = false;
 static bool g_use_mmap = true;
 
+static std::mutex g_mutex;
+
+#define JNI_CHECK_AND_BREAK(env, label) \
+    do { \
+        if ((env)->ExceptionCheck()) { \
+            LOGE("JNI exception detected at %s:%d", __FILE__, __LINE__); \
+            (env)->ExceptionClear(); \
+            goto label; \
+        } \
+    } while (0)
+
+#define JNI_CHECK_AND_RETURN(env, ret) \
+    do { \
+        if ((env)->ExceptionCheck()) { \
+            LOGE("JNI exception detected at %s:%d", __FILE__, __LINE__); \
+            (env)->ExceptionClear(); \
+            return ret; \
+        } \
+    } while (0)
+
 static std::vector<llama_token> tokenize(const char *text, bool add_bos);
 static bool decode_tokens(std::vector<llama_token> &tokens);
 
@@ -34,13 +55,20 @@ static int estimate_tokens(const char *text) {
     return static_cast<int>(strlen(text) / 3.5f);
 }
 
-static void reset_kv_cache() {
+static void reset_kv_cache_locked() {
     g_n_past = 0;
 }
 
 static std::vector<llama_token> tokenize(const char *text, bool add_bos) {
+    if (!g_vocab) {
+        LOGE("tokenize called with null g_vocab");
+        return {};
+    }
+
     const int n_tokens = -llama_tokenize(
         g_vocab, text, strlen(text), nullptr, 0, add_bos, true);
+
+    if (n_tokens <= 0) return {};
 
     std::vector<llama_token> tokens(n_tokens);
     llama_tokenize(
@@ -52,6 +80,8 @@ static std::vector<llama_token> tokenize(const char *text, bool add_bos) {
 
 static bool decode_tokens(std::vector<llama_token> &tokens) {
     if (tokens.empty()) return true;
+    if (!g_ctx) return false;
+
     llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
     if (llama_decode(g_ctx, batch) != 0) {
         LOGE("Failed to decode batch");
@@ -74,7 +104,13 @@ static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *
     jmethodID onTokenMid = nullptr;
     if (stream) {
         jclass clazz = env->GetObjectClass(thiz);
-        onTokenMid = env->GetMethodID(clazz, "onTokenGenerated", "(Ljava/lang/String;)V");
+        if (clazz) {
+            onTokenMid = env->GetMethodID(clazz, "onTokenGenerated", "(Ljava/lang/String;)V");
+        }
+        if (!onTokenMid) {
+            LOGE("Failed to get onTokenGenerated methodID");
+            stream = false;
+        }
     }
 
     std::string result;
@@ -97,7 +133,18 @@ static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *
 
             if (stream && onTokenMid) {
                 jstring jtoken = env->NewStringUTF(token_str.c_str());
+                if (env->ExceptionCheck()) {
+                    LOGE("JNI exception in NewStringUTF, stopping stream");
+                    env->ExceptionClear();
+                    break;
+                }
                 env->CallVoidMethod(thiz, onTokenMid, jtoken);
+                if (env->ExceptionCheck()) {
+                    LOGE("JNI exception in CallVoidMethod, stopping stream");
+                    env->ExceptionClear();
+                    env->DeleteLocalRef(jtoken);
+                    break;
+                }
                 env->DeleteLocalRef(jtoken);
             }
         }
@@ -114,10 +161,15 @@ static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         JNIEnv *env, jobject thiz, jstring model_path, jint context_size) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+
     const char *path = env->GetStringUTFChars(model_path, nullptr);
     if (!path) return JNI_FALSE;
 
     LOGI("Loading model from: %s", path);
+
+    if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
+    if (g_model) { llama_model_free(g_model); g_model = nullptr; g_vocab = nullptr; }
 
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = 0;
@@ -161,7 +213,7 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         return JNI_FALSE;
     }
 
-    reset_kv_cache();
+    reset_kv_cache_locked();
     LOGI("Context created (n_ctx=%d, n_batch=%d, n_threads=%d, n_layers=%d, cpu=%d)",
          context_size, g_n_batch, g_n_threads, n_layers, g_cpu_count);
     return JNI_TRUE;
@@ -170,26 +222,43 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeFormatChat(
         JNIEnv *env, jobject thiz, jobjectArray roles, jobjectArray contents) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+
     if (!g_model) return env->NewStringUTF("");
 
     jsize len = env->GetArrayLength(roles);
     if (len == 0) return env->NewStringUTF("");
 
     std::vector<llama_chat_message> messages;
-    std::vector<std::string> strings;
+    std::vector<std::string> role_strings;
+    std::vector<std::string> content_strings;
 
-    strings.reserve(len);
-    messages.reserve(len);
+    role_strings.reserve(len);
+    content_strings.reserve(len);
 
     for (jsize i = 0; i < len; i++) {
         auto *role_str = (jstring) env->GetObjectArrayElement(roles, i);
         auto *content_str = (jstring) env->GetObjectArrayElement(contents, i);
 
+        if (!role_str || !content_str) {
+            if (role_str) env->DeleteLocalRef(role_str);
+            if (content_str) env->DeleteLocalRef(content_str);
+            continue;
+        }
+
         const char *role = env->GetStringUTFChars(role_str, nullptr);
         const char *content = env->GetStringUTFChars(content_str, nullptr);
 
-        strings.emplace_back(role);
-        strings.emplace_back(content);
+        if (!role || !content) {
+            if (role) env->ReleaseStringUTFChars(role_str, role);
+            if (content) env->ReleaseStringUTFChars(content_str, content);
+            env->DeleteLocalRef(role_str);
+            env->DeleteLocalRef(content_str);
+            continue;
+        }
+
+        role_strings.emplace_back(role);
+        content_strings.emplace_back(content);
 
         env->ReleaseStringUTFChars(role_str, role);
         env->ReleaseStringUTFChars(content_str, content);
@@ -197,8 +266,9 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
         env->DeleteLocalRef(content_str);
     }
 
-    for (size_t i = 0; i < strings.size(); i += 2) {
-        messages.push_back({strings[i].c_str(), strings[i + 1].c_str()});
+    messages.reserve(role_strings.size());
+    for (size_t i = 0; i < role_strings.size(); i++) {
+        messages.push_back({role_strings[i].c_str(), content_strings[i].c_str()});
     }
 
     std::vector<char> buf(4096);
@@ -218,6 +288,10 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
 
     if (res >= static_cast<int32_t>(buf.size())) {
         buf.resize(res + 1);
+        messages.clear();
+        for (size_t i = 0; i < role_strings.size(); i++) {
+            messages.push_back({role_strings[i].c_str(), content_strings[i].c_str()});
+        }
         llama_chat_apply_template(
             nullptr,
             messages.data(),
@@ -234,6 +308,7 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
 extern "C" JNIEXPORT jint JNICALL
 Java_com_agent_aios_LlamaBridge_nativeInfer(
         JNIEnv *env, jobject thiz, jstring prompt, jint max_tokens) {
+    std::lock_guard<std::mutex> lock(g_mutex);
 
     if (!g_ctx || !g_model || !g_vocab) return -1;
 
@@ -245,6 +320,11 @@ Java_com_agent_aios_LlamaBridge_nativeInfer(
     bool add_bos = (g_n_past == 0);
     auto tokens = tokenize(prompt_str, add_bos);
     env->ReleaseStringUTFChars(prompt, prompt_str);
+
+    if (tokens.empty() && strlen(prompt_str) > 0) {
+        LOGE("Tokenization returned empty for non-empty prompt");
+        return -1;
+    }
 
     if (!decode_tokens(tokens)) {
         return -1;
@@ -262,7 +342,8 @@ Java_com_agent_aios_LlamaBridge_nativeInfer(
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeReleaseModel(
         JNIEnv *env, jobject thiz) {
-    reset_kv_cache();
+    std::lock_guard<std::mutex> lock(g_mutex);
+    reset_kv_cache_locked();
     if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
     if (g_model) { llama_model_free(g_model); g_model = nullptr; g_vocab = nullptr; }
     LOGI("Model released");
@@ -271,19 +352,22 @@ Java_com_agent_aios_LlamaBridge_nativeReleaseModel(
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeResetContext(
         JNIEnv *env, jobject thiz) {
-    reset_kv_cache();
+    std::lock_guard<std::mutex> lock(g_mutex);
+    reset_kv_cache_locked();
     LOGI("Context reset, KV cache cleared");
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_agent_aios_LlamaBridge_nativeIsModelLoaded(
         JNIEnv *env, jobject thiz) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     return (g_model != nullptr && g_ctx != nullptr) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(
         JNIEnv *env, jobject thiz) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_model) return env->NewStringUTF("No model loaded");
 
     int n_ctx_train = llama_model_n_ctx_train(g_model);
@@ -300,6 +384,7 @@ Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGetContextUsage(
         JNIEnv *env, jobject thiz) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     char usage[64];
     snprintf(usage, sizeof(usage), "%d/%d", g_n_past, g_n_ctx);
     return env->NewStringUTF(usage);
@@ -308,6 +393,7 @@ Java_com_agent_aios_LlamaBridge_nativeGetContextUsage(
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeSetSamplingParams(
         JNIEnv *env, jobject thiz, jfloat temperature, jint top_k, jfloat top_p, jfloat repeat_penalty) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     g_temperature = temperature;
     g_top_k = top_k;
     g_top_p = top_p;
