@@ -156,6 +156,36 @@ fun ModelPicker(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onImportFile,
+                enabled = !isImporting,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AIOSColors.SurfaceVariant,
+                ),
+            ) {
+                if (isImporting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = AIOSColors.TextPrimary,
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Importing...", fontSize = 13.sp, color = AIOSColors.TextPrimary)
+                } else {
+                    Icon(
+                        Icons.Filled.UploadFile,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Import from Files", fontSize = 13.sp, color = AIOSColors.TextPrimary)
+                }
+            }
         }
     }
 }
