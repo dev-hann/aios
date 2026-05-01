@@ -2,10 +2,13 @@ package com.agent.aios
 
 import android.util.Log
 import com.agent.aios.agent.tools.AppLauncherTool
+import com.agent.aios.agent.tools.ContactSearchTool
 import com.agent.aios.agent.tools.NotificationTool
+import com.agent.aios.agent.tools.PhoneCallerTool
 import com.agent.aios.agent.tools.ScreenActionTool
 import com.agent.aios.agent.tools.ScreenFindTool
 import com.agent.aios.agent.tools.ScreenReaderTool
+import com.agent.aios.agent.tools.SmsSenderTool
 import org.json.JSONObject
 
 data class AgentStep(
@@ -45,7 +48,10 @@ class AgentEngine(private val service: LlmService) {
         ScreenFindTool(),
         ScreenActionTool(),
         AppLauncherTool(),
-        NotificationTool()
+        NotificationTool(),
+        ContactSearchTool(),
+        SmsSenderTool(),
+        PhoneCallerTool()
     ).associateBy { it.name }
 
     private val allToolNames: Set<String>
@@ -229,6 +235,10 @@ INSTRUCTIONS:
 - To open an app, use app_launcher with open_app action
 - To read notifications, use notification_reader
 - When searching for UI elements, use screen_find first, then screen_action to interact with them
+- To search contacts by name or phone number, use contact_search
+- To send an SMS, use sms_sender with action "send", providing "to" (phone number) and "body" (message text)
+- To read recent SMS messages, use sms_sender with action "read"
+- To make a phone call, use phone_caller with action "call" (requires permission) or "dial" (opens dialer)
 - Common app package names: com.google.android.apps.messaging (Messages), com.google.android.dialer (Phone), com.google.android.apps.photos (Photos), com.android.settings (Settings), com.android.chrome (Chrome)"""
     }
 
