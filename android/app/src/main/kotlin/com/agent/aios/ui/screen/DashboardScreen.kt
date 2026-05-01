@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,11 +25,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,12 +53,15 @@ fun DashboardScreen(
     val context = LocalContext.current
     val serviceState by AIOSApp.instance.serviceState.collectAsState(AIOSApp.ServiceState.DISCONNECTED)
     val isAccessibilityEnabled = AIOSAccessibilityService.isEnabled(context)
+    val isNotificationEnabled = hasNotificationAccess(context)
+    val isOverlayEnabled = Settings.canDrawOverlays(context)
+    val grantedCount = listOf(isAccessibilityEnabled, isNotificationEnabled, isOverlayEnabled).count { it }
+    var overlayEnabled by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(AIOSColors.Background)
-            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -72,6 +78,34 @@ fun DashboardScreen(
             color = AIOSColors.TextSecondary,
         )
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(AIOSColors.SurfaceVariant)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            repeat(3) { index ->
+                val isGranted = index < grantedCount
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            if (isGranted) AIOSColors.StatusReady
+                            else AIOSColors.SurfaceVariant
+                        ),
+                )
+            }
+        }
+        Text(
+            "$grantedCount of 3 permissions granted",
+            fontSize = 12.sp,
+            color = AIOSColors.TextTertiary,
+        )
+
         PermissionCard(
             title = "Accessibility",
             subtitle = "Read screen & perform actions",
@@ -82,14 +116,14 @@ fun DashboardScreen(
         PermissionCard(
             title = "Notifications",
             subtitle = "Read & respond to notifications",
-            isEnabled = hasNotificationAccess(context),
+            isEnabled = isNotificationEnabled,
             onEnable = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
         )
 
         PermissionCard(
             title = "Overlay",
             subtitle = "Floating AI button on any app",
-            isEnabled = Settings.canDrawOverlays(context),
+            isEnabled = isOverlayEnabled,
             onEnable = {
                 context.startActivity(
                     Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -101,32 +135,45 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(AIOSColors.Surface)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            OutlinedButton(
-                onClick = {
+            Column {
+                Text(
+                    "Overlay Service",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    color = AIOSColors.TextPrimary,
+                )
+                Text(
+                    if (overlayEnabled) "Running" else "Stopped",
+                    fontSize = 12.sp,
+                    color = if (overlayEnabled) AIOSColors.StatusReady else AIOSColors.TextTertiary,
+                )
+            }
+            Switch(
+                checked = overlayEnabled,
+                onCheckedChange = { enabled ->
+                    overlayEnabled = enabled
                     val intent = Intent(context, Class.forName("com.agent.aios.service.OverlayService"))
-                    context.startService(intent)
+                    if (enabled) {
+                        context.startService(intent)
+                    } else {
+                        context.stopService(intent)
+                    }
                 },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = AIOSColors.Primary,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = AIOSColors.Accent,
+                    checkedThumbColor = Color.White,
+                    uncheckedTrackColor = AIOSColors.SurfaceVariant,
+                    uncheckedThumbColor = AIOSColors.TextTertiary,
                 ),
-            ) { Text("Start Overlay") }
-
-            OutlinedButton(
-                onClick = {
-                    val intent = Intent(context, Class.forName("com.agent.aios.service.OverlayService"))
-                    context.stopService(intent)
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = AIOSColors.TextTertiary,
-                ),
-            ) { Text("Stop Overlay") }
+            )
         }
 
         StatusCard(serviceState)
@@ -201,35 +248,42 @@ private fun PermissionCard(
 
 @Composable
 private fun StatusCard(state: AIOSApp.ServiceState) {
+    val borderColor = when (state) {
+        AIOSApp.ServiceState.MODEL_LOADED -> AIOSColors.StatusReady
+        AIOSApp.ServiceState.DISCONNECTED -> AIOSColors.StatusError
+        else -> AIOSColors.StatusRunning
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(AIOSColors.Surface)
-            .padding(16.dp),
+            .background(AIOSColors.Surface),
     ) {
-        Text(
-            "Service Status",
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            color = AIOSColors.TextPrimary,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                .background(borderColor)
         )
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(
-                        when (state) {
-                            AIOSApp.ServiceState.MODEL_LOADED -> AIOSColors.StatusReady
-                            AIOSApp.ServiceState.DISCONNECTED -> AIOSColors.StatusError
-                            else -> AIOSColors.StatusRunning
-                        }
-                    )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Service Status",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = AIOSColors.TextPrimary,
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(state.name, fontSize = 13.sp, color = AIOSColors.TextSecondary)
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(borderColor)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(state.name, fontSize = 13.sp, color = AIOSColors.TextSecondary)
+            }
         }
     }
 }

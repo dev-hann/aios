@@ -1,15 +1,15 @@
 package com.agent.aios.ui.component
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,6 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,7 +47,7 @@ fun MessageBubble(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 3.dp),
+            .padding(horizontal = 16.dp, vertical = 5.dp),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -53,6 +57,7 @@ fun MessageBubble(
         }
 
         Column(
+            modifier = Modifier.fillMaxWidth(if (isUser) 0.75f else 0.85f),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
             if (role in listOf("agent_think", "agent_action", "agent_obs")) {
@@ -86,8 +91,17 @@ fun MessageBubble(
                 else -> AIOSColors.SurfaceVariant to AIOSColors.TextTertiary
             }
 
+            val bubbleBackground = if (isUser) {
+                Brush.verticalGradient(
+                    colors = listOf(AIOSColors.Primary, AIOSColors.Primary.copy(alpha = 0.8f))
+                )
+            } else {
+                Brush.verticalGradient(colors = listOf(bgColor, bgColor))
+            }
+
             Box(
                 modifier = Modifier
+                    .animateContentSize(animationSpec = tween(300))
                     .clip(
                         RoundedCornerShape(
                             topStart = 20.dp,
@@ -96,10 +110,7 @@ fun MessageBubble(
                             bottomEnd = if (isUser) 4.dp else 20.dp,
                         )
                     )
-                    .background(bgColor)
-                    .then(
-                        if (isUser) Modifier else Modifier
-                    )
+                    .background(bubbleBackground)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 Column {
@@ -128,20 +139,36 @@ fun MessageBubble(
                         }
                     }
                     if (role == "agent_obs" && toolResult.isNotBlank()) {
+                        var isExpanded by remember { mutableStateOf(false) }
+
                         Box(
                             modifier = Modifier
+                                .animateContentSize(animationSpec = tween(300))
                                 .padding(top = 6.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Color.Black.copy(alpha = 0.2f))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text(
-                                text = toolResult.take(400),
-                                color = textColor.copy(alpha = 0.7f),
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                lineHeight = 16.sp,
-                            )
+                            Column {
+                                Text(
+                                    text = if (isExpanded) toolResult else toolResult.take(150),
+                                    color = textColor.copy(alpha = 0.7f),
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    lineHeight = 16.sp,
+                                )
+                                if (toolResult.length > 150) {
+                                    Text(
+                                        text = if (isExpanded) "Show less" else "Show more",
+                                        color = textColor,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier
+                                            .padding(top = 4.dp)
+                                            .clickable { isExpanded = !isExpanded },
+                                    )
+                                }
+                            }
                         }
                     }
                 }

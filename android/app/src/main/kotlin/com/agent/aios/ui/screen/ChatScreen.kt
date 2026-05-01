@@ -1,11 +1,20 @@
 package com.agent.aios.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,30 +24,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,7 +55,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,7 +66,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agent.aios.AIOSApp
 import com.agent.aios.ui.component.MessageBubble
 import com.agent.aios.ui.component.ModelPicker
-import com.agent.aios.ui.component.StatusBar
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.AgentMode
 import com.agent.aios.ui.viewmodel.ChatViewModel
@@ -95,7 +103,6 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
         modifier = Modifier
             .fillMaxSize()
             .background(AIOSColors.Background)
-            .statusBarsPadding()
     ) {
         TopBar(
             serviceState = serviceState,
@@ -106,9 +113,9 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
         )
 
         if (!isModelLoaded) {
-            EmptyState()
+            EmptyState(onGetStarted = { showModelPicker = true })
         } else {
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
@@ -165,64 +172,137 @@ private fun TopBar(
     onToggleMode: () -> Unit,
     onModelPicker: () -> Unit,
 ) {
-    Row(
+    val statusColor = when (serviceState) {
+        AIOSApp.ServiceState.DISCONNECTED -> AIOSColors.StatusIdle
+        AIOSApp.ServiceState.CONNECTING -> AIOSColors.StatusRunning
+        AIOSApp.ServiceState.READY -> AIOSColors.StatusIdle
+        AIOSApp.ServiceState.MODEL_LOADED -> AIOSColors.StatusReady
+        AIOSApp.ServiceState.GENERATING -> AIOSColors.StatusRunning
+        AIOSApp.ServiceState.AGENT_RUNNING -> AIOSColors.Accent
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(AIOSColors.Surface.copy(alpha = 0.8f))
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
             Text(
                 text = "AIOS",
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
                 color = AIOSColors.TextPrimary,
             )
-            StatusBar(state = serviceState)
-        }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = if (agentMode == AgentMode.CHAT) "Chat" else "Agent",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = AIOSColors.TextSecondary,
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Switch(
-                checked = agentMode == AgentMode.AGENT,
-                onCheckedChange = { onToggleMode() },
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = AIOSColors.Accent,
-                    checkedThumbColor = Color.White,
-                    uncheckedTrackColor = AIOSColors.SurfaceVariant,
-                    uncheckedThumbColor = AIOSColors.TextTertiary,
-                ),
-                modifier = Modifier.height(24.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = onModelPicker,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = AIOSColors.SurfaceVariant,
-                ),
-                modifier = Modifier.size(36.dp),
-            ) {
-                Icon(
-                    Icons.Filled.AttachFile,
-                    contentDescription = "Model",
-                    tint = AIOSColors.TextSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AIOSColors.SurfaceVariant)
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    val isChat = agentMode == AgentMode.CHAT
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(if (!isChat) AIOSColors.Primary else Color.Transparent)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { if (isChat) onToggleMode() }
+                            )
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "Agent",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (!isChat) Color.White else AIOSColors.TextTertiary,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(if (isChat) AIOSColors.Primary else Color.Transparent)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { if (!isChat) onToggleMode() }
+                            )
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "Chat",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isChat) Color.White else AIOSColors.TextTertiary,
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(AIOSColors.SurfaceVariant)
+                        .border(1.dp, AIOSColors.Divider, RoundedCornerShape(16.dp))
+                        .clickable { onModelPicker() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.AutoAwesome,
+                            contentDescription = "Model",
+                            tint = AIOSColors.TextSecondary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = if (isModelLoaded) "Model" else "Model",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = AIOSColors.TextSecondary,
+                        )
+                    }
+                }
             }
         }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(statusColor)
+        )
     }
 }
 
 @Composable
-private fun EmptyState() {
+private fun EmptyState(onGetStarted: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition()
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "iconPulse"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -233,6 +313,7 @@ private fun EmptyState() {
             Box(
                 modifier = Modifier
                     .size(72.dp)
+                    .scale(scale)
                     .clip(RoundedCornerShape(20.dp))
                     .background(AIOSColors.PrimaryDim),
                 contentAlignment = Alignment.Center,
@@ -246,41 +327,74 @@ private fun EmptyState() {
             }
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "No model loaded",
+                text = "Welcome to AIOS",
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 color = AIOSColors.TextPrimary,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Tap the clip icon to select a GGUF model",
+                text = "Load a model to start chatting",
                 fontSize = 14.sp,
                 color = AIOSColors.TextTertiary,
             )
+            Spacer(modifier = Modifier.height(24.dp))
+            OutlinedButton(
+                onClick = onGetStarted,
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = AIOSColors.Primary.copy(alpha = 0.15f),
+                    contentColor = AIOSColors.Primary,
+                ),
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    brush = SolidColor(AIOSColors.Primary.copy(alpha = 0.4f))
+                ),
+            ) {
+                Text(
+                    text = "Get Started",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun GeneratingIndicator() {
+    val infiniteTransition = rememberInfiniteTransition()
+
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(AIOSColors.SurfaceVariant.copy(alpha = 0.9f))
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(14.dp),
-            color = AIOSColors.Primary,
-            strokeWidth = 2.dp,
-        )
-        Text(
-            text = "Generating...",
-            fontSize = 12.sp,
-            color = AIOSColors.TextSecondary,
-        )
+        repeat(3) { index ->
+            val offsetY by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = -6f,
+                animationSpec = infiniteRepeatable(
+                    animation = keyframes {
+                        durationMillis = 600
+                        0f at 0
+                        -6f at 150
+                        0f at 300
+                    },
+                    initialStartOffset = androidx.compose.animation.core.StartOffset(index * 150),
+                ),
+                label = "dot_$index"
+            )
+            Box(
+                modifier = Modifier
+                    .offset(y = offsetY.dp)
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(AIOSColors.Primary)
+            )
+        }
     }
 }
 
@@ -292,53 +406,62 @@ private fun InputBar(
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .background(AIOSColors.Surface)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .navigationBarsPadding(),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        TextField(
+        BasicTextField(
             value = text,
             onValueChange = onTextChange,
-            modifier = Modifier.weight(1f),
-            placeholder = {
-                Text(
-                    "Message AIOS...",
-                    color = AIOSColors.TextTertiary,
-                    fontSize = 15.sp,
-                )
-            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(AIOSColors.SurfaceVariant),
             maxLines = 4,
-            shape = RoundedCornerShape(24.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = AIOSColors.SurfaceVariant,
-                unfocusedContainerColor = AIOSColors.SurfaceVariant,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                cursorColor = AIOSColors.Primary,
-                focusedTextColor = AIOSColors.TextPrimary,
-                unfocusedTextColor = AIOSColors.TextPrimary,
+            textStyle = TextStyle(
+                color = AIOSColors.TextPrimary,
+                fontSize = 15.sp,
             ),
+            cursorBrush = SolidColor(AIOSColors.Primary),
+            decorationBox = { innerTextField ->
+                Row(
+                    modifier = Modifier.padding(end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                    ) {
+                        if (text.isEmpty()) {
+                            Text(
+                                text = "Message AIOS...",
+                                color = AIOSColors.TextTertiary,
+                                fontSize = 15.sp,
+                            )
+                        }
+                        innerTextField()
+                    }
+                    IconButton(
+                        onClick = onSend,
+                        enabled = text.isNotBlank() && !isGenerating,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (text.isNotBlank() && !isGenerating) AIOSColors.Primary else AIOSColors.SurfaceVariant,
+                            disabledContainerColor = AIOSColors.SurfaceVariant,
+                        ),
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            tint = if (text.isNotBlank() && !isGenerating) Color.White else AIOSColors.TextTertiary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            },
         )
-        IconButton(
-            onClick = onSend,
-            enabled = text.isNotBlank() && !isGenerating,
-            colors = IconButtonDefaults.iconButtonColors(
-                containerColor = if (text.isNotBlank() && !isGenerating) AIOSColors.Primary else AIOSColors.SurfaceVariant,
-                disabledContainerColor = AIOSColors.SurfaceVariant,
-            ),
-            modifier = Modifier.size(44.dp),
-        ) {
-            Icon(
-                Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Send",
-                tint = if (text.isNotBlank() && !isGenerating) Color.White else AIOSColors.TextTertiary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
     }
 }
