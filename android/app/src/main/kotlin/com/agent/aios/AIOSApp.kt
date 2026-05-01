@@ -7,9 +7,16 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.util.Log
+import com.agent.aios.update.UpdateChecker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class AIOSApp : Application() {
 
@@ -28,6 +35,12 @@ class AIOSApp : Application() {
 
     private val _serviceState = MutableSharedFlow<ServiceState>(replay = 1)
     val serviceState: SharedFlow<ServiceState> = _serviceState.asSharedFlow()
+
+    private val _updateAvailable = MutableStateFlow<Boolean?>(null)
+    val updateAvailable: StateFlow<Boolean?> = _updateAvailable.asStateFlow()
+
+    private val _latestVersion = MutableStateFlow("")
+    val latestVersion: StateFlow<String> = _latestVersion.asStateFlow()
 
     enum class ServiceState {
         DISCONNECTED, CONNECTING, READY, MODEL_LOADED, GENERATING, AGENT_RUNNING
@@ -57,6 +70,20 @@ class AIOSApp : Application() {
         super.onCreate()
         instance = this
         bindLlmService()
+        checkForUpdateBackground()
+    }
+
+    private fun checkForUpdateBackground() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val checker = UpdateChecker(this@AIOSApp)
+                val info = checker.checkForUpdate()
+                if (info != null) {
+                    _updateAvailable.value = info.isUpdateAvailable
+                    _latestVersion.value = info.latestVersion
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun bindLlmService() {

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agent.aios.AIOSApp
+import com.agent.aios.BuildConfig
 import com.agent.aios.ui.theme.AIOSColors
 import java.io.File
 import java.text.CharacterIterator
@@ -54,11 +55,15 @@ private fun formatFileSize(bytes: Long): String {
 }
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    onNavigateToUpdate: () -> Unit = {},
+) {
     val context = LocalContext.current
     val serviceState by AIOSApp.instance.serviceState.collectAsState(AIOSApp.ServiceState.DISCONNECTED)
     val isModelLoaded = AIOSApp.instance.llmService?.isModelLoaded() ?: false
     val modelInfo = AIOSApp.instance.llmService?.getModelInfo() ?: "N/A"
+    val updateAvailable by AIOSApp.instance.updateAvailable.collectAsState()
+    val latestVersion by AIOSApp.instance.latestVersion.collectAsState()
 
     val modelsDir = File(context.filesDir, "models")
     val modelFiles = modelsDir.listFiles()?.filter { it.extension == "gguf" } ?: emptyList()
@@ -177,6 +182,71 @@ fun SettingsScreen() {
 
         Spacer(modifier = Modifier.height(6.dp))
 
+        SectionHeader("UPDATE")
+        HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
+        Spacer(modifier = Modifier.height(2.dp))
+
+        SettingsCard("App Update") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (updateAvailable == true) {
+                            Spacer(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(AIOSColors.Primary)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "v${latestVersion} available",
+                                fontSize = 14.sp,
+                                color = AIOSColors.Primary,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        } else if (updateAvailable == false) {
+                            Spacer(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(AIOSColors.StatusReady)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Up to date",
+                                fontSize = 14.sp,
+                                color = AIOSColors.StatusReady,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        } else {
+                            Text(
+                                "Tap to check",
+                                fontSize = 14.sp,
+                                color = AIOSColors.TextTertiary,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                    }
+                }
+                OutlinedButton(
+                    onClick = onNavigateToUpdate,
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text(
+                        "Check",
+                        fontSize = 12.sp,
+                        color = AIOSColors.Primary,
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
         SectionHeader("SYSTEM")
         HorizontalDivider(color = AIOSColors.Divider, thickness = 1.dp)
         Spacer(modifier = Modifier.height(2.dp))
@@ -219,7 +289,7 @@ fun SettingsScreen() {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "v1.0.0 · Powered by llama.cpp",
+                "v${BuildConfig.VERSION_NAME} · Powered by llama.cpp",
                 fontSize = 11.sp,
                 color = AIOSColors.TextTertiary,
             )

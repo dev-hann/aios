@@ -38,6 +38,7 @@ import com.agent.aios.ui.screen.AccessibilitySetupScreen
 import com.agent.aios.ui.screen.ChatScreen
 import com.agent.aios.ui.screen.DashboardScreen
 import com.agent.aios.ui.screen.SettingsScreen
+import com.agent.aios.ui.screen.UpdateScreen
 import com.agent.aios.ui.theme.AIOSColors
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
@@ -45,6 +46,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Dashboard : Screen("dashboard", "Control", Icons.Filled.Dashboard)
     data object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
     data object AccessibilitySetup : Screen("accessibility_setup", "Accessibility", Icons.Filled.Settings)
+    data object Update : Screen("update", "Update", Icons.Filled.Settings)
 }
 
 @Composable
@@ -73,7 +75,16 @@ fun AIOSApp() {
                         }
                     )
                 }
-                composable(Screen.Settings.route) { SettingsScreen() }
+                composable(Screen.Settings.route) {
+                    SettingsScreen(
+                        onNavigateToUpdate = {
+                            navController.navigate(Screen.Update.route)
+                        }
+                    )
+                }
+                composable(Screen.Update.route) {
+                    UpdateScreen(onBack = { navController.popBackStack() })
+                }
                 composable(Screen.AccessibilitySetup.route) {
                     AccessibilitySetupScreen(onBack = { navController.popBackStack() })
                 }

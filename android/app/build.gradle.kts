@@ -16,6 +16,8 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
+        buildConfigField("String", "GITHUB_REPO", "\"dev-hann/aios\"")
+
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -31,6 +33,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
@@ -85,6 +88,9 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.code.gson:gson:2.11.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
