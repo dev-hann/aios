@@ -1,7 +1,12 @@
 package com.agent.aios.ui.screen
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +62,29 @@ fun DashboardScreen(
     val isOverlayEnabled = Settings.canDrawOverlays(context)
     val grantedCount = listOf(isAccessibilityEnabled, isNotificationEnabled, isOverlayEnabled).count { it }
     var overlayEnabled by remember { mutableStateOf(false) }
+
+    var contactsGranted by remember {
+        mutableStateOf(context.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED)
+    }
+    var smsGranted by remember {
+        mutableStateOf(
+            context.checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED &&
+            context.checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var callGranted by remember {
+        mutableStateOf(context.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        contactsGranted = permissions[Manifest.permission.READ_CONTACTS] == true
+        smsGranted = permissions[Manifest.permission.SEND_SMS] == true && permissions[Manifest.permission.READ_SMS] == true
+        callGranted = permissions[Manifest.permission.CALL_PHONE] == true
+    }
+
+    val commGrantedCount = listOf(contactsGranted, smsGranted, callGranted).count { it }
 
     Column(
         modifier = Modifier
@@ -128,6 +156,81 @@ fun DashboardScreen(
                 context.startActivity(
                     Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         android.net.Uri.parse("package:${context.packageName}"))
+                )
+            }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            "Communication",
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp,
+            color = AIOSColors.TextPrimary,
+        )
+        Text(
+            "Grant permissions for contacts, SMS, and calls.",
+            fontSize = 14.sp,
+            color = AIOSColors.TextSecondary,
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(AIOSColors.SurfaceVariant)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            repeat(3) { index ->
+                val isGranted = index < commGrantedCount
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            if (isGranted) AIOSColors.StatusReady
+                            else AIOSColors.SurfaceVariant
+                        ),
+                )
+            }
+        }
+        Text(
+            "$commGrantedCount of 3 communication permissions granted",
+            fontSize = 12.sp,
+            color = AIOSColors.TextTertiary,
+        )
+
+        PermissionCard(
+            title = "Contacts",
+            subtitle = "Search and read contact information",
+            isEnabled = contactsGranted,
+            onEnable = {
+                permissionLauncher.launch(
+                    arrayOf(Manifest.permission.READ_CONTACTS)
+                )
+            }
+        )
+
+        PermissionCard(
+            title = "SMS",
+            subtitle = "Send and read text messages",
+            isEnabled = smsGranted,
+            onEnable = {
+                permissionLauncher.launch(
+                    arrayOf(Manifest.permission.SEND_SMS, Manifest.permission.READ_SMS)
+                )
+            }
+        )
+
+        PermissionCard(
+            title = "Phone",
+            subtitle = "Make phone calls directly",
+            isEnabled = callGranted,
+            onEnable = {
+                permissionLauncher.launch(
+                    arrayOf(Manifest.permission.CALL_PHONE)
                 )
             }
         )
