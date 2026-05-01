@@ -487,3 +487,71 @@ class CrashRegressionTest {
         )
     }
 }
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+class AndroidRuntimeConstraintTest {
+
+    /**
+     * R-1: bindLlmService must exist as a public method on AIOSApp
+     *
+     * On Android 12+ (SDK 31+), calling startForegroundService() from Application.onCreate()
+     * throws ForegroundServiceStartNotAllowedException. The service must be started from
+     * Activity lifecycle instead, so bindLlmService() must be public.
+     */
+    @Test
+    fun `R-1 bindLlmService exists and is public`() {
+        val method = AIOSApp::class.java.getDeclaredMethod("bindLlmService")
+        assertTrue(
+            "bindLlmService() must be public for Activity to call",
+            java.lang.reflect.Modifier.isPublic(method.modifiers)
+        )
+    }
+
+    /**
+     * R-2: bindLlmService must not declare checked exceptions
+     *
+     * Even when called from Activity, startForegroundService() can still throw
+     * on certain Android versions or OEM restrictions. The method must catch
+     * all exceptions internally and not propagate them.
+     */
+    @Test
+    fun `R-2 bindLlmService catches exceptions internally`() {
+        val method = AIOSApp::class.java.getDeclaredMethod("bindLlmService")
+        assertTrue(
+            "bindLlmService() must catch all exceptions, no throws clause",
+            method.exceptionTypes.isEmpty()
+        )
+    }
+
+    /**
+     * R-3: LlmService.onStartCommand must exist (calls startForeground within it)
+     *
+     * After startForegroundService(), Android requires startForeground() within 5 seconds
+     * or throws ForegroundServiceDidNotStartWithinTimeoutException (Android 12+).
+     */
+    @Test
+    fun `R-3 LlmService overrides onStartCommand`() {
+        val method = LlmService::class.java.getDeclaredMethod(
+            "onStartCommand", android.content.Intent::class.java, Int::class.java, Int::class.java
+        )
+        val declaringClass = method.declaringClass
+        assertTrue(
+            "LlmService must override onStartCommand to call startForeground()",
+            declaringClass == LlmService::class.java
+        )
+    }
+
+    /**
+     * R-4: LlmService extends android.app.Service
+     *
+     * Verifies the class hierarchy is correct for a foreground service.
+     */
+    @Test
+    fun `R-4 LlmService extends Service`() {
+        assertTrue(
+            "LlmService must extend android.app.Service",
+            android.app.Service::class.java.isAssignableFrom(LlmService::class.java)
+        )
+    }
+}

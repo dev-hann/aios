@@ -2,6 +2,8 @@ package com.agent.aios.ui.screen
 
 import android.Manifest
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
@@ -438,8 +440,20 @@ fun SettingsScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showLogDialog = null }) {
-                        Text("Close", color = AIOSColors.Primary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (logContent != null) {
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            OutlinedButton(
+                                onClick = {
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", logContent))
+                                }
+                            ) {
+                                Text("Copy", color = AIOSColors.Primary, fontSize = 13.sp)
+                            }
+                        }
+                        TextButton(onClick = { showLogDialog = null }) {
+                            Text("Close", color = AIOSColors.Primary)
+                        }
                     }
                 },
                 containerColor = AIOSColors.Surface,

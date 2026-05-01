@@ -118,8 +118,19 @@ class AIOSApp : Application() {
         instance = this
         CrashLogManager.init(this)
         settingsRepository = SettingsRepository(this)
-        bindLlmService()
         checkForUpdateBackground()
+    }
+
+    fun bindLlmService() {
+        try {
+            _serviceState.tryEmit(ServiceState.CONNECTING)
+            val intent = Intent(this, LlmService::class.java)
+            startForegroundService(intent)
+            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start/bind LlmService", e)
+            _serviceState.tryEmit(ServiceState.DISCONNECTED)
+        }
     }
 
     private fun checkForUpdateBackground() {
@@ -142,13 +153,6 @@ class AIOSApp : Application() {
                 }
             } catch (_: Exception) {}
         }
-    }
-
-    private fun bindLlmService() {
-        _serviceState.tryEmit(ServiceState.CONNECTING)
-        val intent = Intent(this, LlmService::class.java)
-        startForegroundService(intent)
-        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
     }
 
     fun loadModel(path: String, contextSize: Int? = null, onResult: (Boolean) -> Unit) {

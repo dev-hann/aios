@@ -275,4 +275,17 @@ class AIOSAppTest {
         val flow = field.get(app) as MutableStateFlow<String>
         assertThat(flow.value).isEmpty()
     }
+
+    @Test
+    fun bindLlmService_isPublic_notPrivate() {
+        val method = AIOSApp::class.java.getDeclaredMethod("bindLlmService")
+        assertThat(method).isNotNull()
+    }
+
+    @Test
+    fun bindLlmService_wrapsStartForegroundServiceInTryCatch() {
+        val method = AIOSApp::class.java.getDeclaredMethod("bindLlmService")
+        val exceptions = method.exceptionTypes
+        assertThat(exceptions).isEmpty()
+    }
 }

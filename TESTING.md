@@ -119,7 +119,32 @@ androidTestImplementation("androidx.test:rules:1.5.0")
 - Test failure blocks merge
 - Coverage report generated per build
 
-## 9. Known Crash Regression Tests
+## 9. Android Runtime Constraint Tests (Mandatory)
+
+Unit tests (Robolectric/MockK)은 Android 프레임워크 제약을 검증할 수 없습니다.
+다음 케이스는 **Instrumented Test (androidTest)** 로만 검증 가능하며, 필수입니다.
+
+### P0-Runtime: Framework Restrictions
+
+| ID | Constraint | Test Location | What to Verify |
+|----|-----------|---------------|----------------|
+| R-1 | `ForegroundServiceStartNotAllowedException` (Android 12+) | `androidTest/` | Service는 Activity 포그라운드 상태에서만 시작 가능 |
+| R-2 | `Application.onCreate()`에서 포그라운드 서비스 시작 금지 | `androidTest/` | AIOSApp.onCreate()가 startForegroundService()를 직접 호출하지 않음 |
+| R-3 | `Context.startForegroundService()` → `Service.onStartCommand()` 5초 내 `startForeground()` 필수 | `androidTest/` | LlmService가 ANR 없이 5초 내 알림 게시 |
+| R-4 | 권한 거부 시 서비스 바인딩 graceful degradation | `androidTest/` | 예외 발생 시 DISCONNECTED 상태 전이, 크래시 없음 |
+| R-5 | Android 16 (SDK 36) 백그라운드 제한 | `androidTest/` | Activity 없이 서비스 시작 시 예외 catch됨 |
+
+### 규칙
+
+1. **Application.lifecycle vs Activity.lifecycle 구분 필수**
+   - `Application.onCreate()`: 크래시 로거, Settings 저장소 등 프레임워크 독립적 초기화만
+   - `Activity.onCreate()`: 포그라운드 서비스, 권한 요청 등 UI 컨텍스트 필요 작업
+2. **서비스 시작은 항상 try-catch로 보호**
+   - `startForegroundService()` / `bindService()` 호출부는 반드시 예외 처리
+3. **새 Android 버전 릴리즈 시 회귀 테스트 업데이트**
+   - targetSdkVersion 변경 시 R-x 테스트 케이스 재검증
+
+## 10. Known Crash Regression Tests
 
 The following crashes identified in analysis must have regression tests:
 
