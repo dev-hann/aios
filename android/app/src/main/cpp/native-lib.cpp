@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <android/log.h>
+#include <unistd.h>
 #include <llama.h>
 
 #define LOG_TAG "AIOS-Native"
@@ -21,6 +22,12 @@ static float g_temperature = 0.7f;
 static int g_top_k = 40;
 static float g_top_p = 0.9f;
 static float g_repeat_penalty = 1.1f;
+
+static int g_n_threads = 4;
+static int g_n_batch = 512;
+static int g_cpu_count = 4;
+static bool g_flash_attn = false;
+static bool g_use_mmap = true;
 
 static std::string apply_chat_template_full(const std::vector<llama_chat_message> &messages);
 static std::vector<llama_token> tokenize(const char *text, bool add_bos);
@@ -213,6 +220,8 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
 
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = 0;
+    model_params.use_mmap = true;
+    model_params.use_mlock = false;
 
     g_model = llama_model_load_from_file(path, model_params);
     env->ReleaseStringUTFChars(model_path, path);
@@ -226,15 +235,23 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
     LOGI("Model loaded successfully");
 
     int n_layers = llama_model_n_layer(g_model);
-    int n_threads = (n_layers <= 24) ? 4 : 6;
+
+    g_cpu_count = static_cast<int>(sysconf(_SC_NPROC_ONLN));
+    if (g_cpu_count <= 0) g_cpu_count = 4;
+
+    g_n_threads = std::max(2, std::min(g_cpu_count * 3 / 5, 8));
+    if (n_layers <= 24) g_n_threads = std::min(g_n_threads, 4);
 
     g_n_ctx = context_size;
+    g_n_batch = std::min(1024, context_size / 2);
+    g_flash_attn = true;
 
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = context_size;
-    ctx_params.n_batch = 512;
-    ctx_params.n_threads = n_threads;
-    ctx_params.n_threads_batch = n_threads;
+    ctx_params.n_batch = g_n_batch;
+    ctx_params.n_threads = g_n_threads;
+    ctx_params.n_threads_batch = g_n_threads;
+    ctx_params.flash_attn = g_flash_attn;
 
     g_ctx = llama_init_from_model(g_model, ctx_params);
     if (!g_ctx) {
@@ -246,7 +263,8 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
     }
 
     reset_kv_cache();
-    LOGI("Context created (n_ctx=%d, n_batch=512, n_threads=%d, n_layers=%d)", context_size, n_threads, n_layers);
+    LOGI("Context created (n_ctx=%d, n_batch=%d, n_threads=%d, n_layers=%d, cpu=%d, flash_attn=%d, mmap=%d)",
+         context_size, g_n_batch, g_n_threads, n_layers, g_cpu_count, g_flash_attn, g_use_mmap);
     return JNI_TRUE;
 }
 
@@ -407,12 +425,11 @@ Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(
     int n_ctx_train = llama_model_n_ctx_train(g_model);
     int n_embd = llama_model_n_embd(g_model);
     int n_layer = llama_model_n_layer(g_model);
-    int n_threads = (n_layer <= 24) ? 4 : 6;
 
     char info[512];
     snprintf(info, sizeof(info),
-             "n_ctx_train=%d, n_embd=%d, n_layer=%d, threads=%d",
-             n_ctx_train, n_embd, n_layer, n_threads);
+             "n_ctx_train=%d, n_embd=%d, n_layer=%d, threads=%d, batch=%d, cpu=%d, flash_attn=%d, mmap=%d",
+             n_ctx_train, n_embd, n_layer, g_n_threads, g_n_batch, g_cpu_count, g_flash_attn, g_use_mmap);
     return env->NewStringUTF(info);
 }
 

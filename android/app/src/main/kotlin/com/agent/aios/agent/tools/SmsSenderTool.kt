@@ -41,7 +41,12 @@ class SmsSenderTool : AgentEngine.ExtendedTool {
         if (to.isBlank()) return "Error: 'to' parameter required (phone number)"
         if (body.isBlank()) return "Error: 'body' parameter required (message text)"
 
-        val smsManager = SmsManager.getDefault()
+        val smsManager = if (android.os.Build.VERSION.SDK_INT >= 31) {
+            context.getSystemService(SmsManager::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            SmsManager.getDefault()
+        }
         smsManager.sendTextMessage(to, null, body, null, null)
         return "SMS sent to $to"
     }
