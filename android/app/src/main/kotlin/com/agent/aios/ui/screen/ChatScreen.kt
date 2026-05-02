@@ -71,6 +71,7 @@ import com.agent.aios.ToolRisk
 import com.agent.aios.ui.component.MessageBubble
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.ChatViewModel
+import com.agent.aios.ui.viewmodel.ChatViewModelFactory
 import com.agent.aios.ui.viewmodel.ConfirmationRequest
 import android.content.Intent
 import android.provider.Settings
@@ -78,7 +79,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun ChatScreen(
-    vm: ChatViewModel = viewModel(),
+    vm: ChatViewModel = viewModel(factory = ChatViewModelFactory(AIOSApp.instance)),
     onNavigateToSettings: () -> Unit = {},
 ) {
     val messages by vm.messages.collectAsState()
@@ -92,8 +93,6 @@ fun ChatScreen(
     val pendingConfirmation by vm.pendingConfirmation.collectAsState()
 
     val listState = rememberLazyListState()
-
-    com.agent.aios.AIOSApp.instance.chatViewModel = vm
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {

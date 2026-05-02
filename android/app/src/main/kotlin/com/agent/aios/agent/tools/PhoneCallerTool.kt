@@ -4,8 +4,8 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import com.agent.aios.AIOSApp
 import com.agent.aios.AgentEngine
+import com.agent.aios.domain.ToolContext
 import org.json.JSONObject
 
 class PhoneCallerTool : AgentEngine.ExtendedTool {
@@ -13,7 +13,7 @@ class PhoneCallerTool : AgentEngine.ExtendedTool {
     override val description = "Call or dial a number. Args: {action: call|dial, number}"
     override val parameters = """{"action": "call|dial", "number": "string, phone number to call or dial"}"""
 
-    override fun execute(args: String): String {
+    override fun execute(args: String, toolContext: ToolContext): String {
         return try {
             val json = JSONObject(args)
             val action = json.optString("action", "dial").lowercase()
@@ -22,8 +22,8 @@ class PhoneCallerTool : AgentEngine.ExtendedTool {
             if (number.isBlank()) return "Error: 'number' parameter required"
 
             when (action) {
-                "call" -> makeCall(number)
-                "dial" -> openDialer(number)
+                "call" -> makeCall(number, toolContext)
+                "dial" -> openDialer(number, toolContext)
                 else -> "Error: Unknown action '$action'. Use 'call' or 'dial'."
             }
         } catch (e: Exception) {
@@ -31,8 +31,8 @@ class PhoneCallerTool : AgentEngine.ExtendedTool {
         }
     }
 
-    private fun makeCall(number: String): String {
-        val context = AIOSApp.instance
+    private fun makeCall(number: String, toolContext: ToolContext): String {
+        val context = toolContext.appContext
         if (context.checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
             return "Error: CALL_PHONE permission not granted. Grant it in Phone Control settings, or use 'dial' action instead."
         }
@@ -44,8 +44,8 @@ class PhoneCallerTool : AgentEngine.ExtendedTool {
         return "Calling $number..."
     }
 
-    private fun openDialer(number: String): String {
-        val context = AIOSApp.instance
+    private fun openDialer(number: String, toolContext: ToolContext): String {
+        val context = toolContext.appContext
         val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }

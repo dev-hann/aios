@@ -8,6 +8,9 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.util.Log
 import com.agent.aios.crash.CrashLogManager
+import com.agent.aios.domain.LlmProvider
+import com.agent.aios.domain.ToolContext
+import com.agent.aios.service.AIOSAccessibilityService
 import com.agent.aios.settings.SettingsRepository
 import com.agent.aios.update.UpdateChecker
 import com.agent.aios.update.UpdateResult
@@ -170,10 +173,13 @@ class AIOSApp : Application() {
                 if (success) {
                     _serviceState.tryEmit(ServiceState.MODEL_LOADED)
                     svc.updateNotification("Model loaded - Ready")
-                    val engine = svc.getAgentEngine()
-                    if (engine != null) {
-                        engine.initSystemPrompt()
-                    }
+                    val engine = AgentEngine(svc)
+                    engine.setToolContext(ToolContext(
+                        appContext = this@AIOSApp,
+                        accessibilityService = { AIOSAccessibilityService.getInstance() }
+                    ))
+                    currentAgentEngine = engine
+                    engine.initSystemPrompt()
                 } else {
                     _serviceState.tryEmit(ServiceState.READY)
                 }
@@ -188,12 +194,11 @@ class AIOSApp : Application() {
             onComplete(emptyList())
             return
         }
-        val engine = svc.getAgentEngine()
+        val engine = currentAgentEngine
         if (engine == null) {
             onComplete(emptyList())
             return
         }
-        currentAgentEngine = engine
         _serviceState.tryEmit(ServiceState.AGENT_RUNNING)
         inferenceJob = appScope.launch {
             val iters = maxIterations ?: runCatching {
@@ -205,7 +210,6 @@ class AIOSApp : Application() {
                     _agentStepFlow.tryEmit(step)
                 }
                 val steps = engine.run(prompt, iters)
-                currentAgentEngine = null
                 _serviceState.tryEmit(ServiceState.MODEL_LOADED)
                 svc.updateNotification("Ready")
                 Log.i(TAG, "Agent done: ${steps.size} steps, last=${steps.lastOrNull()?.type}")
@@ -227,6 +231,7 @@ class AIOSApp : Application() {
     }
 
     fun releaseModel() {
+        currentAgentEngine = null
         llmService?.releaseModel()
         llmService?.updateNotification("Ready")
         _serviceState.tryEmit(ServiceState.READY)

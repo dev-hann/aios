@@ -17,7 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.agent.aios.ui.navigation.AIOSApp
+import com.agent.aios.ui.navigation.AIOSNavHost
 import com.agent.aios.ui.theme.AIOSTheme
 
 class MainActivity : ComponentActivity() {
@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AIOSApp(
+                    AIOSNavHost(
                         onPickModelFile = { launcher ->
                             launcher.launch(arrayOf("*/*"))
                         },

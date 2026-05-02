@@ -1,14 +1,14 @@
 package com.agent.aios.ui.viewmodel
 
-import android.os.Environment
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.agent.aios.AIOSApp
 import com.agent.aios.AgentStep
 import com.agent.aios.data.ConversationMessage
 import com.agent.aios.data.ConversationStore
-import com.agent.aios.ui.theme.*
+import com.agent.aios.data.model.ModelFileManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -43,11 +43,16 @@ data class ConfirmationRequest(
     val timeoutMs: Long = 60000L,
 )
 
-class ChatViewModel : ViewModel() {
+class ChatViewModelFactory(private val app: AIOSApp) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return ChatViewModel(app) as T
+    }
+}
 
-    private val app: AIOSApp
-        get() = AIOSApp.instance
+class ChatViewModel(private val app: AIOSApp) : ViewModel() {
 
+    private val modelFileManager = ModelFileManager(app)
     private val conversationStore by lazy { ConversationStore(app) }
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
@@ -162,54 +167,17 @@ class ChatViewModel : ViewModel() {
     }
 
     fun refreshModels() {
-        val found = mutableListOf<ModelInfo>()
-
-        val dir = File(app.filesDir, "models")
-        if (!dir.exists()) dir.mkdirs()
-        dir.listFiles()
-            ?.filter { it.extension == "gguf" }
-            ?.mapTo(found) { ModelInfo(it.name, it.length(), it.absolutePath) }
-
-        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        if (downloadDir.exists()) {
-            downloadDir.listFiles()
-                ?.filter { it.name.endsWith(".gguf") }
-                ?.mapTo(found) { ModelInfo(it.name, it.length(), it.absolutePath) }
-        }
-
-        _models.value = found
+        _models.value = modelFileManager.getAvailableModels()
     }
 
     fun restoreModel(name: String, onResult: (Boolean) -> Unit) {
-        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val src = File(downloadDir, name)
-        val dst = File(File(app.filesDir, "models"), name)
-
-        if (!src.exists()) {
-            onResult(false)
-            return
-        }
-        if (dst.exists()) {
-            onResult(true)
-            return
-        }
-
-        Thread {
-            try {
-                dst.parentFile?.mkdirs()
-                src.inputStream().use { input ->
-                    dst.outputStream().use { output ->
-                        input.copyTo(output, 8192)
-                    }
-                }
-                Log.i("ChatVM", "Model restored: ${dst.length()} bytes")
-                refreshModels()
-                onResult(true)
-            } catch (e: Exception) {
-                Log.e("ChatVM", "Restore failed: ${e.message}")
-                onResult(false)
+        viewModelScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                modelFileManager.restoreModel(name)
             }
-        }.start()
+            if (success) refreshModels()
+            onResult(success)
+        }
     }
 
     private fun tryAutoLoadModel() {
@@ -314,18 +282,9 @@ class ChatViewModel : ViewModel() {
         _isImporting.value = true
         viewModelScope.launch {
             try {
-                val modelsDir = File(app.filesDir, "models")
-                if (!modelsDir.exists()) modelsDir.mkdirs()
-                val safeName = if (fileName.endsWith(".gguf")) fileName else "$fileName.gguf"
-                val dst = File(modelsDir, safeName)
                 withContext(Dispatchers.IO) {
-                    app.contentResolver.openInputStream(uri)?.use { input ->
-                        dst.outputStream().use { output ->
-                            input.copyTo(output, 8192)
-                        }
-                    }
+                    modelFileManager.importModelFromUri(uri, fileName)
                 }
-                Log.i("ChatVM", "Model imported: ${dst.length()} bytes -> ${dst.absolutePath}")
                 refreshModels()
             } catch (e: Exception) {
                 Log.e("ChatVM", "Model import failed: ${e.message}")

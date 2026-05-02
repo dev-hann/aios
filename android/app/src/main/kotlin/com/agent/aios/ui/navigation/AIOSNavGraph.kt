@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.agent.aios.AIOSApp
+import com.agent.aios.data.model.ModelFileManager
 import com.agent.aios.rememberModelImportLauncher
 import com.agent.aios.ui.screen.ChatScreen
 import com.agent.aios.ui.screen.SettingsScreen
@@ -27,13 +29,15 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AIOSApp(
+fun AIOSNavHost(
     onPickModelFile: (ActivityResultLauncher<Array<String>>) -> Unit = {},
     pendingImportUri: Uri? = null,
     pendingImportName: String? = null,
     onImportConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    val app = AIOSApp.instance
+    val modelFileManager = remember { ModelFileManager(app) }
 
     val pendingImportCallback = remember { mutableStateOf<((Uri, String) -> Unit)?>(null) }
 
@@ -70,7 +74,7 @@ fun AIOSApp(
                         },
                         onImportFile = {
                             pendingImportCallback.value = { uri, name ->
-                                com.agent.aios.AIOSApp.instance.chatViewModel?.importModelFromUri(uri, name)
+                                modelFileManager.importModelFromUri(uri, name)
                             }
                             onPickModelFile(modelImportLauncher)
                         }

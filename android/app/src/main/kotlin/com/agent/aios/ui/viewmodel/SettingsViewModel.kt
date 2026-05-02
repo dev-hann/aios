@@ -1,6 +1,7 @@
 package com.agent.aios.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.agent.aios.AIOSApp
 import com.agent.aios.settings.SettingsRepository
@@ -9,10 +10,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SettingsViewModel : ViewModel() {
+class SettingsViewModelFactory(private val app: AIOSApp) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return SettingsViewModel(app.settingsRepository) as T
+    }
+}
 
-    private val repo: SettingsRepository
-        get() = AIOSApp.instance.settingsRepository
+class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
 
     val contextSize: StateFlow<Int> = repo.contextSize
         .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_CONTEXT_SIZE)

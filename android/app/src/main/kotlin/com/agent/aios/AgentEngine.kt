@@ -9,6 +9,8 @@ import com.agent.aios.agent.tools.ScreenActionTool
 import com.agent.aios.agent.tools.ScreenFindTool
 import com.agent.aios.agent.tools.ScreenReaderTool
 import com.agent.aios.agent.tools.SmsSenderTool
+import com.agent.aios.domain.LlmProvider
+import com.agent.aios.domain.ToolContext
 import org.json.JSONObject
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -33,7 +35,7 @@ data class AgentStep(
     val riskLevel: String = ""
 )
 
-class AgentEngine(private val service: LlmService) {
+class AgentEngine(private val llmProvider: LlmProvider) {
 
     private val TAG = "AIOS-Agent"
     private var onStep: ((AgentStep) -> Unit)? = null
@@ -52,13 +54,19 @@ class AgentEngine(private val service: LlmService) {
     @Volatile
     private var confirmationApproved = false
 
-    private val promptBuilder = PromptBuilder(service)
+    private val promptBuilder = PromptBuilder(llmProvider)
+
+    private var toolContext: ToolContext? = null
+
+    fun setToolContext(ctx: ToolContext) {
+        toolContext = ctx
+    }
 
     interface ExtendedTool {
         val name: String
         val description: String
         val parameters: String
-        fun execute(args: String): String
+        fun execute(args: String, toolContext: ToolContext): String
     }
 
     private val basicTools: Map<String, AgentTool> = listOf(
@@ -168,11 +176,11 @@ class AgentEngine(private val service: LlmService) {
 
     fun initSystemPrompt() {
         val systemPrompt = promptBuilder.buildSystemPrompt(getToolManifest())
-        val formatted = service.formatChat(
+        val formatted = llmProvider.formatChat(
             arrayOf("system", "user"),
             arrayOf(systemPrompt, "Ready.")
         )
-        val result = service.processSystemPrompt(formatted)
+        val result = llmProvider.processSystemPrompt(formatted)
         if (result != 0) {
             Log.e(TAG, "initSystemPrompt failed ($result)")
         } else {
@@ -204,7 +212,7 @@ class AgentEngine(private val service: LlmService) {
                 emitStep(AgentStep("thinking_start", ""))
 
                 val formattedPrompt = promptBuilder.buildPromptForInfer(systemPrompt)
-                val promptResult = service.processPromptIncremental(formattedPrompt)
+                val promptResult = llmProvider.processPromptIncremental(formattedPrompt)
                 if (promptResult != 0) {
                     Log.e(TAG, "processPromptIncremental failed ($promptResult)")
                     emitStep(AgentStep("thinking_end", ""))
@@ -212,7 +220,7 @@ class AgentEngine(private val service: LlmService) {
                 }
 
                 if (i == 0 || didTrim) {
-                    service.setSystemPromptPosition()
+                    llmProvider.setSystemPromptPosition()
                 }
 
                 val response = generateTokens(512)
@@ -283,7 +291,7 @@ class AgentEngine(private val service: LlmService) {
     }
 
     private fun collectStream(prompt: String, maxTokens: Int): String {
-        val result = service.processPrompt(prompt)
+        val result = llmProvider.processPrompt(prompt)
         if (result != 0) {
             Log.e(TAG, "collectStream: processPrompt failed ($result)")
             return ""
@@ -296,7 +304,7 @@ class AgentEngine(private val service: LlmService) {
         var generated = 0
         while (generated < maxTokens) {
             if (cancelled) break
-            val token = service.generateOneToken() ?: break
+            val token = llmProvider.generateOneToken() ?: break
             if (token.isNotEmpty()) {
                 buffer.append(token)
             }
@@ -345,7 +353,8 @@ class AgentEngine(private val service: LlmService) {
 
         val extendedTool = extendedTools[name]
         if (extendedTool != null) {
-            val result = extendedTool.execute(args)
+            val ctx = toolContext ?: return "Error: ToolContext not initialized"
+            val result = extendedTool.execute(args, ctx)
             addAuditEntry(name, args, risk, true, result)
             return result
         }
