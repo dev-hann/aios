@@ -335,4 +335,99 @@ class NativeInferenceTest {
 
         service.releaseModel()
     }
+
+    @Test
+    fun test13_infer_withSharedFlowCallback_doesNotCrash() {
+        val model = findOrDownloadModel()
+        assertTrue(bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE))
+
+        val flow = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 64)
+        val tokens = AtomicInteger(0)
+
+        bridge.onTokenCallback = { token ->
+            flow.tryEmit(token)
+            tokens.incrementAndGet()
+        }
+
+        val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Hello"))
+        bridge.nativeResetContext()
+        val result = bridge.nativeInfer(formatted, 16)
+
+        assertTrue("Should not crash with SharedFlow callback (tokens=${tokens.get()})", result >= 0)
+        assertTrue("Should have received tokens", tokens.get() > 0)
+    }
+
+    @Test
+    fun test14_infer_callbackThrowsException_doesNotCrash() {
+        val model = findOrDownloadModel()
+        assertTrue(bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE))
+
+        var callCount = AtomicInteger(0)
+        bridge.onTokenCallback = { _ ->
+            callCount.incrementAndGet()
+            if (callCount.get() == 3) {
+                throw RuntimeException("Simulated callback exception")
+            }
+        }
+
+        val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Hello"))
+        bridge.nativeResetContext()
+        val result = bridge.nativeInfer(formatted, 16)
+
+        assertTrue("Should not crash even when callback throws (result=$result)", result >= -1)
+    }
+
+    @Test
+    fun test15_agentLoop_withStepFlowEmit_doesNotCrash() {
+        val model = findOrDownloadModel()
+        val service = LlmService()
+        assertTrue(service.loadModel(model.absolutePath, TEST_CONTEXT_SIZE))
+
+        val engine = service.getAgentEngine()
+        assertNotNull(engine)
+
+        val flow = kotlinx.coroutines.flow.MutableSharedFlow<AgentStep>(extraBufferCapacity = 64)
+        var stepCount = 0
+
+        engine!!.setStepCallback { step ->
+            try {
+                flow.tryEmit(step)
+            } catch (e: Exception) {
+                Log.e(TAG, "Step flow error: ${e.message}")
+            }
+            stepCount++
+        }
+
+        val result = engine.run("Hi", maxIterations = 1)
+        assertTrue("Agent should complete without crash (steps=$stepCount)", result.isNotEmpty())
+
+        Log.i(TAG, "AgentLoop with SharedFlow: ${result.size} steps, $stepCount callbacks")
+        service.releaseModel()
+    }
+
+    @Test
+    fun test16_infer_longStreaming_manyTokens_doesNotCrash() {
+        val model = findOrDownloadModel()
+        assertTrue(bridge.nativeLoadModel(model.absolutePath, 2048))
+
+        val tokens = AtomicInteger(0)
+        val exceptions = mutableListOf<Throwable>()
+
+        bridge.onTokenCallback = { _ ->
+            try {
+                tokens.incrementAndGet()
+            } catch (e: Throwable) {
+                exceptions.add(e)
+            }
+        }
+
+        val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Write a short poem about the moon"))
+        bridge.nativeResetContext()
+        val result = bridge.nativeInfer(formatted, 64)
+
+        assertTrue("Should not crash during long streaming (tokens=${tokens.get()}, result=$result)", result >= 0)
+        assertTrue("No exceptions in callback", exceptions.isEmpty())
+
+        Log.i(TAG, "Long streaming: ${tokens.get()} tokens, ${result} chars")
+    }
 }

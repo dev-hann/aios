@@ -1,6 +1,10 @@
 package com.agent.aios
 
+import android.util.Log
+
 class LlamaBridge {
+
+    private val TAG = "AIOS-Bridge"
 
     var onTokenCallback: ((String) -> Unit)? = null
 
@@ -21,6 +25,10 @@ class LlamaBridge {
     external fun nativeSetSamplingParams(temperature: Float, topK: Int, topP: Float, repeatPenalty: Float)
 
     fun onTokenGenerated(token: String) {
-        onTokenCallback?.invoke(token)
+        try {
+            onTokenCallback?.invoke(token)
+        } catch (e: Exception) {
+            Log.e(TAG, "onTokenCallback error: ${e.message}", e)
+        }
     }
 }

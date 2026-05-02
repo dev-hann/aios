@@ -25,24 +25,31 @@ static float g_repeat_penalty = 1.1f;
 static int g_n_threads = 4;
 static int g_n_batch = 512;
 static int g_cpu_count = 4;
-static bool g_flash_attn = false;
-static bool g_use_mmap = true;
 
 static std::mutex g_mutex;
 
-#define JNI_CHECK_AND_BREAK(env, label) \
-    do { \
-        if ((env)->ExceptionCheck()) { \
-            LOGE("JNI exception detected at %s:%d", __FILE__, __LINE__); \
-            (env)->ExceptionClear(); \
-            goto label; \
-        } \
-    } while (0)
+class JniStringHolder {
+public:
+    JniStringHolder(JNIEnv *env, jstring str) : env_(env), str_(str), chars_(nullptr) {
+        if (str_) chars_ = env_->GetStringUTFChars(str_, nullptr);
+    }
+    ~JniStringHolder() {
+        if (chars_ && str_) env_->ReleaseStringUTFChars(str_, chars_);
+    }
+    const char *c_str() const { return chars_; }
+    bool valid() const { return chars_ != nullptr; }
+    JniStringHolder(const JniStringHolder &) = delete;
+    JniStringHolder &operator=(const JniStringHolder &) = delete;
+private:
+    JNIEnv *env_;
+    jstring str_;
+    const char *chars_;
+};
 
-#define JNI_CHECK_AND_RETURN(env, ret) \
+#define JNI_CATCH_EXCEPTION(env, ret) \
     do { \
         if ((env)->ExceptionCheck()) { \
-            LOGE("JNI exception detected at %s:%d", __FILE__, __LINE__); \
+            LOGE("JNI exception at %s:%d", __FILE__, __LINE__); \
             (env)->ExceptionClear(); \
             return ret; \
         } \
@@ -51,17 +58,16 @@ static std::mutex g_mutex;
 static std::vector<llama_token> tokenize(const char *text, bool add_bos);
 static bool decode_tokens(std::vector<llama_token> &tokens);
 
-static int estimate_tokens(const char *text) {
-    return static_cast<int>(strlen(text) / 3.5f);
-}
-
 static void reset_kv_cache_locked() {
     g_n_past = 0;
 }
 
 static std::vector<llama_token> tokenize(const char *text, bool add_bos) {
     if (!g_vocab) {
-        LOGE("tokenize called with null g_vocab");
+        LOGE("tokenize: g_vocab is null");
+        return {};
+    }
+    if (!text || strlen(text) == 0) {
         return {};
     }
 
@@ -84,7 +90,7 @@ static bool decode_tokens(std::vector<llama_token> &tokens) {
 
     llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
     if (llama_decode(g_ctx, batch) != 0) {
-        LOGE("Failed to decode batch");
+        LOGE("Failed to decode batch (size=%zu, n_past=%d, n_ctx=%d)", tokens.size(), g_n_past, g_n_ctx);
         return false;
     }
     return true;
@@ -106,9 +112,10 @@ static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *
         jclass clazz = env->GetObjectClass(thiz);
         if (clazz) {
             onTokenMid = env->GetMethodID(clazz, "onTokenGenerated", "(Ljava/lang/String;)V");
+            env->DeleteLocalRef(clazz);
         }
         if (!onTokenMid) {
-            LOGE("Failed to get onTokenGenerated methodID");
+            LOGE("sample_response: failed to get onTokenGenerated methodID, disabling stream");
             stream = false;
         }
     }
@@ -117,8 +124,10 @@ static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *
     int n_decoded = 0;
 
     while (n_decoded < max_tokens) {
+        if (!g_ctx || !g_vocab) break;
+
         if (g_n_past >= g_n_ctx) {
-            LOGE("Context overflow during generation: n_past=%d >= n_ctx=%d", g_n_past, g_n_ctx);
+            LOGE("Context overflow: n_past=%d >= n_ctx=%d", g_n_past, g_n_ctx);
             break;
         }
 
@@ -134,13 +143,13 @@ static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *
             if (stream && onTokenMid) {
                 jstring jtoken = env->NewStringUTF(token_str.c_str());
                 if (env->ExceptionCheck()) {
-                    LOGE("JNI exception in NewStringUTF, stopping stream");
+                    LOGE("sample_response: JNI exception in NewStringUTF, stopping");
                     env->ExceptionClear();
                     break;
                 }
                 env->CallVoidMethod(thiz, onTokenMid, jtoken);
                 if (env->ExceptionCheck()) {
-                    LOGE("JNI exception in CallVoidMethod, stopping stream");
+                    LOGE("sample_response: JNI exception in CallVoidMethod (onTokenGenerated), stopping");
                     env->ExceptionClear();
                     env->DeleteLocalRef(jtoken);
                     break;
@@ -152,7 +161,10 @@ static std::string sample_response(llama_sampler *smpl, int max_tokens, JNIEnv *
         n_decoded++;
         g_n_past++;
         llama_batch batch = llama_batch_get_one(&new_token, 1);
-        if (llama_decode(g_ctx, batch) != 0) break;
+        if (llama_decode(g_ctx, batch) != 0) {
+            LOGE("sample_response: decode failed at token %d", n_decoded);
+            break;
+        }
     }
 
     return result;
@@ -163,10 +175,10 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         JNIEnv *env, jobject thiz, jstring model_path, jint context_size) {
     std::lock_guard<std::mutex> lock(g_mutex);
 
-    const char *path = env->GetStringUTFChars(model_path, nullptr);
-    if (!path) return JNI_FALSE;
+    JniStringHolder path(env, model_path);
+    if (!path.valid()) return JNI_FALSE;
 
-    LOGI("Loading model from: %s", path);
+    LOGI("Loading model from: %s (ctx=%d)", path.c_str(), context_size);
 
     if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
     if (g_model) { llama_model_free(g_model); g_model = nullptr; g_vocab = nullptr; }
@@ -176,16 +188,14 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
     model_params.use_mmap = true;
     model_params.use_mlock = false;
 
-    g_model = llama_model_load_from_file(path, model_params);
-    env->ReleaseStringUTFChars(model_path, path);
+    g_model = llama_model_load_from_file(path.c_str(), model_params);
 
     if (!g_model) {
-        LOGE("Failed to load model");
+        LOGE("Failed to load model: %s", path.c_str());
         return JNI_FALSE;
     }
 
     g_vocab = llama_model_get_vocab(g_model);
-    LOGI("Model loaded successfully");
 
     int n_layers = llama_model_n_layer(g_model);
 
@@ -214,7 +224,7 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
     }
 
     reset_kv_cache_locked();
-    LOGI("Context created (n_ctx=%d, n_batch=%d, n_threads=%d, n_layers=%d, cpu=%d)",
+    LOGI("Model loaded (n_ctx=%d, n_batch=%d, n_threads=%d, n_layers=%d, cpu=%d)",
          context_size, g_n_batch, g_n_threads, n_layers, g_cpu_count);
     return JNI_TRUE;
 }
@@ -227,9 +237,9 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
     if (!g_model) return env->NewStringUTF("");
 
     jsize len = env->GetArrayLength(roles);
+    JNI_CATCH_EXCEPTION(env, env->NewStringUTF(""));
     if (len == 0) return env->NewStringUTF("");
 
-    std::vector<llama_chat_message> messages;
     std::vector<std::string> role_strings;
     std::vector<std::string> content_strings;
 
@@ -237,8 +247,16 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
     content_strings.reserve(len);
 
     for (jsize i = 0; i < len; i++) {
-        auto *role_str = (jstring) env->GetObjectArrayElement(roles, i);
-        auto *content_str = (jstring) env->GetObjectArrayElement(contents, i);
+        auto *role_str = static_cast<jstring>(env->GetObjectArrayElement(roles, i));
+        auto *content_str = static_cast<jstring>(env->GetObjectArrayElement(contents, i));
+
+        if (env->ExceptionCheck()) {
+            LOGE("nativeFormatChat: exception getting array element %d", i);
+            env->ExceptionClear();
+            if (role_str) env->DeleteLocalRef(role_str);
+            if (content_str) env->DeleteLocalRef(content_str);
+            continue;
+        }
 
         if (!role_str || !content_str) {
             if (role_str) env->DeleteLocalRef(role_str);
@@ -249,23 +267,18 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
         const char *role = env->GetStringUTFChars(role_str, nullptr);
         const char *content = env->GetStringUTFChars(content_str, nullptr);
 
-        if (!role || !content) {
-            if (role) env->ReleaseStringUTFChars(role_str, role);
-            if (content) env->ReleaseStringUTFChars(content_str, content);
-            env->DeleteLocalRef(role_str);
-            env->DeleteLocalRef(content_str);
-            continue;
+        if (role && content) {
+            role_strings.emplace_back(role);
+            content_strings.emplace_back(content);
         }
 
-        role_strings.emplace_back(role);
-        content_strings.emplace_back(content);
-
-        env->ReleaseStringUTFChars(role_str, role);
-        env->ReleaseStringUTFChars(content_str, content);
+        if (role) env->ReleaseStringUTFChars(role_str, role);
+        if (content) env->ReleaseStringUTFChars(content_str, content);
         env->DeleteLocalRef(role_str);
         env->DeleteLocalRef(content_str);
     }
 
+    std::vector<llama_chat_message> messages;
     messages.reserve(role_strings.size());
     for (size_t i = 0; i < role_strings.size(); i++) {
         messages.push_back({role_strings[i].c_str(), content_strings[i].c_str()});
@@ -273,16 +286,11 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
 
     std::vector<char> buf(4096);
     int32_t res = llama_chat_apply_template(
-        nullptr,
-        messages.data(),
-        static_cast<int32_t>(messages.size()),
-        true,
-        buf.data(),
-        static_cast<int32_t>(buf.size())
-    );
+        nullptr, messages.data(), static_cast<int32_t>(messages.size()),
+        true, buf.data(), static_cast<int32_t>(buf.size()));
 
     if (res < 0) {
-        LOGE("llama_chat_apply_template failed");
+        LOGE("nativeFormatChat: llama_chat_apply_template failed");
         return env->NewStringUTF("");
     }
 
@@ -293,16 +301,13 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
             messages.push_back({role_strings[i].c_str(), content_strings[i].c_str()});
         }
         llama_chat_apply_template(
-            nullptr,
-            messages.data(),
-            static_cast<int32_t>(messages.size()),
-            true,
-            buf.data(),
-            static_cast<int32_t>(buf.size())
-        );
+            nullptr, messages.data(), static_cast<int32_t>(messages.size()),
+            true, buf.data(), static_cast<int32_t>(buf.size()));
     }
 
-    return env->NewStringUTF(std::string(buf.data(), res).c_str());
+    jstring result = env->NewStringUTF(std::string(buf.data(), res).c_str());
+    JNI_CATCH_EXCEPTION(env, env->NewStringUTF(""));
+    return result;
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -312,17 +317,17 @@ Java_com_agent_aios_LlamaBridge_nativeInfer(
 
     if (!g_ctx || !g_model || !g_vocab) return -1;
 
-    const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
-    if (!prompt_str) return -1;
+    JniStringHolder prompt_holder(env, prompt);
+    if (!prompt_holder.valid()) return -1;
 
-    LOGI("Infer: tokenizing prompt (%zu chars, n_past=%d)", strlen(prompt_str), g_n_past);
+    const char *prompt_str = prompt_holder.c_str();
+    LOGI("Infer: tokenizing (%zu chars, n_past=%d/%d)", strlen(prompt_str), g_n_past, g_n_ctx);
 
     bool add_bos = (g_n_past == 0);
     auto tokens = tokenize(prompt_str, add_bos);
-    env->ReleaseStringUTFChars(prompt, prompt_str);
 
     if (tokens.empty() && strlen(prompt_str) > 0) {
-        LOGE("Tokenization returned empty for non-empty prompt");
+        LOGE("nativeInfer: tokenization failed for non-empty prompt");
         return -1;
     }
 
@@ -354,7 +359,7 @@ Java_com_agent_aios_LlamaBridge_nativeResetContext(
         JNIEnv *env, jobject thiz) {
     std::lock_guard<std::mutex> lock(g_mutex);
     reset_kv_cache_locked();
-    LOGI("Context reset, KV cache cleared");
+    LOGI("Context reset");
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -398,6 +403,6 @@ Java_com_agent_aios_LlamaBridge_nativeSetSamplingParams(
     g_top_k = top_k;
     g_top_p = top_p;
     g_repeat_penalty = repeat_penalty;
-    LOGI("Sampling params updated: temp=%.2f, top_k=%d, top_p=%.2f, repeat_penalty=%.2f",
+    LOGI("Sampling: temp=%.2f, top_k=%d, top_p=%.2f, rep_penalty=%.2f",
          g_temperature, g_top_k, g_top_p, g_repeat_penalty);
 }

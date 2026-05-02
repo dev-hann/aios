@@ -86,6 +86,14 @@ class AgentEngine(private val service: LlmService) {
         onStep = cb
     }
 
+    private fun emitStep(step: AgentStep) {
+        try {
+            onStep?.invoke(step)
+        } catch (e: Exception) {
+            Log.e(TAG, "onStep callback error: ${e.message}", e)
+        }
+    }
+
     fun cancel() {
         onCancelled = true
         confirmationApproved = false
@@ -170,7 +178,7 @@ class AgentEngine(private val service: LlmService) {
 
         try {
             steps.add(AgentStep("thought", "Processing: $userPrompt"))
-            onStep?.invoke(steps.last())
+            emitStep(steps.last())
 
             promptBuilder.addUserMessage(userPrompt)
 
@@ -180,16 +188,16 @@ class AgentEngine(private val service: LlmService) {
                 promptBuilder.trimIfNeeded()
 
                 steps.add(AgentStep("thought", "Thinking (step ${i + 1})..."))
-                onStep?.invoke(steps.last())
+                emitStep(steps.last())
 
-                onStep?.invoke(AgentStep("thinking_start", ""))
+                emitStep(AgentStep("thinking_start", ""))
 
                 service.resetContext()
                 val formattedPrompt = promptBuilder.buildPromptForInfer(systemPrompt)
                 val response = collectStream(formattedPrompt, 512)
                 Log.i(TAG, "Iteration $i LLM: ${response.take(200)}")
 
-                onStep?.invoke(AgentStep("thinking_end", ""))
+                emitStep(AgentStep("thinking_end", ""))
 
                 promptBuilder.addAssistantMessage(response)
 
@@ -203,27 +211,27 @@ class AgentEngine(private val service: LlmService) {
                             "action", "Using tool: $actionName",
                             toolName = actionName, toolArgs = actionArgs
                         ))
-                        onStep?.invoke(steps.last())
+                        emitStep(steps.last())
 
                         val observation = executeTool(actionName, actionArgs)
 
                         steps.add(AgentStep("observation", observation,
                             toolName = actionName, toolResult = observation))
-                        onStep?.invoke(steps.last())
+                        emitStep(steps.last())
 
                         promptBuilder.addObservation("Action: $actionName($actionArgs)\nResult: $observation")
                     }
                     parsed.containsKey("answer") -> {
                         val answer = parsed["answer"]!!
                         steps.add(AgentStep("answer", answer))
-                        onStep?.invoke(steps.last())
+                        emitStep(steps.last())
                         break
                     }
                     else -> {
                         val directAnswer = response.trim()
                         if (directAnswer.isNotBlank()) {
                             steps.add(AgentStep("answer", directAnswer))
-                            onStep?.invoke(steps.last())
+                            emitStep(steps.last())
                         }
                         break
                     }
@@ -232,19 +240,19 @@ class AgentEngine(private val service: LlmService) {
 
             if (steps.none { it.type == "answer" }) {
                 steps.add(AgentStep("answer", "I couldn't complete this task within the iteration limit."))
-                onStep?.invoke(steps.last())
+                emitStep(steps.last())
             }
         } catch (e: InterruptedException) {
             Log.i(TAG, "Agent run cancelled by user")
             if (steps.none { it.type == "answer" }) {
                 steps.add(AgentStep("answer", "Task cancelled."))
-                onStep?.invoke(steps.last())
+                emitStep(steps.last())
             }
         } catch (e: Exception) {
             Log.e(TAG, "Agent run crashed: ${e.message}", e)
             if (steps.none { it.type == "answer" }) {
                 steps.add(AgentStep("answer", "An error occurred during execution: ${e.message}"))
-                onStep?.invoke(steps.last())
+                emitStep(steps.last())
             }
         } finally {
             agentThread = null
@@ -278,7 +286,7 @@ class AgentEngine(private val service: LlmService) {
             confirmationLatch = CountDownLatch(1)
             confirmationApproved = false
 
-            onStep?.invoke(AgentStep(
+            emitStep(AgentStep(
                 "confirmation_required",
                 "Requires confirmation: $name",
                 toolName = name,
