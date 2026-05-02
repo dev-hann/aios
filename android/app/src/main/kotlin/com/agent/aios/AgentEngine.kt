@@ -168,7 +168,10 @@ class AgentEngine(private val service: LlmService) {
 
     fun initSystemPrompt() {
         val systemPrompt = promptBuilder.buildSystemPrompt(getToolManifest())
-        val formatted = service.formatChat(arrayOf("system"), arrayOf(systemPrompt))
+        val formatted = service.formatChat(
+            arrayOf("system", "user"),
+            arrayOf(systemPrompt, "Ready.")
+        )
         val result = service.processSystemPrompt(formatted)
         if (result != 0) {
             Log.e(TAG, "initSystemPrompt failed ($result)")

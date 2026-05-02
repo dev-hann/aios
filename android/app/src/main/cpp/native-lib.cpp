@@ -35,6 +35,9 @@ static bool g_initialized = false;
 static std::vector<llama_token> g_kv_tokens;
 static llama_pos g_system_prompt_end = 0;
 
+static std::vector<uint8_t> g_cached_system_kv;
+static std::vector<llama_token> g_cached_system_tokens;
+
 static void batch_clear() { g_batch.n_tokens = 0; }
 
 static void batch_add(llama_token id, llama_pos pos, bool logits) {
@@ -371,31 +374,52 @@ Java_com_agent_aios_LlamaBridge_nativeProcessPromptIncremental(
     }
 
     if (g_kv_tokens.empty()) {
-        LOGI("processPromptInc: full decode (kv empty)");
-        if (g_sampler) llama_sampler_free(g_sampler);
-        g_sampler = create_sampler();
-
-        for (int i = 0; i < static_cast<int>(tokens.size()); i += BATCH_SIZE) {
-            int cur_size = std::min(static_cast<int>(tokens.size()) - i, BATCH_SIZE);
-            if (g_current_pos + cur_size >= g_n_ctx - OVERFLOW_HEADROOM) {
-                shift_context();
+        if (!g_cached_system_kv.empty()) {
+            LOGI("processPromptInc: restoring cached system prompt (%zu bytes, %zu tokens)",
+                 g_cached_system_kv.size(), g_cached_system_tokens.size());
+            size_t restored = llama_state_seq_set_data_ext(
+                g_ctx, g_cached_system_kv.data(), g_cached_system_kv.size(), 0, 0);
+            if (restored == g_cached_system_kv.size()) {
+                g_kv_tokens = g_cached_system_tokens;
+                g_current_pos = (llama_pos)g_kv_tokens.size();
+                g_system_prompt_end = g_current_pos;
+                LOGI("processPromptInc: restored (pos=%d, sys_end=%d)",
+                     (int)g_current_pos, (int)g_system_prompt_end);
+            } else {
+                LOGE("processPromptInc: cache restore failed (%zu/%zu), full decode",
+                     restored, g_cached_system_kv.size());
+                g_cached_system_kv.clear();
+                g_cached_system_tokens.clear();
             }
-            batch_clear();
-            for (int j = 0; j < cur_size; j++) {
-                bool want_logit = (i + j == static_cast<int>(tokens.size()) - 1);
-                batch_add(tokens[i + j], g_current_pos + j, want_logit);
-            }
-            if (llama_decode(g_ctx, g_batch) != 0) {
-                LOGE("processPromptInc: decode failed at offset %d", i);
-                return -1;
-            }
-            g_current_pos += cur_size;
         }
 
-        g_kv_tokens = tokens;
-        g_system_prompt_end = 0;
-        LOGI("processPromptInc: full done (pos=%d, kv=%zu)", (int)g_current_pos, g_kv_tokens.size());
-        return 0;
+        if (g_kv_tokens.empty()) {
+            LOGI("processPromptInc: full decode (kv empty)");
+            if (g_sampler) llama_sampler_free(g_sampler);
+            g_sampler = create_sampler();
+
+            for (int i = 0; i < static_cast<int>(tokens.size()); i += BATCH_SIZE) {
+                int cur_size = std::min(static_cast<int>(tokens.size()) - i, BATCH_SIZE);
+                if (g_current_pos + cur_size >= g_n_ctx - OVERFLOW_HEADROOM) {
+                    shift_context();
+                }
+                batch_clear();
+                for (int j = 0; j < cur_size; j++) {
+                    bool want_logit = (i + j == static_cast<int>(tokens.size()) - 1);
+                    batch_add(tokens[i + j], g_current_pos + j, want_logit);
+                }
+                if (llama_decode(g_ctx, g_batch) != 0) {
+                    LOGE("processPromptInc: decode failed at offset %d", i);
+                    return -1;
+                }
+                g_current_pos += cur_size;
+            }
+
+            g_kv_tokens = tokens;
+            g_system_prompt_end = 0;
+            LOGI("processPromptInc: full done (pos=%d, kv=%zu)", (int)g_current_pos, g_kv_tokens.size());
+            return 0;
+        }
     }
 
     auto result = find_common_prefix(tokens);
@@ -469,8 +493,8 @@ Java_com_agent_aios_LlamaBridge_nativeProcessSystemPrompt(
     LOGI("processSystemPrompt: %zu chars (pos=%d/%d)",
          strlen(prompt_str), (int)g_current_pos, g_n_ctx);
 
-    if (g_system_prompt_end > 0) {
-        LOGI("processSystemPrompt: already cached (sys_end=%d)", (int)g_system_prompt_end);
+    if (!g_cached_system_kv.empty()) {
+        LOGI("processSystemPrompt: already cached (%zu bytes)", g_cached_system_kv.size());
         env->ReleaseStringUTFChars(prompt, prompt_str);
         return 0;
     }
@@ -513,8 +537,28 @@ Java_com_agent_aios_LlamaBridge_nativeProcessSystemPrompt(
     g_kv_tokens = tokens;
     g_system_prompt_end = g_current_pos;
 
-    LOGI("processSystemPrompt: done (pos=%d, sys_end=%d, kv=%zu)",
-         (int)g_current_pos, (int)g_system_prompt_end, g_kv_tokens.size());
+    size_t kv_size = llama_state_seq_get_size_ext(g_ctx, 0, 0);
+    if (kv_size > 0) {
+        g_cached_system_kv.resize(kv_size);
+        size_t written = llama_state_seq_get_data_ext(
+            g_ctx, g_cached_system_kv.data(), kv_size, 0, 0);
+        if (written == kv_size) {
+            g_cached_system_tokens = g_kv_tokens;
+            LOGI("processSystemPrompt: cached %zu bytes (%zu tokens)",
+                 kv_size, g_cached_system_tokens.size());
+        } else {
+            LOGE("processSystemPrompt: KV serialize failed (wrote %zu/%zu)", written, kv_size);
+            g_cached_system_kv.clear();
+        }
+    }
+
+    llama_memory_t mem = llama_get_memory(g_ctx);
+    llama_memory_clear(mem, false);
+    g_current_pos = 0;
+    g_kv_tokens.clear();
+    g_system_prompt_end = 0;
+    if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
+
     return 0;
 }
 
@@ -570,6 +614,9 @@ Java_com_agent_aios_LlamaBridge_nativeReleaseModel(
     g_cached_token_chars.clear();
     g_kv_tokens.clear();
     g_system_prompt_end = 0;
+    g_cached_system_kv.clear();
+    g_cached_system_kv.shrink_to_fit();
+    g_cached_system_tokens.clear();
     if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
     if (g_batch.token) { llama_batch_free(g_batch); g_batch = {}; }
     if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }

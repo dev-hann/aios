@@ -36,6 +36,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.ButtonDefaults
@@ -81,6 +82,7 @@ import kotlinx.coroutines.delay
 fun ChatScreen(
     vm: ChatViewModel = viewModel(),
     onImportFile: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
 ) {
     val messages by vm.messages.collectAsState()
     val inputText by vm.inputText.collectAsState()
@@ -136,7 +138,8 @@ fun ChatScreen(
         TopBar(
             serviceState = serviceState,
             isModelLoaded = isModelLoaded,
-            onModelPicker = { showModelPicker = true }
+            onModelPicker = { showModelPicker = true },
+            onSettings = onNavigateToSettings,
         )
 
         if (!isModelLoaded) {
@@ -216,6 +219,7 @@ private fun TopBar(
     serviceState: AIOSApp.ServiceState,
     isModelLoaded: Boolean,
     onModelPicker: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     val statusColor = when (serviceState) {
         AIOSApp.ServiceState.DISCONNECTED -> AIOSColors.StatusIdle
@@ -245,7 +249,23 @@ private fun TopBar(
                 color = AIOSColors.TextPrimary,
             )
 
-            Box(
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                IconButton(
+                    onClick = onSettings,
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Settings,
+                        contentDescription = "Settings",
+                        tint = AIOSColors.TextSecondary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
                     .background(AIOSColors.SurfaceVariant)
@@ -286,6 +306,7 @@ private fun TopBar(
                         )
                     }
                 }
+            }
             }
         }
 

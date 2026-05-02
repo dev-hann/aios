@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -33,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.SmartToy
@@ -42,6 +44,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -86,6 +89,7 @@ import java.util.Locale
 
 @Composable
 fun SettingsScreen(
+    onBack: () -> Unit = {},
     onNavigateToUpdate: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel(),
 ) {
@@ -151,16 +155,53 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(AIOSColors.Background)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(
-            "Settings",
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
-            color = AIOSColors.TextPrimary,
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AIOSColors.Surface)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = AIOSColors.TextPrimary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                Text(
+                    "Settings",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    color = AIOSColors.TextPrimary,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(AIOSColors.Divider)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
 
         // ── SETUP ──────────────────────────────────────
         SectionHeader("SETUP")
@@ -508,10 +549,11 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(10.dp),
                     ) {
                         Text("Clear", fontSize = 12.sp, color = AIOSColors.StatusError)
-                    }
-                }
             }
         }
+        }
+    }
+}
     }
 }
 
