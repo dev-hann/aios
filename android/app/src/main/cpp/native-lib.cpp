@@ -409,6 +409,11 @@ Java_com_agent_aios_LlamaBridge_nativeProcessPromptIncremental(
         llama_memory_seq_rm(mem, 0, kv_keep, g_current_pos);
         g_current_pos = kv_keep;
         g_kv_tokens.resize(kv_keep);
+        if (g_system_prompt_end > 0 && kv_keep < (int)g_system_prompt_end) {
+            LOGW("processPromptInc: system_prompt_end reset (%d > kv_keep=%d)",
+                 (int)g_system_prompt_end, kv_keep);
+            g_system_prompt_end = 0;
+        }
     }
 
     int delta = (int)tokens.size() - new_start_idx;
