@@ -333,25 +333,35 @@ class AgentEngine(private val service: LlmService) {
 
     private val cancelled: Boolean get() = onCancelled
 
+    companion object {
+        private val ACTION_ARGS_REGEX = Regex(
+            """(?i)action\s*:\s*(\w+)\s*args\s*:\s*(\{[^}]*\})""",
+            RegexOption.DOT_MATCHES_ALL
+        )
+        private val ACTION_SIMPLE_REGEX = Regex("""(?i)action\s*:\s*(\w+)""")
+        private val ARGS_REGEX = Regex("""(?i)args\s*:\s*(.+?)$""", RegexOption.MULTILINE)
+        private val ANSWER_REGEX = Regex("""(?i)answer\s*:\s*(.+)""", RegexOption.DOT_MATCHES_ALL)
+    }
+
     private fun parseResponse(response: String): Map<String, String> {
         val trimmed = response.trim()
 
-        val actionRegex = Regex("(?i)action\\s*:\\s*(\\w+)[\\s\\n]*args\\s*:\\s*(\\{[^}]*})", RegexOption.DOT_MATCHES_ALL)
-        actionRegex.find(trimmed)?.let { match ->
-            return mapOf("action" to match.groupValues[1].lowercase(), "args" to match.groupValues[2])
-        }
+        try {
+            ACTION_ARGS_REGEX.find(trimmed)?.let { match ->
+                return mapOf("action" to match.groupValues[1].lowercase(), "args" to match.groupValues[2])
+            }
 
-        val simpleActionRegex = Regex("(?i)action\\s*:\\s*(\\w+)")
-        simpleActionRegex.find(trimmed)?.let { match ->
-            val toolName = match.groupValues[1].lowercase()
-            val argsRegex = Regex("(?i)args\\s*:\\s*(.+?)(?:\\n|$)")
-            val args = argsRegex.find(trimmed)?.groupValues?.get(1)?.trim() ?: "{}"
-            return mapOf("action" to toolName, "args" to args)
-        }
+            ACTION_SIMPLE_REGEX.find(trimmed)?.let { match ->
+                val toolName = match.groupValues[1].lowercase()
+                val args = ARGS_REGEX.find(trimmed)?.groupValues?.get(1)?.trim() ?: "{}"
+                return mapOf("action" to toolName, "args" to args)
+            }
 
-        val answerRegex = Regex("(?i)answer\\s*:\\s*(.+)", RegexOption.DOT_MATCHES_ALL)
-        answerRegex.find(trimmed)?.let { match ->
-            return mapOf("answer" to match.groupValues[1].trim())
+            ANSWER_REGEX.find(trimmed)?.let { match ->
+                return mapOf("answer" to match.groupValues[1].trim())
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "parseResponse regex error: ${e.message}", e)
         }
 
         return emptyMap()
