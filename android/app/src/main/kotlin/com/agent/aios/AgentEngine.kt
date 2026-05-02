@@ -155,19 +155,25 @@ class AgentEngine(private val service: LlmService) {
     }
 
     fun getToolManifest(): String {
-        val basicManifest = basicTools.values.joinToString("\n") { tool ->
-            "${tool.name}: ${tool.description}\n  Args: ${tool.parameters}"
-        }
-        val extendedManifest = extendedTools.values.joinToString("\n") { tool ->
-            "${tool.name}: ${tool.description}\n  Args: ${tool.parameters}"
-        }
-        return "--- Basic Tools ---\n$basicManifest\n\n--- Phone Control Tools ---\n$extendedManifest"
+        val basicLines = basicTools.values.map { "- ${it.name}: ${it.description}" }
+        val extendedLines = extendedTools.values.map { "- ${it.name}: ${it.description}" }
+        return (basicLines + extendedLines).joinToString("\n")
     }
 
     fun getConversationHistory(): List<Pair<String, String>> = promptBuilder.getHistory()
 
     fun clearHistory() {
         promptBuilder.clearHistory()
+    }
+
+    fun initSystemPrompt() {
+        val systemPrompt = promptBuilder.buildSystemPrompt(getToolManifest())
+        val result = service.processSystemPrompt(systemPrompt)
+        if (result != 0) {
+            Log.e(TAG, "initSystemPrompt failed ($result)")
+        } else {
+            Log.i(TAG, "initSystemPrompt: cached (${systemPrompt.length} chars)")
+        }
     }
 
     fun run(userPrompt: String, maxIterations: Int = 8): List<AgentStep> {
@@ -186,16 +192,26 @@ class AgentEngine(private val service: LlmService) {
             for (i in 0 until maxIterations) {
                 if (cancelled) break
 
-                promptBuilder.trimIfNeeded()
+                val didTrim = promptBuilder.trimIfNeeded()
 
                 steps.add(AgentStep("thought", "Thinking (step ${i + 1})..."))
                 emitStep(steps.last())
 
                 emitStep(AgentStep("thinking_start", ""))
 
-                service.resetContext()
                 val formattedPrompt = promptBuilder.buildPromptForInfer(systemPrompt)
-                val response = collectStream(formattedPrompt, 512)
+                val promptResult = service.processPromptIncremental(formattedPrompt)
+                if (promptResult != 0) {
+                    Log.e(TAG, "processPromptIncremental failed ($promptResult)")
+                    emitStep(AgentStep("thinking_end", ""))
+                    break
+                }
+
+                if (i == 0 || didTrim) {
+                    service.setSystemPromptPosition()
+                }
+
+                val response = generateTokens(512)
                 Log.i(TAG, "Iteration $i LLM: ${response.take(200)}")
 
                 emitStep(AgentStep("thinking_end", ""))
@@ -268,7 +284,10 @@ class AgentEngine(private val service: LlmService) {
             Log.e(TAG, "collectStream: processPrompt failed ($result)")
             return ""
         }
+        return generateTokens(maxTokens)
+    }
 
+    private fun generateTokens(maxTokens: Int): String {
         val buffer = StringBuffer()
         var generated = 0
         while (generated < maxTokens) {
@@ -279,8 +298,7 @@ class AgentEngine(private val service: LlmService) {
             }
             generated++
         }
-
-        Log.i(TAG, "collectStream: ${buffer.length} chars, $generated tokens")
+        Log.i(TAG, "generateTokens: ${buffer.length} chars, $generated tokens")
         return buffer.toString()
     }
 

@@ -11,7 +11,7 @@ import org.json.JSONObject
 
 class SmsSenderTool : AgentEngine.ExtendedTool {
     override val name = "sms_sender"
-    override val description = "Send SMS messages or read recent SMS messages."
+    override val description = "Send/read SMS. Args: {action: send|read, to, body, limit}"
     override val parameters = """{"action": "send|read", "to": "string, phone number (for send)", "body": "string, message text (for send)", "limit": "integer, max messages to return (for read, default 10)"}"""
 
     override fun execute(args: String): String {

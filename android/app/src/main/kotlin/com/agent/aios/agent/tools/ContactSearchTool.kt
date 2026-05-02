@@ -10,7 +10,7 @@ import org.json.JSONObject
 
 class ContactSearchTool : AgentEngine.ExtendedTool {
     override val name = "contact_search"
-    override val description = "Search contacts by name or phone number. Returns matching contacts with name, phone, and email."
+    override val description = "Search contacts by name/phone. Args: {query, limit}"
     override val parameters = """{"query": "string, name or phone number to search for", "limit": "integer, max results to return (default 10)"}"""
 
     override fun execute(args: String): String {

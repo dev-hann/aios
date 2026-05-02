@@ -10,7 +10,7 @@ import org.json.JSONObject
 
 class PhoneCallerTool : AgentEngine.ExtendedTool {
     override val name = "phone_caller"
-    override val description = "Make phone calls or open the dialer with a number."
+    override val description = "Call or dial a number. Args: {action: call|dial, number}"
     override val parameters = """{"action": "call|dial", "number": "string, phone number to call or dial"}"""
 
     override fun execute(args: String): String {

@@ -7,7 +7,7 @@ import org.json.JSONObject
 
 class ScreenReaderTool : AgentEngine.ExtendedTool {
     override val name = "screen_reader"
-    override val description = "Read all visible text on the current screen. Returns text content with element types and positions."
+    override val description = "Read all visible text on screen. Args: {}"
     override val parameters = """{}"""
 
     override fun execute(args: String): String {
@@ -28,7 +28,7 @@ class ScreenReaderTool : AgentEngine.ExtendedTool {
 
 class ScreenFindTool : AgentEngine.ExtendedTool {
     override val name = "screen_find"
-    override val description = "Find UI elements on screen by text content. Returns matching elements with their positions."
+    override val description = "Find UI elements by text. Args: {text}"
     override val parameters = """{"text": "string, text to search for on screen"}"""
 
     override fun execute(args: String): String {

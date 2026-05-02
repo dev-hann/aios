@@ -57,6 +57,15 @@ class AgentEngineTest {
             0
         }
 
+        every { mockService.processPromptIncremental(any()) } answers {
+            returnedThisSession = false
+            0
+        }
+
+        every { mockService.setSystemPromptPosition() } answers { nothing }
+
+        every { mockService.processSystemPrompt(any()) } returns 0
+
         every { mockService.generateOneToken() } answers {
             if (returnedThisSession) {
                 if (blockOnEmpty) {

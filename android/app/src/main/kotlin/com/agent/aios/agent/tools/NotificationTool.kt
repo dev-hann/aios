@@ -5,7 +5,7 @@ import org.json.JSONObject
 
 class NotificationTool : AgentEngine.ExtendedTool {
     override val name = "notification_reader"
-    override val description = "Read recent notifications from all apps."
+    override val description = "Read recent notifications. Args: {max_count}"
     override val parameters = """{"max_count": "integer, max notifications to return (default 20)"}"""
 
     override fun execute(args: String): String {

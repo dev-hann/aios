@@ -70,6 +70,18 @@ class LlmService : Service() {
         return llamaBridge.nativeProcessPrompt(prompt)
     }
 
+    fun processPromptIncremental(prompt: String): Int {
+        return llamaBridge.nativeProcessPromptIncremental(prompt)
+    }
+
+    fun setSystemPromptPosition() {
+        llamaBridge.nativeSetSystemPromptPosition()
+    }
+
+    fun processSystemPrompt(prompt: String): Int {
+        return llamaBridge.nativeProcessSystemPrompt(prompt)
+    }
+
     fun generateOneToken(): String? {
         val token = llamaBridge.nativeGenerateOneToken()
         if (token != null && token.isNotEmpty()) {

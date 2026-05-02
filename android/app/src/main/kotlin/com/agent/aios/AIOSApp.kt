@@ -170,6 +170,10 @@ class AIOSApp : Application() {
                 if (success) {
                     _serviceState.tryEmit(ServiceState.MODEL_LOADED)
                     svc.updateNotification("Model loaded - Ready")
+                    val engine = svc.getAgentEngine()
+                    if (engine != null) {
+                        engine.initSystemPrompt()
+                    }
                 } else {
                     _serviceState.tryEmit(ServiceState.READY)
                 }

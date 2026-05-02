@@ -18,6 +18,7 @@ class LlamaBridge {
     external fun nativeLoadModel(modelPath: String, contextSize: Int): Boolean
     external fun nativeFormatChat(roles: Array<String>, contents: Array<String>): String
     external fun nativeProcessPrompt(prompt: String): Int
+    external fun nativeProcessPromptIncremental(prompt: String): Int
     external fun nativeGenerateOneToken(): String?
     external fun nativeReleaseModel()
     external fun nativeResetContext()
@@ -25,6 +26,8 @@ class LlamaBridge {
     external fun nativeGetModelInfo(): String
     external fun nativeGetContextUsage(): String
     external fun nativeSetSamplingParams(temperature: Float, topK: Int, topP: Float, repeatPenalty: Float)
+    external fun nativeSetSystemPromptPosition()
+    external fun nativeProcessSystemPrompt(prompt: String): Int
 
     fun onTokenGenerated(token: String) {
         try {

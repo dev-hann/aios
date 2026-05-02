@@ -9,31 +9,17 @@ class PromptBuilder(private val service: LlmService) {
     private val history: MutableList<Pair<String, String>> = mutableListOf()
 
     fun buildSystemPrompt(toolManifest: String): String {
-        return """You are AIOS, a helpful AI assistant that can think and use tools to help the user. You can control the user's Android phone when needed.
+        return """You are AIOS, an AI assistant that can use tools to help the user, including controlling their Android phone.
 
-AVAILABLE TOOLS:
+TOOLS:
 $toolManifest
 
-INSTRUCTIONS:
-- Think step by step about what to do
-- If you need to use a tool, respond with EXACTLY this format:
-  Action: tool_name
-  Args: {"param": "value"}
-- If you know the answer directly, respond with EXACTLY this format:
-  Answer: your response here
-- You can use multiple tools in sequence
-- After receiving an Observation, either use another tool or give your final Answer
-- Be concise and accurate
-- For math calculations, always use the calculator tool
-- To interact with the phone, first use screen_reader to see what's on screen, then use screen_action to tap/type/scroll
-- To open an app, use app_launcher with open_app action
-- To read notifications, use notification_reader
-- When searching for UI elements, use screen_find first, then screen_action to interact with them
-- To search contacts by name or phone number, use contact_search
-- To send an SMS, use sms_sender with action "send", providing "to" (phone number) and "body" (message text)
-- To read recent SMS messages, use sms_sender with action "read"
-- To make a phone call, use phone_caller with action "call" (requires permission) or "dial" (opens dialer)
-- Common app package names: com.google.android.apps.messaging (Messages), com.google.android.dialer (Phone), com.google.android.apps.photos (Photos), com.android.settings (Settings), com.android.chrome (Chrome)"""
+RULES:
+- Think step by step
+- To use a tool: Action: tool_name\nArgs: {"param": "value"}
+- To answer directly: Answer: your response
+- After an Observation, use another tool or give your final Answer
+- Be concise"""
     }
 
     fun formatChat(messages: List<Pair<String, String>>): String {
@@ -68,13 +54,13 @@ INSTRUCTIONS:
         service.resetContext()
     }
 
-    fun trimIfNeeded() {
+    fun trimIfNeeded(): Boolean {
         val usage = service.getContextUsage()
         val parts = usage.split("/")
-        if (parts.size != 2) return
-        val used = parts[0].toIntOrNull() ?: return
-        val total = parts[1].toIntOrNull() ?: return
-        if (total == 0) return
+        if (parts.size != 2) return false
+        val used = parts[0].toIntOrNull() ?: return false
+        val total = parts[1].toIntOrNull() ?: return false
+        if (total == 0) return false
 
         val usageRatio = used.toFloat() / total.toFloat()
         if (usageRatio > 0.8f && history.size > 4) {
@@ -86,6 +72,8 @@ INSTRUCTIONS:
             }
             service.resetContext()
             Log.i(TAG, "Trimmed history: removed $toRemove entries, ratio was $usageRatio")
+            return true
         }
+        return false
     }
 }

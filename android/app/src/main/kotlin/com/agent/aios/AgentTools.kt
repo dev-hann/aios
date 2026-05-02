@@ -12,8 +12,8 @@ interface AgentTool {
 
 class CalculatorTool : AgentTool {
     override val name = "calculator"
-    override val description = "Evaluate a mathematical expression"
-    override val parameters = """{"expression": "string, math expression like 2+3*4"}"""
+    override val description = "Evaluate math expression. Args: {expression}"
+    override val parameters = """{"expression": "string"}"""
 
     override fun execute(args: String): String {
         return try {
@@ -67,7 +67,7 @@ class CalculatorTool : AgentTool {
 
 class TimerTool : AgentTool {
     override val name = "timer"
-    override val description = "Set a countdown timer in seconds"
+    override val description = "Set a countdown timer. Args: {seconds: int}"
     override val parameters = """{"seconds": "integer, number of seconds to wait"}"""
 
     override fun execute(args: String): String {
@@ -90,7 +90,7 @@ class TimerTool : AgentTool {
 
 class DeviceInfoTool : AgentTool {
     override val name = "device_info"
-    override val description = "Get device information (model, OS, battery, memory)"
+    override val description = "Get device info (model, OS, battery, memory). Args: {}"
     override val parameters = "{}"
 
     override fun execute(args: String): String {
@@ -112,7 +112,7 @@ class DeviceInfoTool : AgentTool {
 
 class NotePadTool(private val notes: MutableMap<String, String>) : AgentTool {
     override val name = "notepad"
-    override val description = "Save or retrieve notes. Actions: save, get, list, delete"
+    override val description = "Save/get/list/delete notes. Args: {action, key, value}"
     override val parameters = """{"action": "save|get|list|delete", "key": "string", "value": "string (for save)"}"""
 
     override fun execute(args: String): String {

@@ -10,7 +10,7 @@ import org.json.JSONObject
 
 class AppLauncherTool : AgentEngine.ExtendedTool {
     override val name = "app_launcher"
-    override val description = "Open an app by package name or search by app name. Can also open URLs and system settings."
+    override val description = "Open app/URL/settings or list apps. Args: {action: open_app|open_url|open_settings|list_apps, package_name, url, setting, query}"
     override val parameters = """{"action": "open_app|open_url|open_settings|list_apps", "package_name": "string (for open_app)", "url": "string (for open_url)", "setting": "wifi|bluetooth|display|sound|battery|storage|about (for open_settings)", "query": "string, search term (for list_apps)"}"""
 
     override fun execute(args: String): String {

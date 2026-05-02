@@ -7,7 +7,7 @@ import org.json.JSONObject
 
 class ScreenActionTool : AgentEngine.ExtendedTool {
     override val name = "screen_action"
-    override val description = "Perform an action on the current screen: tap, long_click, type, scroll, swipe, or global action."
+    override val description = "Screen action: tap|long_click|type|scroll|swipe|global. Args: {action, text, content, x, y, direction, global_action}"
     override val parameters = """{"action": "tap|long_click|type|scroll|swipe|global", "text": "string, text of element to click (for tap/long_click)", "content": "string, text to type (for type)", "x": "float, x coordinate (for tap)", "y": "float, y coordinate (for tap)", "direction": "up|down|left|right (for scroll)", "global_action": "back|home|recents|notifications|quick_settings (for global)"}"""
 
     override fun execute(args: String): String {
