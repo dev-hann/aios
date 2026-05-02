@@ -81,6 +81,7 @@ import com.agent.aios.BuildConfig
 import com.agent.aios.crash.CrashLogManager
 import com.agent.aios.service.AIOSAccessibilityService
 import com.agent.aios.service.OverlayService
+import com.agent.aios.ui.component.ModelPicker
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.SettingsViewModel
 import java.text.SimpleDateFormat
@@ -91,6 +92,7 @@ import java.util.Locale
 fun SettingsScreen(
     onBack: () -> Unit = {},
     onNavigateToUpdate: () -> Unit = {},
+    onImportFile: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current

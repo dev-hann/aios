@@ -383,6 +383,8 @@ Java_com_agent_aios_LlamaBridge_nativeProcessPromptIncremental(
                 g_kv_tokens = g_cached_system_tokens;
                 g_current_pos = (llama_pos)g_kv_tokens.size();
                 g_system_prompt_end = g_current_pos;
+                if (g_sampler) llama_sampler_free(g_sampler);
+                g_sampler = create_sampler();
                 LOGI("processPromptInc: restored (pos=%d, sys_end=%d)",
                      (int)g_current_pos, (int)g_system_prompt_end);
             } else {

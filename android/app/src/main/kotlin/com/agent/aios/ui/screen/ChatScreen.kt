@@ -38,7 +38,6 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,7 +69,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agent.aios.AIOSApp
 import com.agent.aios.ToolRisk
 import com.agent.aios.ui.component.MessageBubble
-import com.agent.aios.ui.component.ModelPicker
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.ChatViewModel
 import com.agent.aios.ui.viewmodel.ConfirmationRequest
@@ -81,7 +79,6 @@ import kotlinx.coroutines.delay
 @Composable
 fun ChatScreen(
     vm: ChatViewModel = viewModel(),
-    onImportFile: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
 ) {
     val messages by vm.messages.collectAsState()
@@ -94,7 +91,6 @@ fun ChatScreen(
     val currentGeneratingText by vm.currentGeneratingText.collectAsState()
     val pendingConfirmation by vm.pendingConfirmation.collectAsState()
 
-    var showModelPicker by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     com.agent.aios.AIOSApp.instance.chatViewModel = vm
@@ -103,23 +99,6 @@ fun ChatScreen(
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
         }
-    }
-
-    if (showModelPicker) {
-        ModelPicker(
-            models = models,
-            currentModelPath = null,
-            isImporting = isImporting,
-            onSelect = {
-                vm.loadModel(it.path)
-                showModelPicker = false
-            },
-            onImportFile = {
-                showModelPicker = false
-                onImportFile()
-            },
-            onDismiss = { showModelPicker = false }
-        )
     }
 
     if (pendingConfirmation != null) {
@@ -137,8 +116,6 @@ fun ChatScreen(
     ) {
         TopBar(
             serviceState = serviceState,
-            isModelLoaded = isModelLoaded,
-            onModelPicker = { showModelPicker = true },
             onSettings = onNavigateToSettings,
         )
 
@@ -146,7 +123,7 @@ fun ChatScreen(
             if (isGenerating && serviceState == AIOSApp.ServiceState.GENERATING) {
                 ModelLoadingView()
             } else {
-                EmptyState(onGetStarted = { showModelPicker = true })
+                EmptyState(onGoToSettings = onNavigateToSettings)
             }
         } else {
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -217,8 +194,6 @@ fun ChatScreen(
 @Composable
 private fun TopBar(
     serviceState: AIOSApp.ServiceState,
-    isModelLoaded: Boolean,
-    onModelPicker: () -> Unit,
     onSettings: () -> Unit,
 ) {
     val statusColor = when (serviceState) {
@@ -249,64 +224,16 @@ private fun TopBar(
                 color = AIOSColors.TextPrimary,
             )
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            IconButton(
+                onClick = onSettings,
+                modifier = Modifier.size(36.dp),
             ) {
-                IconButton(
-                    onClick = onSettings,
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Icon(
-                        Icons.Filled.Settings,
-                        contentDescription = "Settings",
-                        tint = AIOSColors.TextSecondary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-
-                Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(AIOSColors.SurfaceVariant)
-                    .border(1.dp, AIOSColors.Divider, RoundedCornerShape(16.dp))
-                    .clickable { onModelPicker() }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    if (isModelLoaded) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(AIOSColors.StatusReady)
-                        )
-                        Text(
-                            text = "Loaded",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = AIOSColors.TextSecondary,
-                        )
-                    } else {
-                        Icon(
-                            Icons.Outlined.AutoAwesome,
-                            contentDescription = "Model",
-                            tint = AIOSColors.TextSecondary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Text(
-                            text = "Model",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = AIOSColors.TextSecondary,
-                        )
-                    }
-                }
-            }
+                Icon(
+                    Icons.Filled.Settings,
+                    contentDescription = "Settings",
+                    tint = AIOSColors.TextSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
 
@@ -320,7 +247,7 @@ private fun TopBar(
 }
 
 @Composable
-private fun EmptyState(onGetStarted: () -> Unit) {
+private fun EmptyState(onGoToSettings: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition()
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.95f,
@@ -363,13 +290,13 @@ private fun EmptyState(onGetStarted: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Import a GGUF model to get started",
+                text = "Go to Settings to load a model",
                 fontSize = 14.sp,
                 color = AIOSColors.TextTertiary,
             )
             Spacer(modifier = Modifier.height(24.dp))
             OutlinedButton(
-                onClick = onGetStarted,
+                onClick = onGoToSettings,
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = AIOSColors.Primary.copy(alpha = 0.25f),
@@ -380,7 +307,7 @@ private fun EmptyState(onGetStarted: () -> Unit) {
                 ),
             ) {
                 Text(
-                    text = "Get Started",
+                    text = "Open Settings",
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
