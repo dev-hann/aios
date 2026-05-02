@@ -88,10 +88,25 @@ static bool decode_tokens(std::vector<llama_token> &tokens) {
     if (tokens.empty()) return true;
     if (!g_ctx) return false;
 
-    llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
-    if (llama_decode(g_ctx, batch) != 0) {
-        LOGE("Failed to decode batch (size=%zu, n_past=%d, n_ctx=%d)", tokens.size(), g_n_past, g_n_ctx);
-        return false;
+    size_t offset = 0;
+    while (offset < tokens.size()) {
+        size_t batch_size = std::min(static_cast<size_t>(g_n_batch), tokens.size() - offset);
+
+        if (g_n_past + static_cast<int>(batch_size) > g_n_ctx) {
+            LOGE("decode_tokens: would overflow context (n_past=%d + batch=%zu > n_ctx=%d)",
+                 g_n_past, batch_size, g_n_ctx);
+            return false;
+        }
+
+        llama_batch batch = llama_batch_get_one(
+            tokens.data() + offset,
+            static_cast<int32_t>(batch_size));
+        if (llama_decode(g_ctx, batch) != 0) {
+            LOGE("decode_tokens: llama_decode failed (offset=%zu, batch=%zu, n_past=%d/%d)",
+                 offset, batch_size, g_n_past, g_n_ctx);
+            return false;
+        }
+        offset += batch_size;
     }
     return true;
 }
@@ -328,6 +343,12 @@ Java_com_agent_aios_LlamaBridge_nativeInfer(
 
     if (tokens.empty() && strlen(prompt_str) > 0) {
         LOGE("nativeInfer: tokenization failed for non-empty prompt");
+        return -1;
+    }
+
+    if (static_cast<int>(tokens.size()) > g_n_ctx - g_n_past) {
+        LOGE("nativeInfer: prompt tokens (%zu) exceed remaining context (%d/%d)",
+             tokens.size(), g_n_ctx - g_n_past, g_n_ctx);
         return -1;
     }
 
