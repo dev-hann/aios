@@ -2,6 +2,7 @@ package com.agent.aios.agent.tools
 
 import android.util.Log
 import com.agent.aios.AgentEngine
+import com.agent.aios.domain.ToolContext
 import com.agent.aios.service.AIOSAccessibilityService
 import org.json.JSONObject
 
@@ -10,12 +11,12 @@ class ScreenActionTool : AgentEngine.ExtendedTool {
     override val description = "Screen action: tap|long_click|type|scroll|swipe|global. Args: {action, text, content, x, y, direction, global_action}"
     override val parameters = """{"action": "tap|long_click|type|scroll|swipe|global", "text": "string, text of element to click (for tap/long_click)", "content": "string, text to type (for type)", "x": "float, x coordinate (for tap)", "y": "float, y coordinate (for tap)", "direction": "up|down|left|right (for scroll)", "global_action": "back|home|recents|notifications|quick_settings (for global)"}"""
 
-    override fun execute(args: String): String {
+    override fun execute(args: String, toolContext: ToolContext): String {
         return try {
             val json = JSONObject(args)
             val action = json.optString("action", "").lowercase()
 
-            val service = AIOSAccessibilityService.getInstance()
+            val service = toolContext.accessibilityService()
                 ?: return "Error: Accessibility service not enabled"
 
             when (action) {
@@ -23,7 +24,7 @@ class ScreenActionTool : AgentEngine.ExtendedTool {
                 "long_click" -> handleLongClick(service, json)
                 "type" -> handleType(service, json)
                 "scroll" -> handleScroll(service, json)
-                "swipe" -> handleSwipe(json)
+                "swipe" -> handleSwipe(service, json)
                 "global" -> handleGlobal(service, json)
                 else -> "Error: Unknown action '$action'. Use tap, long_click, type, scroll, swipe, or global."
             }
@@ -73,7 +74,7 @@ class ScreenActionTool : AgentEngine.ExtendedTool {
             val nodes = service.findNodesByText(targetText)
             val editable = nodes.firstOrNull { it.isEditable }
                 ?: return "No editable field found near '$targetText'"
-            val focus = editable.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_FOCUS)
+            editable.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_FOCUS)
             val success = service.typeText(editable, content)
             return if (success) "Typed '$content' into '$targetText'" else "Failed to type"
         }
@@ -121,9 +122,7 @@ class ScreenActionTool : AgentEngine.ExtendedTool {
         return null
     }
 
-    private fun handleSwipe(json: JSONObject): String {
-        val service = AIOSAccessibilityService.getInstance()
-            ?: return "Error: Accessibility service not enabled"
+    private fun handleSwipe(service: AIOSAccessibilityService, json: JSONObject): String {
         val direction = json.optString("direction", "up")
         val startX = json.optDouble("start_x", 540.0).toFloat()
         val startY = json.optDouble("start_y", 1500.0).toFloat()

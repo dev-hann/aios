@@ -1,8 +1,9 @@
 package com.agent.aios
 
 import android.util.Log
+import com.agent.aios.domain.LlmProvider
 
-class PromptBuilder(private val service: LlmService) {
+class PromptBuilder(private val llmProvider: LlmProvider) {
 
     private val TAG = "AIOS-Prompt"
 
@@ -25,7 +26,7 @@ RULES:
     fun formatChat(messages: List<Pair<String, String>>): String {
         val roles = messages.map { it.first }.toTypedArray()
         val contents = messages.map { it.second }.toTypedArray()
-        return service.formatChat(roles, contents)
+        return llmProvider.formatChat(roles, contents)
     }
 
     fun buildPromptForInfer(systemPrompt: String): String {
@@ -51,11 +52,11 @@ RULES:
 
     fun clearHistory() {
         history.clear()
-        service.resetContext()
+        llmProvider.resetContext()
     }
 
     fun trimIfNeeded(): Boolean {
-        val usage = service.getContextUsage()
+        val usage = llmProvider.getContextUsage()
         val parts = usage.split("/")
         if (parts.size != 2) return false
         val used = parts[0].toIntOrNull() ?: return false
@@ -70,7 +71,7 @@ RULES:
                     history.removeAt(0)
                 }
             }
-            service.resetContext()
+            llmProvider.resetContext()
             Log.i(TAG, "Trimmed history: removed $toRemove entries, ratio was $usageRatio")
             return true
         }

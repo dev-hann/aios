@@ -8,8 +8,9 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
+import com.agent.aios.domain.LlmProvider
 
-class LlmService : Service() {
+class LlmService : Service(), LlmProvider {
 
     private val TAG = "AIOS-Service"
     private val CHANNEL_ID = "aios_llm_channel"
@@ -17,8 +18,6 @@ class LlmService : Service() {
 
     private val binder = LlmBinder()
     private val llamaBridge = LlamaBridge()
-    @Volatile
-    private var agentEngine: AgentEngine? = null
     private val callbackLock = Any()
     @Volatile
     private var tokenCallback: ((String) -> Unit)? = null
@@ -48,41 +47,36 @@ class LlmService : Service() {
 
     override fun onDestroy() {
         llamaBridge.nativeReleaseModel()
-        agentEngine = null
         Log.i(TAG, "LlmService destroyed")
         super.onDestroy()
     }
 
     @Synchronized
     fun loadModel(path: String, contextSize: Int): Boolean {
-        val result = llamaBridge.nativeLoadModel(path, contextSize)
-        if (result) {
-            agentEngine = AgentEngine(this)
-        }
-        return result
+        return llamaBridge.nativeLoadModel(path, contextSize)
     }
 
-    fun formatChat(roles: Array<String>, contents: Array<String>): String {
+    override fun formatChat(roles: Array<String>, contents: Array<String>): String {
         return llamaBridge.nativeFormatChat(roles, contents)
     }
 
-    fun processPrompt(prompt: String): Int {
+    override fun processPrompt(prompt: String): Int {
         return llamaBridge.nativeProcessPrompt(prompt)
     }
 
-    fun processPromptIncremental(prompt: String): Int {
+    override fun processPromptIncremental(prompt: String): Int {
         return llamaBridge.nativeProcessPromptIncremental(prompt)
     }
 
-    fun setSystemPromptPosition() {
+    override fun setSystemPromptPosition() {
         llamaBridge.nativeSetSystemPromptPosition()
     }
 
-    fun processSystemPrompt(prompt: String): Int {
+    override fun processSystemPrompt(prompt: String): Int {
         return llamaBridge.nativeProcessSystemPrompt(prompt)
     }
 
-    fun generateOneToken(): String? {
+    override fun generateOneToken(): String? {
         val token = llamaBridge.nativeGenerateOneToken()
         if (token != null && token.isNotEmpty()) {
             synchronized(callbackLock) {
@@ -96,31 +90,30 @@ class LlmService : Service() {
         return token
     }
 
-    fun resetContext() {
+    override fun resetContext() {
         llamaBridge.nativeResetContext()
     }
 
-    fun isModelLoaded(): Boolean {
+    override fun isModelLoaded(): Boolean {
         return llamaBridge.nativeIsModelLoaded()
     }
 
-    fun getModelInfo(): String {
+    override fun getModelInfo(): String {
         return llamaBridge.nativeGetModelInfo()
     }
 
-    fun releaseModel() {
+    override fun releaseModel() {
         llamaBridge.nativeReleaseModel()
-        agentEngine = null
     }
 
-    fun setTokenCallback(cb: ((String) -> Unit)?) {
+    override fun setTokenCallback(cb: ((String) -> Unit)?) {
         synchronized(callbackLock) {
             tokenCallback = cb
             llamaBridge.onTokenCallback = cb
         }
     }
 
-    fun swapTokenCallback(cb: ((String) -> Unit)?): ((String) -> Unit)? {
+    override fun swapTokenCallback(cb: ((String) -> Unit)?): ((String) -> Unit)? {
         synchronized(callbackLock) {
             val prev = tokenCallback
             tokenCallback = cb
@@ -129,17 +122,15 @@ class LlmService : Service() {
         }
     }
 
-    fun getAgentEngine(): AgentEngine? = agentEngine
-
-    fun getContextUsage(): String {
+    override fun getContextUsage(): String {
         return llamaBridge.nativeGetContextUsage()
     }
 
-    fun setSamplingParams(temperature: Float, topK: Int, topP: Float, repeatPenalty: Float) {
+    override fun setSamplingParams(temperature: Float, topK: Int, topP: Float, repeatPenalty: Float) {
         llamaBridge.nativeSetSamplingParams(temperature, topK, topP, repeatPenalty)
     }
 
-    fun updateNotification(text: String) {
+    override fun updateNotification(text: String) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.notify(NOTIFICATION_ID, buildNotification(text))
     }

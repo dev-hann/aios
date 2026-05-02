@@ -84,6 +84,7 @@ import com.agent.aios.service.OverlayService
 import com.agent.aios.ui.component.ModelPicker
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.SettingsViewModel
+import com.agent.aios.ui.viewmodel.SettingsViewModelFactory
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -93,7 +94,7 @@ fun SettingsScreen(
     onBack: () -> Unit = {},
     onNavigateToUpdate: () -> Unit = {},
     onImportFile: () -> Unit = {},
-    viewModel: SettingsViewModel = viewModel(),
+    viewModel: SettingsViewModel = viewModel(factory = SettingsViewModelFactory(AIOSApp.instance)),
 ) {
     val context = LocalContext.current
     val serviceState by AIOSApp.instance.serviceState.collectAsState(AIOSApp.ServiceState.DISCONNECTED)
