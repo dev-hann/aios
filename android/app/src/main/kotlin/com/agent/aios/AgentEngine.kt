@@ -175,6 +175,7 @@ class AgentEngine(private val service: LlmService) {
         agentThread = Thread.currentThread()
         val steps = mutableListOf<AgentStep>()
         val systemPrompt = promptBuilder.buildSystemPrompt(getToolManifest())
+        Log.i(TAG, "Agent run: prompt='${userPrompt.take(50)}', maxIter=$maxIterations")
 
         try {
             steps.add(AgentStep("thought", "Processing: $userPrompt"))
@@ -271,7 +272,8 @@ class AgentEngine(private val service: LlmService) {
         originalCb = service.swapTokenCallback(forwardCb)
 
         try {
-            service.infer(prompt, maxTokens)
+            val result = service.infer(prompt, maxTokens)
+            Log.i(TAG, "collectStream: infer returned $result, buffer=${buffer.length} chars")
         } finally {
             service.swapTokenCallback { originalCb?.invoke(it) }
         }

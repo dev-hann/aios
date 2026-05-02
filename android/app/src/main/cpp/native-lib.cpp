@@ -323,10 +323,18 @@ Java_com_agent_aios_LlamaBridge_nativeInfer(
         return -1;
     }
 
-    if (static_cast<int>(tokens.size()) > g_n_ctx - g_n_past) {
-        LOGE("Infer: tokens(%zu) > remaining context(%d)",
-             tokens.size(), g_n_ctx - g_n_past);
+    if (static_cast<int>(tokens.size()) > g_n_ctx) {
+        LOGE("Infer: prompt tokens(%zu) > total context(%d), cannot fit even with reset",
+             tokens.size(), g_n_ctx);
         return -1;
+    }
+
+    if (static_cast<int>(tokens.size()) > g_n_ctx - g_n_past) {
+        LOGI("Infer: auto-reset context (tokens=%zu, n_past=%d, n_ctx=%d)",
+             tokens.size(), g_n_past, g_n_ctx);
+        g_n_past = 0;
+        add_bos = true;
+        tokens = tokenize(prompt_str, add_bos);
     }
 
     if (!decode_tokens_batched(tokens)) {

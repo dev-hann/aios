@@ -192,7 +192,9 @@ class AIOSApp : Application() {
         currentAgentEngine = engine
         _serviceState.tryEmit(ServiceState.AGENT_RUNNING)
         inferenceJob = appScope.launch {
-            val iters = maxIterations ?: settingsRepository.agentMaxIterations.first()
+            val iters = maxIterations ?: runCatching {
+                settingsRepository.agentMaxIterations.first()
+            }.getOrDefault(8)
             withContext(Dispatchers.IO) {
                 svc.updateNotification("Agent running...")
                 engine.setStepCallback { step ->
@@ -202,6 +204,7 @@ class AIOSApp : Application() {
                 currentAgentEngine = null
                 _serviceState.tryEmit(ServiceState.MODEL_LOADED)
                 svc.updateNotification("Ready")
+                Log.i(TAG, "Agent done: ${steps.size} steps, last=${steps.lastOrNull()?.type}")
                 onComplete(steps)
             }
         }
