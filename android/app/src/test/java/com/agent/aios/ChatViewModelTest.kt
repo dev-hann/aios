@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.agent.aios.ui.viewmodel.ChatViewModel
 import com.agent.aios.ui.viewmodel.ConfirmationRequest
 import com.agent.aios.ui.viewmodel.Message
+import com.agent.aios.settings.SettingsRepository
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ class ChatViewModelTest {
     private lateinit var tokenFlow: MutableSharedFlow<String>
     private lateinit var agentStepFlow: MutableSharedFlow<AgentStep>
     private lateinit var serviceStateFlow: MutableSharedFlow<AIOSApp.ServiceState>
+    private lateinit var mockSettingsRepo: SettingsRepository
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
@@ -51,6 +53,11 @@ class ChatViewModelTest {
         every { mockApp.filesDir } returns tempFolder.newFolder("app")
         every { mockApp.llmService } returns null
         every { mockApp.contentResolver } returns mockk<ContentResolver>(relaxed = true)
+
+        mockSettingsRepo = mockk<SettingsRepository>(relaxed = true)
+        every { mockSettingsRepo.lastModelPath } returns kotlinx.coroutines.flow.flowOf("")
+        every { mockSettingsRepo.contextSize } returns kotlinx.coroutines.flow.flowOf(2048)
+        every { mockApp.settingsRepository } returns mockSettingsRepo
 
         mockkStatic(Environment::class)
         every { Environment.getExternalStoragePublicDirectory(any()) } returns tempFolder.newFolder("downloads")

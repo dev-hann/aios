@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.ContentResolver
 import android.content.ServiceConnection
 import android.os.Environment
+import com.agent.aios.settings.SettingsRepository
 import com.agent.aios.ui.viewmodel.ChatViewModel
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -196,6 +197,11 @@ class CrashRegressionTest {
             every { mockApp.llmService } returns null
             every { mockApp.contentResolver } returns mockk<ContentResolver>(relaxed = true)
 
+            val mockSettings = mockk<SettingsRepository>(relaxed = true)
+            every { mockSettings.lastModelPath } returns kotlinx.coroutines.flow.flowOf("")
+            every { mockSettings.contextSize } returns kotlinx.coroutines.flow.flowOf(2048)
+            every { mockApp.settingsRepository } returns mockSettings
+
             mockkStatic(Environment::class)
             every { Environment.getExternalStoragePublicDirectory(any()) } returns
                 tempFolder.newFolder("dl-1-2")
@@ -248,6 +254,11 @@ class CrashRegressionTest {
             every { mockApp.filesDir } returns tempFolder.newFolder("app-1-3")
             every { mockApp.llmService } returns null
             every { mockApp.contentResolver } returns mockk<ContentResolver>(relaxed = true)
+
+            val mockSettings = mockk<SettingsRepository>(relaxed = true)
+            every { mockSettings.lastModelPath } returns kotlinx.coroutines.flow.flowOf("")
+            every { mockSettings.contextSize } returns kotlinx.coroutines.flow.flowOf(2048)
+            every { mockApp.settingsRepository } returns mockSettings
 
             mockkStatic(Environment::class)
             every { Environment.getExternalStoragePublicDirectory(any()) } returns

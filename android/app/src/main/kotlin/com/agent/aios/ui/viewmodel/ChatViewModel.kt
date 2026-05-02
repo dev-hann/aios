@@ -123,7 +123,7 @@ class ChatViewModel : ViewModel() {
             }
         }
         refreshModels()
-        checkModelLoaded()
+        tryAutoLoadModel()
     }
 
     private fun loadPersistedConversation() {
@@ -212,8 +212,24 @@ class ChatViewModel : ViewModel() {
         }.start()
     }
 
-    private fun checkModelLoaded() {
-        _isModelLoaded.value = app.llmService?.isModelLoaded() ?: false
+    private fun tryAutoLoadModel() {
+        if (app.llmService?.isModelLoaded() == true) {
+            _isModelLoaded.value = true
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val savedPath = app.settingsRepository.lastModelPath.first()
+                if (savedPath.isBlank()) return@launch
+                val file = File(savedPath)
+                if (!file.exists()) {
+                    app.settingsRepository.clearLastModelPath()
+                    return@launch
+                }
+                Log.i("ChatVM", "Auto-loading model: $savedPath")
+                loadModel(savedPath)
+            } catch (_: Exception) {}
+        }
     }
 
     fun loadModel(path: String) {
@@ -226,7 +242,11 @@ class ChatViewModel : ViewModel() {
                 viewModelScope.launch {
                     _isModelLoaded.value = success
                     _isGenerating.value = false
-                    if (!success) {
+                    if (success) {
+                        viewModelScope.launch {
+                            app.settingsRepository.setLastModelPath(path)
+                        }
+                    } else {
                         _messages.value = _messages.value + Message("system", "Failed to load model. Check if the file is a valid GGUF.")
                     }
                 }

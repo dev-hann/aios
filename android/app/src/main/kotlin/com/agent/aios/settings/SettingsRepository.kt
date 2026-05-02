@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -25,6 +26,7 @@ class SettingsRepository(private val context: Context) {
         val KEY_TOP_P = floatPreferencesKey("top_p")
         val KEY_AGENT_MAX_ITERATIONS = intPreferencesKey("agent_max_iterations")
         val KEY_REPEAT_PENALTY = floatPreferencesKey("repeat_penalty")
+        val KEY_LAST_MODEL_PATH = stringPreferencesKey("last_model_path")
 
         const val DEFAULT_CONTEXT_SIZE = 2048
         const val DEFAULT_MAX_TOKENS_CHAT = 128
@@ -68,6 +70,10 @@ class SettingsRepository(private val context: Context) {
         it[KEY_REPEAT_PENALTY] ?: DEFAULT_REPEAT_PENALTY
     }
 
+    val lastModelPath: Flow<String> = store.data.map {
+        it[KEY_LAST_MODEL_PATH] ?: ""
+    }
+
     suspend fun setContextSize(value: Int) {
         store.edit { it[KEY_CONTEXT_SIZE] = value }
     }
@@ -98,5 +104,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setRepeatPenalty(value: Float) {
         store.edit { it[KEY_REPEAT_PENALTY] = value }
+    }
+
+    suspend fun setLastModelPath(path: String) {
+        store.edit { it[KEY_LAST_MODEL_PATH] = path }
+    }
+
+    suspend fun clearLastModelPath() {
+        store.edit { it.remove(KEY_LAST_MODEL_PATH) }
     }
 }
