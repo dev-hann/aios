@@ -57,12 +57,6 @@ fun AIOSApp(
             ) {
                 composable(Screen.Chat.route) {
                     ChatScreen(
-                        onImportFile = {
-                            pendingImportCallback.value = { uri, name ->
-                                com.agent.aios.AIOSApp.instance.chatViewModel?.importModelFromUri(uri, name)
-                            }
-                            onPickModelFile(modelImportLauncher)
-                        },
                         onNavigateToSettings = {
                             navController.navigate(Screen.Settings.route)
                         }
@@ -73,6 +67,12 @@ fun AIOSApp(
                         onBack = { navController.popBackStack() },
                         onNavigateToUpdate = {
                             navController.navigate(Screen.Update.route)
+                        },
+                        onImportFile = {
+                            pendingImportCallback.value = { uri, name ->
+                                com.agent.aios.AIOSApp.instance.chatViewModel?.importModelFromUri(uri, name)
+                            }
+                            onPickModelFile(modelImportLauncher)
                         }
                     )
                 }

@@ -102,6 +102,11 @@ fun SettingsScreen(
     val updateAvailable by AIOSApp.instance.updateAvailable.collectAsState()
     val latestVersion by AIOSApp.instance.latestVersion.collectAsState()
 
+    val chatVm = AIOSApp.instance.chatViewModel
+    val models by (chatVm?.models?.collectAsState() ?: remember { mutableStateOf(emptyList()) })
+    val isImporting by (chatVm?.isImporting?.collectAsState() ?: remember { mutableStateOf(false) })
+    var showModelPicker by remember { mutableStateOf(false) }
+
     val contextSize by viewModel.contextSize.collectAsState()
     val maxTokensChat by viewModel.maxTokensChat.collectAsState()
     val maxTokensAgent by viewModel.maxTokensAgent.collectAsState()
@@ -153,6 +158,23 @@ fun SettingsScreen(
 
     var advancedExpanded by remember { mutableStateOf(false) }
 
+    if (showModelPicker) {
+        ModelPicker(
+            models = models,
+            currentModelPath = null,
+            isImporting = isImporting,
+            onSelect = {
+                chatVm?.loadModel(it.path)
+                showModelPicker = false
+            },
+            onImportFile = {
+                showModelPicker = false
+                onImportFile()
+            },
+            onDismiss = { showModelPicker = false }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -191,8 +213,16 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.dp)
-                    .background(AIOSColors.Divider)
+                    .height(3.dp)
+                    .background(
+                        when (serviceState) {
+                            AIOSApp.ServiceState.MODEL_LOADED -> AIOSColors.StatusReady
+                            AIOSApp.ServiceState.DISCONNECTED -> AIOSColors.StatusIdle
+                            AIOSApp.ServiceState.GENERATING -> AIOSColors.StatusRunning
+                            AIOSApp.ServiceState.AGENT_RUNNING -> AIOSColors.Accent
+                            else -> AIOSColors.StatusIdle
+                        }
+                    )
             )
         }
 
@@ -225,16 +255,31 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(modelInfo, fontSize = 11.sp, color = AIOSColors.TextTertiary, fontFamily = FontFamily.Monospace)
                 Spacer(modifier = Modifier.height(10.dp))
-                OutlinedButton(
-                    onClick = { AIOSApp.instance.releaseModel() },
-                    shape = RoundedCornerShape(10.dp),
-                ) {
-                    Text("Release", fontSize = 12.sp, color = AIOSColors.StatusError)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { showModelPicker = true },
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Text("Change", fontSize = 12.sp, color = AIOSColors.Primary)
+                    }
+                    OutlinedButton(
+                        onClick = { AIOSApp.instance.releaseModel() },
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Text("Release", fontSize = 12.sp, color = AIOSColors.StatusError)
+                    }
                 }
             } else {
                 Text("Not loaded", fontSize = 14.sp, color = AIOSColors.TextTertiary, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(6.dp))
-                Text("Use the Model button in Chat to import or load a model.", fontSize = 12.sp, color = AIOSColors.TextTertiary)
+                Text("Import or select a GGUF model to start chatting.", fontSize = 12.sp, color = AIOSColors.TextTertiary)
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = { showModelPicker = true },
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text("Load Model", fontSize = 12.sp, color = AIOSColors.Primary)
+                }
             }
         }
 
