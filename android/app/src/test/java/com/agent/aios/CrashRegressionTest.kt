@@ -55,44 +55,31 @@ class CrashRegressionTest {
     // ==================== AgentEngine Crash Regressions ====================
 
     /**
-     * P1-4: collectStream callback not restored on cancel
+     * P1-4: collectStream handles interruption gracefully
      *
-     * When agent inference is interrupted (InterruptedException during infer()),
-     * the original token callback must be restored via swapTokenCallback.
-     * Without try/finally in collectStream, the second swapTokenCallback call is
-     * skipped on exception, permanently losing the UI token callback.
+     * When generateOneToken() throws InterruptedException (e.g. from Thread.interrupt()),
+     * collectStream should propagate it and the agent loop should catch it,
+     * producing a "Task cancelled." answer.
      */
     @Test
-    fun `P1-4 collectStream restores token callback on interrupt`() {
+    fun `P1-4 collectStream handles interruption gracefully`() {
         val mockService = mockk<LlmService>(relaxed = true)
         val engine = AgentEngine(mockService)
 
-        var swapCount = 0
+        every { mockService.processPrompt(any()) } returns 0
+        every { mockService.generateOneToken() } throws InterruptedException("cancelled")
+        every { mockService.formatChat(any(), any()) } returns "formatted"
+        every { mockService.getContextUsage() } returns "100/1000"
 
-        every { mockService.swapTokenCallback(any()) } answers {
-            swapCount++
-            null
+        val steps = mutableListOf<AgentStep>()
+        val latch = CountDownLatch(1)
+        thread {
+            steps.addAll(engine.run("test"))
+            latch.countDown()
         }
 
-        every { mockService.infer(any(), any()) } throws InterruptedException("cancelled")
-
-        val method = AgentEngine::class.java.getDeclaredMethod(
-            "collectStream", String::class.java, Int::class.java
-        )
-        method.isAccessible = true
-
-        try {
-            method.invoke(engine, "test prompt", 100)
-        } catch (_: Exception) {
-            // InvocationTargetException wrapping InterruptedException expected
-        }
-
-        assertEquals(
-            "swapTokenCallback must be called exactly twice (install forward + restore original). " +
-                "If only 1, the callback is leaked on interrupt.",
-            2,
-            swapCount
-        )
+        assertTrue(latch.await(5, TimeUnit.SECONDS))
+        assertTrue(steps.any { it.type == "answer" && it.content == "Task cancelled." })
     }
 
     /**

@@ -20,6 +20,8 @@ class LlmService : Service() {
     @Volatile
     private var agentEngine: AgentEngine? = null
     private val callbackLock = Any()
+    @Volatile
+    private var tokenCallback: ((String) -> Unit)? = null
 
     inner class LlmBinder : Binder() {
         fun getService(): LlmService = this@LlmService
@@ -27,6 +29,7 @@ class LlmService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        llamaBridge.nativeInit(applicationInfo.nativeLibraryDir)
         createNotificationChannel()
         Log.i(TAG, "LlmService created")
     }
@@ -63,8 +66,22 @@ class LlmService : Service() {
         return llamaBridge.nativeFormatChat(roles, contents)
     }
 
-    fun infer(prompt: String, maxTokens: Int): Int {
-        return llamaBridge.nativeInfer(prompt, maxTokens)
+    fun processPrompt(prompt: String): Int {
+        return llamaBridge.nativeProcessPrompt(prompt)
+    }
+
+    fun generateOneToken(): String? {
+        val token = llamaBridge.nativeGenerateOneToken()
+        if (token != null && token.isNotEmpty()) {
+            synchronized(callbackLock) {
+                try {
+                    tokenCallback?.invoke(token)
+                } catch (e: Exception) {
+                    Log.e(TAG, "tokenCallback error: ${e.message}", e)
+                }
+            }
+        }
+        return token
     }
 
     fun resetContext() {
@@ -86,13 +103,15 @@ class LlmService : Service() {
 
     fun setTokenCallback(cb: ((String) -> Unit)?) {
         synchronized(callbackLock) {
+            tokenCallback = cb
             llamaBridge.onTokenCallback = cb
         }
     }
 
     fun swapTokenCallback(cb: ((String) -> Unit)?): ((String) -> Unit)? {
         synchronized(callbackLock) {
-            val prev = llamaBridge.onTokenCallback
+            val prev = tokenCallback
+            tokenCallback = cb
             llamaBridge.onTokenCallback = cb
             return prev
         }

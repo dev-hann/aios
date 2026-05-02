@@ -263,21 +263,24 @@ class AgentEngine(private val service: LlmService) {
     }
 
     private fun collectStream(prompt: String, maxTokens: Int): String {
+        val result = service.processPrompt(prompt)
+        if (result != 0) {
+            Log.e(TAG, "collectStream: processPrompt failed ($result)")
+            return ""
+        }
+
         val buffer = StringBuffer()
-        var originalCb: ((String) -> Unit)? = null
-        val forwardCb: (String) -> Unit = { token ->
-            buffer.append(token)
-            originalCb?.invoke(token)
-        }
-        originalCb = service.swapTokenCallback(forwardCb)
-
-        try {
-            val result = service.infer(prompt, maxTokens)
-            Log.i(TAG, "collectStream: infer returned $result, buffer=${buffer.length} chars")
-        } finally {
-            service.swapTokenCallback { originalCb?.invoke(it) }
+        var generated = 0
+        while (generated < maxTokens) {
+            if (cancelled) break
+            val token = service.generateOneToken() ?: break
+            if (token.isNotEmpty()) {
+                buffer.append(token)
+            }
+            generated++
         }
 
+        Log.i(TAG, "collectStream: ${buffer.length} chars, $generated tokens")
         return buffer.toString()
     }
 

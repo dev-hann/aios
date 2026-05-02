@@ -134,6 +134,22 @@ class NativeInferenceTest {
         conn.disconnect()
     }
 
+    private fun inferHelper(formatted: String, maxTokens: Int): Int {
+        bridge.nativeResetContext()
+        val procResult = bridge.nativeProcessPrompt(formatted)
+        if (procResult != 0) return procResult
+
+        val buffer = StringBuffer()
+        repeat(maxTokens) {
+            val token = bridge.nativeGenerateOneToken() ?: return@repeat
+            if (token.isNotEmpty()) {
+                buffer.append(token)
+                bridge.onTokenCallback?.invoke(token)
+            }
+        }
+        return buffer.length
+    }
+
     @Test
     fun test01_loadModel_validFile_returnsTrue() {
         val model = findOrDownloadModel()
@@ -171,9 +187,8 @@ class NativeInferenceTest {
         )
         assertFalse(formatted.isEmpty())
 
-        bridge.nativeResetContext()
-        val tokenCount = bridge.nativeInfer(formatted, 16)
-        assertTrue("Should generate some tokens (got $tokenCount)", tokenCount > 0)
+        val charCount = inferHelper(formatted, 16)
+        assertTrue("Should generate some chars (got $charCount)", charCount > 0)
     }
 
     @Test
@@ -185,16 +200,15 @@ class NativeInferenceTest {
             arrayOf("user"),
             arrayOf("Say hello")
         )
-        bridge.nativeResetContext()
 
         val tokens = AtomicInteger(0)
         val latch = CountDownLatch(1)
-        bridge.onTokenCallback = { token ->
+        bridge.onTokenCallback = { _ ->
             tokens.incrementAndGet()
             if (tokens.get() >= 3) latch.countDown()
         }
 
-        bridge.nativeInfer(formatted, 32)
+        inferHelper(formatted, 32)
 
         latch.await(10, TimeUnit.SECONDS)
         assertTrue("Should receive at least 3 streaming tokens (got ${tokens.get()})", tokens.get() >= 3)
@@ -210,9 +224,8 @@ class NativeInferenceTest {
             arrayOf("user"),
             arrayOf(longPrompt)
         )
-        bridge.nativeResetContext()
 
-        val result = bridge.nativeInfer(formatted, 8)
+        val result = inferHelper(formatted, 8)
         assertTrue("Should not crash on context overflow", result >= -1)
     }
 
@@ -222,13 +235,11 @@ class NativeInferenceTest {
         assertTrue(bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE))
 
         val formatted1 = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Hello"))
-        bridge.nativeResetContext()
-        bridge.nativeInfer(formatted1, 8)
-
-        bridge.nativeResetContext()
+        inferHelper(formatted1, 8)
 
         val formatted2 = bridge.nativeFormatChat(arrayOf("user"), arrayOf("World"))
-        val result = bridge.nativeInfer(formatted2, 8)
+        bridge.nativeResetContext()
+        val result = inferHelper(formatted2, 8)
         assertTrue("Should generate after reset", result > 0)
     }
 
@@ -243,12 +254,11 @@ class NativeInferenceTest {
         val threads = (1..2).map { i ->
             Thread {
                 try {
-                    bridge.nativeResetContext()
                     val formatted = bridge.nativeFormatChat(
                         arrayOf("user"),
                         arrayOf("Thread $i says hi")
                     )
-                    bridge.nativeInfer(formatted, 8)
+                    inferHelper(formatted, 8)
                 } catch (e: Throwable) {
                     error.set(e)
                 } finally {
@@ -275,8 +285,7 @@ class NativeInferenceTest {
         assertTrue(bridge.nativeIsModelLoaded())
 
         val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Test"))
-        bridge.nativeResetContext()
-        val result = bridge.nativeInfer(formatted, 8)
+        val result = inferHelper(formatted, 8)
         assertTrue("Should infer after reload", result > 0)
     }
 
@@ -289,8 +298,7 @@ class NativeInferenceTest {
         assertTrue("Usage format should be N/M", usageBefore.contains("/"))
 
         val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Hello"))
-        bridge.nativeResetContext()
-        bridge.nativeInfer(formatted, 8)
+        inferHelper(formatted, 8)
 
         val usageAfter = bridge.nativeGetContextUsage()
         assertTrue("Usage format should be N/M", usageAfter.contains("/"))
@@ -304,8 +312,7 @@ class NativeInferenceTest {
         bridge.nativeSetSamplingParams(0.5f, 20, 0.8f, 1.2f)
 
         val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Hello"))
-        bridge.nativeResetContext()
-        val result = bridge.nativeInfer(formatted, 8)
+        val result = inferHelper(formatted, 8)
         assertTrue("Should infer with custom params", result > 0)
     }
 
@@ -350,8 +357,7 @@ class NativeInferenceTest {
         }
 
         val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Hello"))
-        bridge.nativeResetContext()
-        val result = bridge.nativeInfer(formatted, 16)
+        val result = inferHelper(formatted, 16)
 
         assertTrue("Should not crash with SharedFlow callback (tokens=${tokens.get()})", result >= 0)
         assertTrue("Should have received tokens", tokens.get() > 0)
@@ -371,8 +377,7 @@ class NativeInferenceTest {
         }
 
         val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Hello"))
-        bridge.nativeResetContext()
-        val result = bridge.nativeInfer(formatted, 16)
+        val result = inferHelper(formatted, 16)
 
         assertTrue("Should not crash even when callback throws (result=$result)", result >= -1)
     }
@@ -422,8 +427,7 @@ class NativeInferenceTest {
         }
 
         val formatted = bridge.nativeFormatChat(arrayOf("user"), arrayOf("Write a short poem about the moon"))
-        bridge.nativeResetContext()
-        val result = bridge.nativeInfer(formatted, 64)
+        val result = inferHelper(formatted, 64)
 
         assertTrue("Should not crash during long streaming (tokens=${tokens.get()}, result=$result)", result >= 0)
         assertTrue("No exceptions in callback", exceptions.isEmpty())

@@ -14,7 +14,6 @@ import org.robolectric.annotation.Config
 import java.util.LinkedList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 @RunWith(RobolectricTestRunner::class)
@@ -51,25 +50,31 @@ class AgentEngineTest {
     }
 
     private fun setupRunMock(blockOnEmpty: Boolean = false) {
-        val activeCallback = AtomicReference<((String) -> Unit)?>(null)
+        var returnedThisSession = false
 
-        every { mockService.swapTokenCallback(any()) } answers {
-            @Suppress("UNCHECKED_CAST")
-            val cb = args[0] as? ((String) -> Unit)
-            activeCallback.getAndSet(cb)
+        every { mockService.processPrompt(any()) } answers {
+            returnedThisSession = false
+            0
         }
 
-        every { mockService.infer(any(), any()) } answers {
-            val cb = activeCallback.get()
-            val response = responseQueue.poll()
-            if (response != null) {
-                for (ch in response) {
-                    cb?.invoke(ch.toString())
+        every { mockService.generateOneToken() } answers {
+            if (returnedThisSession) {
+                if (blockOnEmpty) {
+                    Thread.sleep(30000)
                 }
-            } else if (blockOnEmpty) {
-                Thread.sleep(30000)
+                null
+            } else {
+                val response = responseQueue.poll()
+                if (response != null) {
+                    returnedThisSession = true
+                    response
+                } else if (blockOnEmpty) {
+                    Thread.sleep(30000)
+                    null
+                } else {
+                    null
+                }
             }
-            0
         }
 
         every { mockService.formatChat(any(), any()) } returns "formatted"
@@ -514,19 +519,14 @@ class AgentEngineTest {
 
     @Test
     fun cancelDuringInference_interruptedExceptionCaught() {
-        val activeCallback = AtomicReference<((String) -> Unit)?>(null)
         val inferEntered = CountDownLatch(1)
 
-        every { mockService.swapTokenCallback(any()) } answers {
-            @Suppress("UNCHECKED_CAST")
-            val cb = args[0] as? ((String) -> Unit)
-            activeCallback.getAndSet(cb)
-        }
+        every { mockService.processPrompt(any()) } returns 0
 
-        every { mockService.infer(any(), any()) } answers {
+        every { mockService.generateOneToken() } answers {
             inferEntered.countDown()
             Thread.sleep(30000)
-            0
+            null
         }
 
         every { mockService.formatChat(any(), any()) } returns "formatted"

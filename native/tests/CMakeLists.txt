@@ -15,3 +15,7 @@ add_subdirectory(${LLAMA_DIR} llama_build)
 add_executable(test_inference test_inference.cpp)
 target_link_libraries(test_inference llama ggml)
 target_include_directories(test_inference PRIVATE ${LLAMA_DIR}/include ${LLAMA_DIR}/ggml/include)
+
+add_executable(test_jni_logic test_jni_logic.cpp)
+target_link_libraries(test_jni_logic llama ggml)
+target_include_directories(test_jni_logic PRIVATE ${LLAMA_DIR}/include ${LLAMA_DIR}/ggml/include)

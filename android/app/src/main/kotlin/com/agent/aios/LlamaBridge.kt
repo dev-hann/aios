@@ -14,9 +14,11 @@ class LlamaBridge {
         }
     }
 
+    external fun nativeInit(nativeLibDir: String)
     external fun nativeLoadModel(modelPath: String, contextSize: Int): Boolean
     external fun nativeFormatChat(roles: Array<String>, contents: Array<String>): String
-    external fun nativeInfer(prompt: String, maxTokens: Int): Int
+    external fun nativeProcessPrompt(prompt: String): Int
+    external fun nativeGenerateOneToken(): String?
     external fun nativeReleaseModel()
     external fun nativeResetContext()
     external fun nativeIsModelLoaded(): Boolean

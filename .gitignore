@@ -10,3 +10,6 @@
 local.properties
 android/app/build/
 wt/
+
+# Test model files (use download_test_model.sh)
+native/tests/models/*.gguf
