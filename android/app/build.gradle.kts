@@ -13,8 +13,8 @@ android {
         applicationId = "com.agent.aios"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10702
-        versionName = "1.7.2"
+        versionCode = 10703
+        versionName = "1.7.3"
 
         buildConfigField("String", "GITHUB_REPO", "\"dev-hann/aios\"")
 
