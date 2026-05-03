@@ -8,8 +8,22 @@ class LlamaBridge {
     var onTokenCallback: ((String) -> Unit)? = null
 
     companion object {
+        var libraryLoaded: Boolean = false
+            private set
+
         init {
-            System.loadLibrary("aios-native")
+            libraryLoaded =
+                try {
+                    System.loadLibrary("aios-native")
+                    Log.i("AIOS-Bridge", "aios-native library loaded successfully")
+                    true
+                } catch (e: UnsatisfiedLinkError) {
+                    Log.e("AIOS-Bridge", "Failed to load aios-native library", e)
+                    false
+                } catch (e: Exception) {
+                    Log.e("AIOS-Bridge", "Failed to load aios-native library", e)
+                    false
+                }
         }
     }
 

@@ -16,7 +16,8 @@ class LlmService : Service(), LlmProvider {
     private val NOTIFICATION_ID = 1001
 
     private val binder = LlmBinder()
-    private val llamaBridge = LlamaBridge()
+    private val llamaBridge: LlamaBridge? =
+        if (LlamaBridge.libraryLoaded) LlamaBridge() else null
     private val callbackLock = Any()
 
     @Volatile
@@ -28,9 +29,13 @@ class LlmService : Service(), LlmProvider {
 
     override fun onCreate() {
         super.onCreate()
-        llamaBridge.nativeInit(applicationInfo.nativeLibraryDir)
+        if (llamaBridge != null) {
+            llamaBridge.nativeInit(applicationInfo.nativeLibraryDir)
+            Log.i(TAG, "LlmService created")
+        } else {
+            Log.e(TAG, "LlmService created but native library not available")
+        }
         createNotificationChannel()
-        Log.i(TAG, "LlmService created")
     }
 
     override fun onStartCommand(
@@ -38,7 +43,10 @@ class LlmService : Service(), LlmProvider {
         flags: Int,
         startId: Int,
     ): Int {
-        val notification = buildNotification("AIOS ready")
+        val notification =
+            buildNotification(
+                if (llamaBridge != null) "AIOS ready" else "AIOS ready (native unavailable)",
+            )
         startForeground(NOTIFICATION_ID, notification)
         Log.i(TAG, "LlmService started as foreground")
         return START_STICKY
@@ -50,7 +58,7 @@ class LlmService : Service(), LlmProvider {
     }
 
     override fun onDestroy() {
-        llamaBridge.nativeReleaseModel()
+        llamaBridge?.nativeReleaseModel()
         Log.i(TAG, "LlmService destroyed")
         super.onDestroy()
     }
@@ -60,34 +68,35 @@ class LlmService : Service(), LlmProvider {
         path: String,
         contextSize: Int,
     ): Boolean {
-        return llamaBridge.nativeLoadModel(path, contextSize)
+        return llamaBridge?.nativeLoadModel(path, contextSize) ?: false
     }
 
     override fun formatChat(
         roles: Array<String>,
         contents: Array<String>,
     ): String {
-        return llamaBridge.nativeFormatChat(roles, contents)
+        return llamaBridge?.nativeFormatChat(roles, contents) ?: ""
     }
 
     override fun processPrompt(prompt: String): Int {
-        return llamaBridge.nativeProcessPrompt(prompt)
+        return llamaBridge?.nativeProcessPrompt(prompt) ?: -1
     }
 
     override fun processPromptIncremental(prompt: String): Int {
-        return llamaBridge.nativeProcessPromptIncremental(prompt)
+        return llamaBridge?.nativeProcessPromptIncremental(prompt) ?: -1
     }
 
     override fun setSystemPromptPosition() {
-        llamaBridge.nativeSetSystemPromptPosition()
+        llamaBridge?.nativeSetSystemPromptPosition()
     }
 
     override fun processSystemPrompt(prompt: String): Int {
-        return llamaBridge.nativeProcessSystemPrompt(prompt)
+        return llamaBridge?.nativeProcessSystemPrompt(prompt) ?: -1
     }
 
     override fun generateOneToken(): String? {
-        val token = llamaBridge.nativeGenerateOneToken()
+        val bridge = llamaBridge ?: return null
+        val token = bridge.nativeGenerateOneToken()
         if (token != null && token.isNotEmpty()) {
             synchronized(callbackLock) {
                 try {
@@ -101,25 +110,25 @@ class LlmService : Service(), LlmProvider {
     }
 
     override fun resetContext() {
-        llamaBridge.nativeResetContext()
+        llamaBridge?.nativeResetContext()
     }
 
     override fun isModelLoaded(): Boolean {
-        return llamaBridge.nativeIsModelLoaded()
+        return llamaBridge?.nativeIsModelLoaded() ?: false
     }
 
     override fun getModelInfo(): String {
-        return llamaBridge.nativeGetModelInfo()
+        return llamaBridge?.nativeGetModelInfo() ?: "Native library not loaded"
     }
 
     override fun releaseModel() {
-        llamaBridge.nativeReleaseModel()
+        llamaBridge?.nativeReleaseModel()
     }
 
     override fun setTokenCallback(cb: ((String) -> Unit)?) {
         synchronized(callbackLock) {
             tokenCallback = cb
-            llamaBridge.onTokenCallback = cb
+            llamaBridge?.onTokenCallback = cb
         }
     }
 
@@ -127,13 +136,13 @@ class LlmService : Service(), LlmProvider {
         synchronized(callbackLock) {
             val prev = tokenCallback
             tokenCallback = cb
-            llamaBridge.onTokenCallback = cb
+            llamaBridge?.onTokenCallback = cb
             return prev
         }
     }
 
     override fun getContextUsage(): String {
-        return llamaBridge.nativeGetContextUsage()
+        return llamaBridge?.nativeGetContextUsage() ?: ""
     }
 
     override fun setSamplingParams(
@@ -142,7 +151,7 @@ class LlmService : Service(), LlmProvider {
         topP: Float,
         repeatPenalty: Float,
     ) {
-        llamaBridge.nativeSetSamplingParams(temperature, topK, topP, repeatPenalty)
+        llamaBridge?.nativeSetSamplingParams(temperature, topK, topP, repeatPenalty)
     }
 
     override fun updateNotification(text: String) {

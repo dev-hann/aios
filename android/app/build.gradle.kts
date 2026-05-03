@@ -16,8 +16,8 @@ android {
         applicationId = "com.agent.aios"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10900
-        versionName = "1.9.0" 6be9714 (refactor: clean architecture - AgentEngine split, Hilt DI, domain/data/UI layers)
+        versionCode = 10901
+        versionName = "1.9.1"
 
         buildConfigField("String", "GITHUB_REPO", "\"dev-hann/aios\"")
 
@@ -68,6 +68,14 @@ android {
         debug {
             isMinifyEnabled = false
             isShrinkResources = false
+            ndk {
+                abiFilters += listOf("arm64-v8a", "x86_64")
+            }
+            externalNativeBuild {
+                cmake {
+                    abiFilters += listOf("arm64-v8a", "x86_64")
+                }
+            }
         }
         release {
             isMinifyEnabled = false
