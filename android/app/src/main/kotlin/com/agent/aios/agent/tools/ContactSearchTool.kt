@@ -3,17 +3,19 @@ package com.agent.aios.agent.tools
 import android.Manifest
 import android.content.pm.PackageManager
 import android.provider.ContactsContract
-import com.agent.aios.AgentEngine
 import com.agent.aios.domain.ToolContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-class ContactSearchTool : AgentEngine.ExtendedTool {
+class ContactSearchTool : ExtendedTool {
     override val name = "contact_search"
     override val description = "Search contacts by name/phone. Args: {query, limit}"
     override val parameters = """{"query": "string, name or phone number to search for", "limit": "integer, max results to return (default 10)"}"""
 
-    override fun execute(args: String, toolContext: ToolContext): String {
+    override fun execute(
+        args: String,
+        toolContext: ToolContext,
+    ): String {
         return try {
             val context = toolContext.appContext
             if (context.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
@@ -35,7 +37,7 @@ class ContactSearchTool : AgentEngine.ExtendedTool {
                 limit = limit,
                 results = results,
                 seenNames = seenNames,
-                context = context
+                context = context,
             )
 
             if (results.length() < limit) {
@@ -45,7 +47,7 @@ class ContactSearchTool : AgentEngine.ExtendedTool {
                     limit = limit,
                     results = results,
                     seenNames = seenNames,
-                    context = context
+                    context = context,
                 )
             }
 
@@ -65,18 +67,18 @@ class ContactSearchTool : AgentEngine.ExtendedTool {
         limit: Int,
         results: JSONArray,
         seenNames: MutableSet<String>,
-        context: android.content.Context
+        context: android.content.Context,
     ) {
         context.contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
             arrayOf(
                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
                 ContactsContract.CommonDataKinds.Phone.NUMBER,
-                ContactsContract.CommonDataKinds.Phone.CONTACT_ID
+                ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
             ),
             selection,
             selectionArgs,
-            "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
+            "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC",
         )?.use { cursor ->
             while (cursor.moveToNext() && results.length() < limit) {
                 val name = cursor.getString(0) ?: continue
@@ -95,13 +97,16 @@ class ContactSearchTool : AgentEngine.ExtendedTool {
         }
     }
 
-    private fun getEmailForContact(contactId: String, context: android.content.Context): String {
+    private fun getEmailForContact(
+        contactId: String,
+        context: android.content.Context,
+    ): String {
         context.contentResolver.query(
             ContactsContract.CommonDataKinds.Email.CONTENT_URI,
             arrayOf(ContactsContract.CommonDataKinds.Email.ADDRESS),
             "${ContactsContract.CommonDataKinds.Email.CONTACT_ID} = ?",
             arrayOf(contactId),
-            null
+            null,
         )?.use { cursor ->
             if (cursor.moveToFirst()) {
                 return cursor.getString(0) ?: ""

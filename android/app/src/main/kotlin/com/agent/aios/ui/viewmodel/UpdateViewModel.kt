@@ -1,30 +1,25 @@
 package com.agent.aios.ui.viewmodel
 
-import android.app.Application
 import android.util.Log
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.agent.aios.update.ApkInstaller
-import com.agent.aios.update.UpdateChecker
-import com.agent.aios.update.UpdateDownloader
-import com.agent.aios.update.UpdateInfo
-import com.agent.aios.update.UpdateResult
+import com.agent.aios.domain.model.UpdateInfo
+import com.agent.aios.domain.model.UpdateResult
+import com.agent.aios.domain.model.UpdateStatus
+import com.agent.aios.domain.repository.UpdateRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
+import javax.inject.Inject
 
-enum class UpdateStatus {
-    IDLE, CHECKING, AVAILABLE, NOT_AVAILABLE, DOWNLOADING, DOWNLOADED, INSTALLING, ERROR
-}
-
-class UpdateViewModel(application: Application) : AndroidViewModel(application) {
-
+@HiltViewModel
+class UpdateViewModel @Inject constructor(
+    private val updateRepository: UpdateRepository,
+) : ViewModel() {
     private val TAG = "UpdateVM"
-    private val checker = UpdateChecker(application)
-    private val downloader = UpdateDownloader(application)
-    private val installer = ApkInstaller(application)
 
     private val _status = MutableStateFlow(UpdateStatus.IDLE)
     val status: StateFlow<UpdateStatus> = _status.asStateFlow()
@@ -45,17 +40,15 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             _status.value = UpdateStatus.CHECKING
             _error.value = ""
             try {
-                val result = kotlinx.coroutines.Dispatchers.IO.let { io ->
-                    kotlinx.coroutines.withContext(io) { checker.checkForUpdate() }
-                }
-                when (result) {
+                when (val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { updateRepository.checkForUpdate() }) {
                     is UpdateResult.Success -> {
                         _updateInfo.value = result.info
-                        _status.value = if (result.info.isUpdateAvailable) {
-                            UpdateStatus.AVAILABLE
-                        } else {
-                            UpdateStatus.NOT_AVAILABLE
-                        }
+                        _status.value =
+                            if (result.info.isUpdateAvailable) {
+                                UpdateStatus.AVAILABLE
+                            } else {
+                                UpdateStatus.NOT_AVAILABLE
+                            }
                     }
                     is UpdateResult.NotAvailable -> {
                         _status.value = UpdateStatus.NOT_AVAILABLE
@@ -81,7 +74,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             _error.value = ""
 
             val fileName = "aios-${info.latestVersion}.apk"
-            val file = downloader.downloadApk(info.downloadUrl, fileName) { progress ->
+            val file = updateRepository.downloadApk(info.downloadUrl, fileName) { progress ->
                 _downloadProgress.value = progress
             }
 
@@ -97,15 +90,15 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
 
     fun installUpdate() {
         val apk = downloadedApk ?: return
-        if (!installer.canInstallApk()) {
+        if (!updateRepository.canInstallApk()) {
             _status.value = UpdateStatus.ERROR
             _error.value = "INSTALL_PERMISSION_NEEDED"
             return
         }
-        installer.installApk(apk)
+        updateRepository.installApk(apk)
     }
 
-    fun requestInstallPermissionIntent() = installer.requestInstallPermission()
+    fun requestInstallPermissionIntent() = updateRepository.requestInstallPermissionIntent()
 
     fun reset() {
         _status.value = UpdateStatus.IDLE

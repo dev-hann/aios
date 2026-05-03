@@ -1,5 +1,7 @@
 package com.agent.aios.ui.screen
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -65,32 +67,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.agent.aios.AIOSApp
-import com.agent.aios.ToolRisk
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.agent.aios.domain.model.ServiceState
+import com.agent.aios.domain.model.ToolRisk
 import com.agent.aios.ui.component.MessageBubble
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.ChatViewModel
-import com.agent.aios.ui.viewmodel.ChatViewModelFactory
-import com.agent.aios.ui.viewmodel.ConfirmationRequest
-import android.content.Intent
-import android.provider.Settings
+import com.agent.aios.ui.viewmodel.ChatUiState
+import com.agent.aios.domain.model.ConfirmationRequest
 import kotlinx.coroutines.delay
 
 @Composable
 fun ChatScreen(
-    vm: ChatViewModel = viewModel(factory = ChatViewModelFactory(AIOSApp.instance)),
+    vm: ChatViewModel = hiltViewModel(),
     onNavigateToSettings: () -> Unit = {},
 ) {
-    val messages by vm.messages.collectAsState()
-    val inputText by vm.inputText.collectAsState()
-    val models by vm.models.collectAsState()
-    val isModelLoaded by vm.isModelLoaded.collectAsState()
-    val isGenerating by vm.isGenerating.collectAsState()
-    val isImporting by vm.isImporting.collectAsState()
-    val serviceState by vm.serviceState.collectAsState()
-    val currentGeneratingText by vm.currentGeneratingText.collectAsState()
-    val pendingConfirmation by vm.pendingConfirmation.collectAsState()
+    val uiState by vm.uiState.collectAsState()
+    val messages = uiState.messages
+    val inputText = uiState.inputText
+    val isModelLoaded = uiState.isModelLoaded
+    val isGenerating = uiState.isGenerating
+    val serviceState = uiState.serviceState
+    val currentGeneratingText = uiState.currentGeneratingText
+    val pendingConfirmation = uiState.pendingConfirmation
+    val models = uiState.models
+    val isImporting = uiState.isImporting
 
     val listState = rememberLazyListState()
 
@@ -109,9 +110,10 @@ fun ChatScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AIOSColors.Background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(AIOSColors.Background),
     ) {
         TopBar(
             serviceState = serviceState,
@@ -119,7 +121,7 @@ fun ChatScreen(
         )
 
         if (!isModelLoaded) {
-            if (isGenerating && serviceState == AIOSApp.ServiceState.GENERATING) {
+            if (isGenerating && serviceState == ServiceState.GENERATING) {
                 ModelLoadingView()
             } else {
                 EmptyState(onGoToSettings = onNavigateToSettings)
@@ -128,9 +130,10 @@ fun ChatScreen(
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(vertical = 4.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(messages) { msg ->
@@ -166,12 +169,13 @@ fun ChatScreen(
                     visible = isGenerating,
                     enter = fadeIn() + slideInVertically { -it },
                     exit = fadeOut() + slideOutVertically { -it },
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 8.dp),
                 ) {
                     GeneratingIndicator(
-                        thinkingText = if (currentGeneratingText.isNotEmpty()) currentGeneratingText else null
+                        thinkingText = if (currentGeneratingText.isNotEmpty()) currentGeneratingText else null,
                     )
                 }
             }
@@ -192,27 +196,30 @@ fun ChatScreen(
 
 @Composable
 private fun TopBar(
-    serviceState: AIOSApp.ServiceState,
+    serviceState: ServiceState,
     onSettings: () -> Unit,
 ) {
-    val statusColor = when (serviceState) {
-        AIOSApp.ServiceState.DISCONNECTED -> AIOSColors.StatusIdle
-        AIOSApp.ServiceState.CONNECTING -> AIOSColors.StatusRunning
-        AIOSApp.ServiceState.READY -> AIOSColors.StatusIdle
-        AIOSApp.ServiceState.MODEL_LOADED -> AIOSColors.StatusReady
-        AIOSApp.ServiceState.GENERATING -> AIOSColors.StatusRunning
-        AIOSApp.ServiceState.AGENT_RUNNING -> AIOSColors.Accent
-    }
+    val statusColor =
+        when (serviceState) {
+            ServiceState.DISCONNECTED -> AIOSColors.StatusIdle
+            ServiceState.CONNECTING -> AIOSColors.StatusRunning
+            ServiceState.READY -> AIOSColors.StatusIdle
+            ServiceState.MODEL_LOADED -> AIOSColors.StatusReady
+            ServiceState.GENERATING -> AIOSColors.StatusRunning
+            ServiceState.AGENT_RUNNING -> AIOSColors.Accent
+        }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(AIOSColors.Surface)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(AIOSColors.Surface),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -237,10 +244,11 @@ private fun TopBar(
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .background(statusColor)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(statusColor),
         )
     }
 }
@@ -251,26 +259,29 @@ private fun EmptyState(onGoToSettings: () -> Unit) {
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.95f,
         targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "iconPulse"
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(1200),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "iconPulse",
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(32.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .scale(scale)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(AIOSColors.PrimaryDim),
+                modifier =
+                    Modifier
+                        .size(72.dp)
+                        .scale(scale)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AIOSColors.PrimaryDim),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -297,13 +308,15 @@ private fun EmptyState(onGoToSettings: () -> Unit) {
             OutlinedButton(
                 onClick = onGoToSettings,
                 shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = AIOSColors.Primary.copy(alpha = 0.25f),
-                    contentColor = AIOSColors.Primary,
-                ),
-                border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
-                    brush = SolidColor(AIOSColors.Primary.copy(alpha = 0.5f))
-                ),
+                colors =
+                    ButtonDefaults.outlinedButtonColors(
+                        containerColor = AIOSColors.Primary.copy(alpha = 0.25f),
+                        contentColor = AIOSColors.Primary,
+                    ),
+                border =
+                    ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
+                        brush = SolidColor(AIOSColors.Primary.copy(alpha = 0.5f)),
+                    ),
             ) {
                 Text(
                     text = "Open Settings",
@@ -320,10 +333,11 @@ private fun GeneratingIndicator(thinkingText: String? = null) {
     val infiniteTransition = rememberInfiniteTransition()
 
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(AIOSColors.SurfaceVariant.copy(alpha = 0.9f))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(AIOSColors.SurfaceVariant.copy(alpha = 0.9f))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -331,23 +345,26 @@ private fun GeneratingIndicator(thinkingText: String? = null) {
             val offsetY by infiniteTransition.animateFloat(
                 initialValue = 0f,
                 targetValue = -6f,
-                animationSpec = infiniteRepeatable(
-                    animation = keyframes {
-                        durationMillis = 600
-                        0f at 0
-                        -6f at 150
-                        0f at 300
-                    },
-                    initialStartOffset = androidx.compose.animation.core.StartOffset(index * 150),
-                ),
-                label = "dot_$index"
+                animationSpec =
+                    infiniteRepeatable(
+                        animation =
+                            keyframes {
+                                durationMillis = 600
+                                0f at 0
+                                -6f at 150
+                                0f at 300
+                            },
+                        initialStartOffset = androidx.compose.animation.core.StartOffset(index * 150),
+                    ),
+                label = "dot_$index",
             )
             Box(
-                modifier = Modifier
-                    .offset(y = offsetY.dp)
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(AIOSColors.Primary)
+                modifier =
+                    Modifier
+                        .offset(y = offsetY.dp)
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(AIOSColors.Primary),
             )
         }
         if (!thinkingText.isNullOrBlank()) {
@@ -372,24 +389,27 @@ private fun InputBar(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(AIOSColors.Surface)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(AIOSColors.Surface)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         BasicTextField(
             value = text,
             onValueChange = onTextChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(AIOSColors.SurfaceVariant),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(AIOSColors.SurfaceVariant),
             maxLines = 4,
             enabled = !isGenerating,
-            textStyle = TextStyle(
-                color = AIOSColors.TextPrimary,
-                fontSize = 15.sp,
-            ),
+            textStyle =
+                TextStyle(
+                    color = AIOSColors.TextPrimary,
+                    fontSize = 15.sp,
+                ),
             cursorBrush = SolidColor(AIOSColors.Primary),
             decorationBox = { innerTextField ->
                 Row(
@@ -397,9 +417,10 @@ private fun InputBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                     ) {
                         if (text.isEmpty()) {
                             Text(
@@ -413,9 +434,10 @@ private fun InputBar(
                     if (isGenerating) {
                         IconButton(
                             onClick = onCancel,
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = AIOSColors.StatusError.copy(alpha = 0.2f),
-                            ),
+                            colors =
+                                IconButtonDefaults.iconButtonColors(
+                                    containerColor = AIOSColors.StatusError.copy(alpha = 0.2f),
+                                ),
                             modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
@@ -429,10 +451,11 @@ private fun InputBar(
                         IconButton(
                             onClick = onSend,
                             enabled = text.isNotBlank(),
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (text.isNotBlank()) AIOSColors.Primary else AIOSColors.SurfaceVariant,
-                                disabledContainerColor = AIOSColors.SurfaceVariant,
-                            ),
+                            colors =
+                                IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (text.isNotBlank()) AIOSColors.Primary else AIOSColors.SurfaceVariant,
+                                    disabledContainerColor = AIOSColors.SurfaceVariant,
+                                ),
                             modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
@@ -455,19 +478,26 @@ private fun ConfirmationDialog(
     onApprove: () -> Unit,
     onDeny: () -> Unit,
 ) {
-    val risk = try { ToolRisk.valueOf(request.risk) } catch (_: Exception) { ToolRisk.HIGH }
-    val riskColor = when (risk) {
-        ToolRisk.SAFE -> AIOSColors.StatusReady
-        ToolRisk.LOW -> AIOSColors.StatusRunning
-        ToolRisk.HIGH -> Color(0xFFFF9800)
-        ToolRisk.CRITICAL -> AIOSColors.StatusError
-    }
-    val riskLabel = when (risk) {
-        ToolRisk.SAFE -> "SAFE"
-        ToolRisk.LOW -> "LOW"
-        ToolRisk.HIGH -> "HIGH"
-        ToolRisk.CRITICAL -> "CRITICAL"
-    }
+    val risk =
+        try {
+            ToolRisk.valueOf(request.risk)
+        } catch (_: Exception) {
+            ToolRisk.HIGH
+        }
+    val riskColor =
+        when (risk) {
+            ToolRisk.SAFE -> AIOSColors.StatusReady
+            ToolRisk.LOW -> AIOSColors.StatusRunning
+            ToolRisk.HIGH -> Color(0xFFFF9800)
+            ToolRisk.CRITICAL -> AIOSColors.StatusError
+        }
+    val riskLabel =
+        when (risk) {
+            ToolRisk.SAFE -> "SAFE"
+            ToolRisk.LOW -> "LOW"
+            ToolRisk.HIGH -> "HIGH"
+            ToolRisk.CRITICAL -> "CRITICAL"
+        }
 
     var remainingSeconds by remember {
         val elapsed = (System.currentTimeMillis() - request.createdAtMs) / 1000
@@ -484,11 +514,12 @@ private fun ConfirmationDialog(
 
     Dialog(onDismissRequest = {}) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(AIOSColors.Surface)
-                .padding(24.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(AIOSColors.Surface)
+                    .padding(24.dp),
         ) {
             Text(
                 text = "Action Confirmation",
@@ -504,10 +535,11 @@ private fun ConfirmationDialog(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(riskColor.copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(riskColor.copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = riskLabel,
@@ -536,11 +568,12 @@ private fun ConfirmationDialog(
             Spacer(modifier = Modifier.height(8.dp))
 
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(AIOSColors.SurfaceVariant)
-                    .padding(12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AIOSColors.SurfaceVariant)
+                        .padding(12.dp),
             ) {
                 Text(
                     text = parseArgsForDisplay(request.toolName, request.args),
@@ -555,10 +588,11 @@ private fun ConfirmationDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(AIOSColors.StatusError),
+                        modifier =
+                            Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(AIOSColors.StatusError),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
@@ -573,10 +607,11 @@ private fun ConfirmationDialog(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(if (remainingSeconds <= 10) AIOSColors.StatusError else AIOSColors.TextTertiary),
+                    modifier =
+                        Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (remainingSeconds <= 10) AIOSColors.StatusError else AIOSColors.TextTertiary),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
@@ -596,10 +631,11 @@ private fun ConfirmationDialog(
             ) {
                 TextButton(
                     onClick = onDeny,
-                    colors = ButtonDefaults.textButtonColors(
-                        containerColor = AIOSColors.SurfaceVariant,
-                        contentColor = AIOSColors.TextSecondary,
-                    ),
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            containerColor = AIOSColors.SurfaceVariant,
+                            contentColor = AIOSColors.TextSecondary,
+                        ),
                     shape = RoundedCornerShape(8.dp),
                 ) {
                     Text(
@@ -611,10 +647,11 @@ private fun ConfirmationDialog(
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(
                     onClick = onApprove,
-                    colors = ButtonDefaults.textButtonColors(
-                        containerColor = riskColor.copy(alpha = 0.15f),
-                        contentColor = riskColor,
-                    ),
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            containerColor = riskColor.copy(alpha = 0.15f),
+                            contentColor = riskColor,
+                        ),
                     shape = RoundedCornerShape(8.dp),
                 ) {
                     Text(
@@ -628,41 +665,57 @@ private fun ConfirmationDialog(
     }
 }
 
-private fun parseArgsForDisplay(toolName: String, args: String): String {
-    val json = try { org.json.JSONObject(args) } catch (_: Exception) { return args }
+private fun parseArgsForDisplay(
+    toolName: String,
+    args: String,
+): String {
+    val json =
+        try {
+            org.json.JSONObject(args)
+        } catch (_: Exception) {
+            return args
+        }
     val action = json.optString("action", "")
     return when (toolName) {
-        "sms_sender" -> when (action) {
-            "send" -> "Send SMS\n  To: ${json.optString("to", "?")}\n  Body: ${json.optString("body", "?")}"
-            "read" -> "Read SMS messages (limit: ${json.optInt("limit", 10)})"
-            else -> args
-        }
-        "phone_caller" -> when (action) {
-            "call" -> "Phone call to ${json.optString("number", "?")}"
-            "dial" -> "Open dialer with ${json.optString("number", "?")}"
-            else -> args
-        }
-        "screen_action" -> when (action) {
-            "tap" -> {
-                val text = json.optString("text", "")
-                val x = json.optDouble("x", -1.0)
-                val y = json.optDouble("y", -1.0)
-                if (text.isNotBlank()) "Tap on \"$text\""
-                else if (x >= 0 && y >= 0) "Tap at ($x, $y)"
-                else args
+        "sms_sender" ->
+            when (action) {
+                "send" -> "Send SMS\n  To: ${json.optString("to", "?")}\n  Body: ${json.optString("body", "?")}"
+                "read" -> "Read SMS messages (limit: ${json.optInt("limit", 10)})"
+                else -> args
             }
-            "type" -> "Type \"${json.optString("content", "")}\""
-            "scroll" -> "Scroll ${json.optString("direction", "?")}"
-            "swipe" -> "Swipe ${json.optString("direction", "?")}"
-            "long_click" -> "Long click on \"${json.optString("text", "")}\""
-            "global" -> "Global action: ${json.optString("global_action", "?")}"
-            else -> args
-        }
-        "app_launcher" -> when (action) {
-            "open_app" -> "Open app: ${json.optString("package_name", "?")}"
-            "open_url" -> "Open URL: ${json.optString("url", "?")}"
-            else -> args
-        }
+        "phone_caller" ->
+            when (action) {
+                "call" -> "Phone call to ${json.optString("number", "?")}"
+                "dial" -> "Open dialer with ${json.optString("number", "?")}"
+                else -> args
+            }
+        "screen_action" ->
+            when (action) {
+                "tap" -> {
+                    val text = json.optString("text", "")
+                    val x = json.optDouble("x", -1.0)
+                    val y = json.optDouble("y", -1.0)
+                    if (text.isNotBlank()) {
+                        "Tap on \"$text\""
+                    } else if (x >= 0 && y >= 0) {
+                        "Tap at ($x, $y)"
+                    } else {
+                        args
+                    }
+                }
+                "type" -> "Type \"${json.optString("content", "")}\""
+                "scroll" -> "Scroll ${json.optString("direction", "?")}"
+                "swipe" -> "Swipe ${json.optString("direction", "?")}"
+                "long_click" -> "Long click on \"${json.optString("text", "")}\""
+                "global" -> "Global action: ${json.optString("global_action", "?")}"
+                else -> args
+            }
+        "app_launcher" ->
+            when (action) {
+                "open_app" -> "Open app: ${json.optString("package_name", "?")}"
+                "open_url" -> "Open URL: ${json.optString("url", "?")}"
+                else -> args
+            }
         else -> args
     }
 }
@@ -673,26 +726,29 @@ private fun ModelLoadingView() {
     val pulse by infiniteTransition.animateFloat(
         initialValue = 0.6f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(800),
+                repeatMode = RepeatMode.Reverse,
+            ),
         label = "loading_pulse",
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(32.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .scale(pulse)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(AIOSColors.PrimaryDim),
+                modifier =
+                    Modifier
+                        .size(72.dp)
+                        .scale(pulse)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AIOSColors.PrimaryDim),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -717,10 +773,11 @@ private fun ModelLoadingView() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             androidx.compose.material3.LinearProgressIndicator(
-                modifier = Modifier
-                    .fillMaxWidth(0.5f)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
                 color = AIOSColors.Primary,
                 trackColor = AIOSColors.SurfaceVariant,
             )
@@ -732,16 +789,17 @@ private fun ModelLoadingView() {
 private fun AccessibilityPermissionBanner() {
     val context = LocalContext.current
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(AIOSColors.Surface)
-            .border(1.dp, AIOSColors.Primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-            .clickable {
-                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            }
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(AIOSColors.Surface)
+                .border(1.dp, AIOSColors.Primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                .clickable {
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

@@ -1,15 +1,14 @@
 package com.agent.aios
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AgentToolsInstrumentedTest {
-
     @Test
     fun calculatorAddition() {
         val tool = CalculatorTool()

@@ -385,11 +385,13 @@ Java_com_agent_aios_LlamaBridge_nativeProcessPromptIncremental(
                 g_system_prompt_end = g_current_pos;
                 if (g_sampler) llama_sampler_free(g_sampler);
                 g_sampler = create_sampler();
-                LOGI("processPromptInc: restored (pos=%d, sys_end=%d)",
-                     (int)g_current_pos, (int)g_system_prompt_end);
+                LOGI("processPromptInc: restored (pos=%d, sys_end=%d, sampler=%s)",
+                     (int)g_current_pos, (int)g_system_prompt_end,
+                     g_sampler ? "ok" : "NULL");
             } else {
-                LOGE("processPromptInc: cache restore failed (%zu/%zu), full decode",
-                     restored, g_cached_system_kv.size());
+                LOGE("processPromptInc: cache restore failed (%zu/%zu), full decode (sampler=%s)",
+                     restored, g_cached_system_kv.size(),
+                     g_sampler ? "ok" : "NULL");
                 g_cached_system_kv.clear();
                 g_cached_system_tokens.clear();
             }
@@ -568,7 +570,12 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGenerateOneToken(
         JNIEnv *env, jobject) {
 
-    if (!g_ctx || !g_model || !g_vocab || !g_sampler) return nullptr;
+    if (!g_ctx || !g_model || !g_vocab) return nullptr;
+    if (!g_sampler) {
+        LOGW("generateOneToken: g_sampler null, recreating...");
+        g_sampler = create_sampler();
+        if (!g_sampler) return nullptr;
+    }
 
     if (g_current_pos >= g_n_ctx - OVERFLOW_HEADROOM) {
         LOGW("generateOneToken: context full, shifting...");

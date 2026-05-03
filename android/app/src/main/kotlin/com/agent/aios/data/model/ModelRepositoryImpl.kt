@@ -4,12 +4,18 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import android.util.Log
-import com.agent.aios.ui.viewmodel.ModelInfo
+import com.agent.aios.domain.model.ModelInfo
+import com.agent.aios.domain.repository.ModelRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ModelFileManager(private val context: Context) {
-
-    fun getAvailableModels(): List<ModelInfo> {
+@Singleton
+class ModelRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : ModelRepository {
+    override fun scanModels(): List<ModelInfo> {
         val found = mutableListOf<ModelInfo>()
 
         val dir = File(context.filesDir, "models")
@@ -28,7 +34,7 @@ class ModelFileManager(private val context: Context) {
         return found
     }
 
-    fun restoreModel(name: String): Boolean {
+    override fun restoreModel(name: String): Boolean {
         val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val src = File(downloadDir, name)
         val dst = File(File(context.filesDir, "models"), name)
@@ -42,11 +48,14 @@ class ModelFileManager(private val context: Context) {
                 input.copyTo(output, 8192)
             }
         }
-        Log.i("ModelFileManager", "Model restored: ${dst.length()} bytes")
+        Log.i("ModelRepository", "Model restored: ${dst.length()} bytes")
         return true
     }
 
-    fun importModelFromUri(uri: Uri, fileName: String): Boolean {
+    override fun importModelFromUri(
+        uri: Uri,
+        fileName: String,
+    ): Boolean {
         val modelsDir = File(context.filesDir, "models")
         if (!modelsDir.exists()) modelsDir.mkdirs()
         val safeName = if (fileName.endsWith(".gguf")) fileName else "$fileName.gguf"
@@ -56,7 +65,7 @@ class ModelFileManager(private val context: Context) {
                 input.copyTo(output, 8192)
             }
         } ?: return false
-        Log.i("ModelFileManager", "Model imported: ${dst.length()} bytes -> ${dst.absolutePath}")
+        Log.i("ModelRepository", "Model imported: ${dst.length()} bytes -> ${dst.absolutePath}")
         return true
     }
 }

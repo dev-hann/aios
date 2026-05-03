@@ -5,7 +5,6 @@ import android.os.Build
 import android.util.Log
 import com.agent.aios.BuildConfig
 import java.io.File
-import java.io.FileOutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.text.SimpleDateFormat
@@ -13,7 +12,6 @@ import java.util.Date
 import java.util.Locale
 
 object CrashLogManager {
-
     private const val TAG = "AIOS-Crash"
     private const val MAX_LOG_FILES = 10
     private const val LOG_DIR = "crash_logs"
@@ -48,7 +46,11 @@ object CrashLogManager {
 
     private external fun nativeInstallSignalHandler(logDir: String?)
 
-    fun logCrash(context: Context, thread: Thread, throwable: Throwable) {
+    fun logCrash(
+        context: Context,
+        thread: Thread,
+        throwable: Throwable,
+    ) {
         try {
             val logDir = getLogDir(context)
             if (!logDir.exists()) logDir.mkdirs()
@@ -88,7 +90,11 @@ object CrashLogManager {
         }
     }
 
-    fun logSignalCrash(context: Context, signal: Int, timestamp: Long) {
+    fun logSignalCrash(
+        context: Context,
+        signal: Int,
+        timestamp: Long,
+    ) {
         try {
             val logDir = getLogDir(context)
             if (!logDir.exists()) logDir.mkdirs()
@@ -116,16 +122,17 @@ object CrashLogManager {
         }
     }
 
-    private fun signalName(sig: Int): String = when (sig) {
-        6 -> "SIGABRT"
-        7 -> "SIGBUS"
-        8 -> "SIGFPE"
-        9 -> "SIGKILL"
-        11 -> "SIGSEGV"
-        13 -> "SIGPIPE"
-        15 -> "SIGTERM"
-        else -> "SIG$sig"
-    }
+    private fun signalName(sig: Int): String =
+        when (sig) {
+            6 -> "SIGABRT"
+            7 -> "SIGBUS"
+            8 -> "SIGFPE"
+            9 -> "SIGKILL"
+            11 -> "SIGSEGV"
+            13 -> "SIGPIPE"
+            15 -> "SIGTERM"
+            else -> "SIG$sig"
+        }
 
     fun getCrashLogs(context: Context): List<CrashLog> {
         val logDir = getLogDir(context)
@@ -135,15 +142,17 @@ object CrashLogManager {
             ?.filter { it.isFile && it.name.endsWith(".log") }
             ?.map { file ->
                 val lines = file.readLines()
-                val exceptionLine = lines
-                    .dropWhile { !it.startsWith("Exception:") && !it.startsWith("Signal:") }
-                    .firstOrNull()
-                    ?: "Unknown"
-                val summary = when {
-                    exceptionLine.startsWith("Exception:") -> exceptionLine.removePrefix("Exception: ").trim()
-                    exceptionLine.startsWith("Signal:") -> exceptionLine.removePrefix("Signal: ").trim()
-                    else -> exceptionLine
-                }
+                val exceptionLine =
+                    lines
+                        .dropWhile { !it.startsWith("Exception:") && !it.startsWith("Signal:") }
+                        .firstOrNull()
+                        ?: "Unknown"
+                val summary =
+                    when {
+                        exceptionLine.startsWith("Exception:") -> exceptionLine.removePrefix("Exception: ").trim()
+                        exceptionLine.startsWith("Signal:") -> exceptionLine.removePrefix("Signal: ").trim()
+                        else -> exceptionLine
+                    }
                 val isNative = file.name.startsWith(SIGNAL_LOG_PREFIX)
                 CrashLog(
                     filename = file.name,
@@ -161,7 +170,10 @@ object CrashLogManager {
         logDir.listFiles()?.forEach { it.delete() }
     }
 
-    fun getLogContent(context: Context, filename: String): String? {
+    fun getLogContent(
+        context: Context,
+        filename: String,
+    ): String? {
         val file = File(getLogDir(context), filename)
         return if (file.exists()) file.readText() else null
     }
@@ -171,10 +183,11 @@ object CrashLogManager {
     }
 
     private fun trimOldLogs(logDir: File) {
-        val files = logDir.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".log") }
-            ?.sortedByDescending { it.lastModified() }
-            ?: return
+        val files =
+            logDir.listFiles()
+                ?.filter { it.isFile && it.name.endsWith(".log") }
+                ?.sortedByDescending { it.lastModified() }
+                ?: return
 
         if (files.size > MAX_LOG_FILES) {
             files.drop(MAX_LOG_FILES).forEach { it.delete() }

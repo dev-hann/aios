@@ -4,12 +4,11 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 class LlmServiceTest {
-
     private lateinit var service: LlmService
 
     @Before
@@ -78,27 +77,25 @@ class LlmServiceTest {
     }
 
     @Test
-    fun releaseModel_clearsAgentEngine() {
+    fun releaseModel_clearsModelState() {
         service.loadModel("/valid/model.gguf", 2048)
-        assertNotNull(service.getAgentEngine())
+        assertTrue(service.isModelLoaded())
 
         service.releaseModel()
 
-        assertNull(service.getAgentEngine())
+        assertFalse(service.isModelLoaded())
     }
 
     @Test
     fun loadModel_afterRelease_canReload() {
         service.loadModel("/valid/first.gguf", 2048)
         assertTrue(service.isModelLoaded())
-        assertNotNull(service.getAgentEngine())
 
         service.releaseModel()
         assertFalse(service.isModelLoaded())
 
         service.loadModel("/valid/second.gguf", 4096)
         assertTrue(service.isModelLoaded())
-        assertNotNull(service.getAgentEngine())
     }
 
     // ========================================================
@@ -243,50 +240,16 @@ class LlmServiceTest {
     }
 
     // ========================================================
-    // 4. Agent engine
+    // 4. Agent engine (moved to AIOSApp - basic model tests only)
     // ========================================================
 
     @Test
-    fun getAgentEngine_whenModelLoaded_returnsNonNull() {
+    fun agentEngine_modelLoadedAndReleased() {
         service.loadModel("/valid/model.gguf", 2048)
-
-        val engine = service.getAgentEngine()
-
-        assertNotNull(engine)
-    }
-
-    @Test
-    fun getAgentEngine_whenNoModel_returnsNull() {
-        val engine = service.getAgentEngine()
-
-        assertNull(engine)
-    }
-
-    @Test
-    fun getAgentEngine_afterRelease_returnsNull() {
-        service.loadModel("/valid/model.gguf", 2048)
-        assertNotNull(service.getAgentEngine())
+        assertTrue(service.isModelLoaded())
 
         service.releaseModel()
-
-        assertNull(service.getAgentEngine())
-    }
-
-    @Test
-    fun agentEngine_createdWithCorrectTools() {
-        service.loadModel("/valid/model.gguf", 2048)
-
-        val engine = service.getAgentEngine()!!
-        val manifest = engine.getToolManifest()
-
-        listOf(
-            "calculator", "timer", "device_info", "notepad",
-            "screen_reader", "screen_action", "app_launcher",
-            "notification_reader", "screen_find", "contact_search",
-            "sms_sender", "phone_caller"
-        ).forEach { tool ->
-            assertTrue("Manifest should contain tool: $tool", manifest.contains(tool))
-        }
+        assertFalse(service.isModelLoaded())
     }
 
     // ========================================================
@@ -296,28 +259,29 @@ class LlmServiceTest {
     @Test
     fun setTokenCallback_concurrentCalls_noCrash() {
         val errors = AtomicReference<Throwable?>(null)
-        val threads = (1..10).map {
-            thread {
-                try {
-                    service.setTokenCallback { _ -> }
-                } catch (e: Throwable) {
-                    errors.set(e)
+        val threads =
+            (1..10).map {
+                thread {
+                    try {
+                        service.setTokenCallback { _ -> }
+                    } catch (e: Throwable) {
+                        errors.set(e)
+                    }
                 }
             }
-        }
         threads.forEach { it.join(2000) }
         assertNull("Concurrent setTokenCallback threw: ${errors.get()}", errors.get())
     }
 
     @Test
-    fun releaseModel_whileGetAgentEngineCalled_noCrash() {
+    fun releaseModel_whileIsModelLoadedCalled_noCrash() {
         service.loadModel("/valid/model.gguf", 2048)
         val latch = CountDownLatch(2)
         val errors = AtomicReference<Throwable?>(null)
 
         thread(start = true) {
             try {
-                repeat(100) { service.getAgentEngine() }
+                repeat(100) { service.isModelLoaded() }
             } catch (e: Throwable) {
                 errors.compareAndSet(null, e)
             } finally {
@@ -336,7 +300,7 @@ class LlmServiceTest {
         }
 
         assertTrue("Timeout", latch.await(5, TimeUnit.SECONDS))
-        assertNull("Concurrent release/getAgentEngine threw: ${errors.get()}", errors.get())
+        assertNull("Concurrent release/isModelLoaded threw: ${errors.get()}", errors.get())
     }
 
     @Test
@@ -375,22 +339,17 @@ class LlmServiceTest {
     // ========================================================
 
     @Test
-    fun multipleLoadModel_secondCallReplacesAgentEngine() {
+    fun multipleLoadModel_secondLoadReplacesModel() {
         service.loadModel("/valid/first.gguf", 2048)
-        val firstEngine = service.getAgentEngine()
+        assertTrue(service.isModelLoaded())
 
         service.loadModel("/valid/second.gguf", 4096)
-        val secondEngine = service.getAgentEngine()
-
-        assertNotNull(firstEngine)
-        assertNotNull(secondEngine)
-        assertNotSame("Second load should create new AgentEngine", firstEngine, secondEngine)
+        assertTrue(service.isModelLoaded())
     }
 
     @Test
-    fun multipleLoadModel_failureDoesNotClearAgentEngine() {
+    fun multipleLoadModel_failureDoesNotRestoreModel() {
         service.loadModel("/path/model.gguf", 2048)
-        assertNotNull(service.getAgentEngine())
         assertTrue(service.isModelLoaded())
 
         val result = service.loadModel("/path/to/bad_file.bin", 2048)
@@ -404,7 +363,6 @@ class LlmServiceTest {
         service.releaseModel()
 
         assertFalse(service.isModelLoaded())
-        assertNull(service.getAgentEngine())
     }
 
     @Test

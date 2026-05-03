@@ -1,295 +1,284 @@
 package com.agent.aios.ui.viewmodel
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.agent.aios.AIOSApp
-import com.agent.aios.AgentStep
-import com.agent.aios.data.ConversationMessage
-import com.agent.aios.data.ConversationStore
-import com.agent.aios.data.model.ModelFileManager
+import com.agent.aios.data.llm.LlmRepositoryImpl
+import com.agent.aios.domain.model.AgentStep
+import com.agent.aios.domain.model.ConfirmationRequest
+import com.agent.aios.domain.model.ConversationMessage
+import com.agent.aios.domain.model.Message
+import com.agent.aios.domain.model.ModelInfo
+import com.agent.aios.domain.model.ServiceState
+import com.agent.aios.domain.repository.ConversationRepository
+import com.agent.aios.domain.repository.LlmRepository
+import com.agent.aios.domain.repository.ModelRepository
+import com.agent.aios.domain.repository.SettingsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.net.Uri
 import java.io.File
+import javax.inject.Inject
 
-data class Message(
-    val role: String,
-    val text: String,
-    val toolName: String = "",
-    val toolArgs: String = "",
-    val toolResult: String = "",
+data class ChatUiState(
+    val messages: List<Message> = emptyList(),
+    val inputText: String = "",
+    val models: List<ModelInfo> = emptyList(),
+    val isModelLoaded: Boolean = false,
+    val isGenerating: Boolean = false,
+    val pendingConfirmation: ConfirmationRequest? = null,
+    val isImporting: Boolean = false,
+    val currentGeneratingText: String = "",
+    val tokenCount: Int = 0,
+    val elapsedMs: Long = 0L,
+    val contextUsage: String = "",
+    val serviceState: ServiceState = ServiceState.DISCONNECTED,
 )
 
-data class ModelInfo(
-    val name: String,
-    val size: Long,
-    val path: String,
-)
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    private val llmRepositoryImpl: LlmRepositoryImpl,
+    private val modelRepository: ModelRepository,
+    private val conversationRepository: ConversationRepository,
+    private val settingsRepository: SettingsRepository,
+) : ViewModel() {
 
-data class ConfirmationRequest(
-    val toolName: String,
-    val args: String,
-    val risk: String,
-    val createdAtMs: Long = System.currentTimeMillis(),
-    val timeoutMs: Long = 60000L,
-)
+    @Inject
+    lateinit var llmRepository: LlmRepository
 
-class ChatViewModelFactory(private val app: AIOSApp) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return ChatViewModel(app) as T
-    }
-}
+    val updateAvailable: StateFlow<Boolean?> get() = llmRepository.updateAvailable
+    val latestVersion: StateFlow<String> get() = llmRepository.latestVersion
 
-class ChatViewModel(private val app: AIOSApp) : ViewModel() {
+    fun getModelInfo(): String = llmRepository.getModelInfo()
+    fun releaseModel() = llmRepository.releaseModel()
 
-    private val modelFileManager = ModelFileManager(app)
-    private val conversationStore by lazy { ConversationStore(app) }
-
-    private val _messages = MutableStateFlow<List<Message>>(emptyList())
-    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
-
-    private val _inputText = MutableStateFlow("")
-    val inputText: StateFlow<String> = _inputText.asStateFlow()
-
-    private val _models = MutableStateFlow<List<ModelInfo>>(emptyList())
-    val models: StateFlow<List<ModelInfo>> = _models.asStateFlow()
-
-    private val _isModelLoaded = MutableStateFlow(false)
-    val isModelLoaded: StateFlow<Boolean> = _isModelLoaded.asStateFlow()
-
-    private val _isGenerating = MutableStateFlow(false)
-    val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
-
-    private val _pendingConfirmation = MutableStateFlow<ConfirmationRequest?>(null)
-    val pendingConfirmation: StateFlow<ConfirmationRequest?> = _pendingConfirmation.asStateFlow()
-
-    private val _isImporting = MutableStateFlow(false)
-    val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
-
-    private val _currentGeneratingText = MutableStateFlow("")
-    val currentGeneratingText: StateFlow<String> = _currentGeneratingText.asStateFlow()
-
-    private val _tokenCount = MutableStateFlow(0)
-    val tokenCount: StateFlow<Int> = _tokenCount.asStateFlow()
-
-    private val _elapsedMs = MutableStateFlow(0L)
-    val elapsedMs: StateFlow<Long> = _elapsedMs.asStateFlow()
-
-    private val _contextUsage = MutableStateFlow("")
-    val contextUsage: StateFlow<String> = _contextUsage.asStateFlow()
-
-    val serviceState = app.serviceState
-        .stateIn(viewModelScope, SharingStarted.Eagerly, AIOSApp.ServiceState.DISCONNECTED)
+    private val _uiState = MutableStateFlow(ChatUiState())
+    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var generateStartTime = 0L
 
     init {
         loadPersistedConversation()
         viewModelScope.launch {
-            app.tokenFlow.collect { token ->
-                _currentGeneratingText.value += token
+            llmRepository.tokenStream.collect { token ->
+                _uiState.value = _uiState.value.copy(
+                    currentGeneratingText = _uiState.value.currentGeneratingText + token,
+                )
             }
         }
         viewModelScope.launch {
-            app.agentStepFlow.collect { step ->
-                if (step.type == "confirmation_required") {
-                    _pendingConfirmation.value = ConfirmationRequest(
-                        toolName = step.toolName,
-                        args = step.toolArgs,
-                        risk = step.riskLevel,
-                    )
-                } else if (step.type == "thinking_start") {
-                    _currentGeneratingText.value = ""
-                } else if (step.type == "thinking_end") {
-                    _currentGeneratingText.value = ""
-                } else {
-                    val msg = when (step.type) {
-                        "thought" -> Message("agent_think", step.content)
-                        "action" -> Message("agent_action", step.content, step.toolName, step.toolArgs)
-                        "observation" -> Message("agent_obs", step.toolResult, step.toolName, toolResult = step.toolResult)
-                        "answer" -> Message("agent_answer", step.content)
-                        else -> Message("system", step.content)
-                    }
-                    _messages.value = _messages.value + msg
-                    if (step.type in listOf("action", "observation", "answer")) {
-                        persistAllMessages()
-                    }
-                }
+            llmRepository.agentStepStream.collect { step ->
+                handleAgentStep(step)
+            }
+        }
+        viewModelScope.launch {
+            llmRepository.serviceState.collect { state ->
+                _uiState.value = _uiState.value.copy(serviceState = state)
             }
         }
         refreshModels()
         tryAutoLoadModel()
     }
 
-    private fun loadPersistedConversation() {
-        val persisted = conversationStore.load()
-        if (persisted.isNotEmpty()) {
-            val restored = persisted.map { msg ->
-                Message(role = msg.role, text = msg.content)
+    private fun handleAgentStep(step: AgentStep) {
+        if (step.type == "confirmation_required") {
+            _uiState.value = _uiState.value.copy(
+                pendingConfirmation = ConfirmationRequest(
+                    toolName = step.toolName,
+                    args = step.toolArgs,
+                    risk = step.riskLevel,
+                ),
+            )
+        } else if (step.type == "thinking_start") {
+            _uiState.value = _uiState.value.copy(currentGeneratingText = "")
+        } else if (step.type == "thinking_end") {
+            _uiState.value = _uiState.value.copy(currentGeneratingText = "")
+        } else {
+            val msg =
+                when (step.type) {
+                    "thought" -> Message("agent_think", step.content)
+                    "action" -> Message("agent_action", step.content, step.toolName, step.toolArgs)
+                    "observation" -> Message("agent_obs", step.toolResult, step.toolName, toolResult = step.toolResult)
+                    "answer" -> Message("agent_answer", step.content)
+                    else -> Message("system", step.content)
+                }
+            _uiState.value = _uiState.value.copy(
+                messages = _uiState.value.messages + msg,
+            )
+            if (step.type in listOf("action", "observation", "answer")) {
+                persistAllMessages()
             }
-            _messages.value = restored
+        }
+    }
+
+    private fun loadPersistedConversation() {
+        val persisted = conversationRepository.load()
+        if (persisted.isNotEmpty()) {
+            val restored = persisted.map { msg -> Message(role = msg.role, text = msg.content) }
+            _uiState.value = _uiState.value.copy(messages = restored)
             Log.i("ChatVM", "Restored ${restored.size} messages from disk")
         }
     }
 
     private fun persistMessage(role: String, content: String) {
         viewModelScope.launch {
-            conversationStore.appendMessage(role, content)
+            conversationRepository.appendMessage(role, content)
         }
     }
 
     private fun persistAllMessages() {
         viewModelScope.launch {
-            val msgs = _messages.value.map { msg ->
+            val msgs = _uiState.value.messages.map { msg ->
                 ConversationMessage(role = msg.role, content = msg.text)
             }
-            conversationStore.save(msgs)
+            conversationRepository.save(msgs)
         }
     }
 
     private fun updateContextUsage() {
-        val svc = app.llmService ?: return
-        _contextUsage.value = svc.getContextUsage()
+        _uiState.value = _uiState.value.copy(contextUsage = llmRepository.getContextUsage())
     }
 
     fun updateInput(text: String) {
-        _inputText.value = text
+        _uiState.value = _uiState.value.copy(inputText = text)
     }
 
     fun refreshModels() {
-        _models.value = modelFileManager.getAvailableModels()
+        _uiState.value = _uiState.value.copy(models = modelRepository.scanModels())
     }
 
     fun restoreModel(name: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                modelFileManager.restoreModel(name)
-            }
+            val success = withContext(Dispatchers.IO) { modelRepository.restoreModel(name) }
             if (success) refreshModels()
             onResult(success)
         }
     }
 
     private fun tryAutoLoadModel() {
-        if (app.llmService?.isModelLoaded() == true) {
-            _isModelLoaded.value = true
+        if (llmRepository.isModelLoaded()) {
+            _uiState.value = _uiState.value.copy(isModelLoaded = true)
             return
         }
         viewModelScope.launch {
             try {
-                val savedPath = app.settingsRepository.lastModelPath.first()
+                val savedPath = settingsRepository.lastModelPath.first()
                 if (savedPath.isBlank()) return@launch
                 val file = File(savedPath)
                 if (!file.exists()) {
-                    app.settingsRepository.clearLastModelPath()
+                    settingsRepository.clearLastModelPath()
                     return@launch
                 }
                 Log.i("ChatVM", "Auto-loading model: $savedPath")
                 loadModel(savedPath)
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
     fun loadModel(path: String) {
-        _isGenerating.value = true
+        _uiState.value = _uiState.value.copy(isGenerating = true)
         viewModelScope.launch {
-            val contextSize = runCatching {
-                app.settingsRepository.contextSize.first()
-            }.getOrNull() ?: 2048
-            app.loadModel(path, contextSize) { success ->
-                viewModelScope.launch {
-                    _isModelLoaded.value = success
-                    _isGenerating.value = false
-                    if (success) {
-                        viewModelScope.launch {
-                            app.settingsRepository.setLastModelPath(path)
-                        }
-                    } else {
-                        _messages.value = _messages.value + Message("system", "Failed to load model. Check if the file is a valid GGUF.")
-                    }
-                }
+            val contextSize = runCatching { settingsRepository.contextSize.first() }.getOrNull() ?: 2048
+            val success = llmRepository.loadModel(path, contextSize)
+            _uiState.value = _uiState.value.copy(
+                isModelLoaded = success,
+                isGenerating = false,
+            )
+            if (success) {
+                viewModelScope.launch { settingsRepository.setLastModelPath(path) }
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + Message("system", "Failed to load model. Check if the file is a valid GGUF."),
+                )
             }
         }
     }
 
     fun sendMessage() {
-        val text = _inputText.value.trim()
-        if (text.isEmpty() || _isGenerating.value) return
-        _inputText.value = ""
-        _messages.value = _messages.value + Message("user", text)
-        persistMessage("user", text)
-        _isGenerating.value = true
-        _currentGeneratingText.value = ""
-        _tokenCount.value = 0
+        val text = _uiState.value.inputText.trim()
+        if (text.isEmpty() || _uiState.value.isGenerating) return
+        _uiState.value = _uiState.value.copy(
+            inputText = "",
+            messages = _uiState.value.messages + Message("user", text),
+            isGenerating = true,
+            currentGeneratingText = "",
+            tokenCount = 0,
+        )
         generateStartTime = System.currentTimeMillis()
+        persistMessage("user", text)
 
-        app.runAgent(text) { steps ->
-            _isGenerating.value = false
-            Log.i("ChatVM", "Agent completed with ${steps.size} steps")
-            _elapsedMs.value = System.currentTimeMillis() - generateStartTime
+        llmRepositoryImpl.runAgent(text) { steps ->
+            _uiState.value = _uiState.value.copy(isGenerating = false)
+            _uiState.value = _uiState.value.copy(
+                elapsedMs = System.currentTimeMillis() - generateStartTime,
+            )
             updateContextUsage()
             persistAllMessages()
         }
     }
 
     fun clearConversation() {
-        _messages.value = emptyList()
-        conversationStore.clear()
-        app.llmService?.resetContext()
-        _contextUsage.value = ""
+        _uiState.value = _uiState.value.copy(messages = emptyList(), contextUsage = "")
+        conversationRepository.clear()
+        llmRepository.resetContext()
     }
 
     fun approveTool() {
-        val req = _pendingConfirmation.value ?: return
-        _pendingConfirmation.value = null
-        _messages.value = _messages.value + Message("system", "Allowed: ${req.toolName}")
-        app.resolveConfirmation(true)
+        val req = _uiState.value.pendingConfirmation ?: return
+        _uiState.value = _uiState.value.copy(
+            pendingConfirmation = null,
+            messages = _uiState.value.messages + Message("system", "Allowed: ${req.toolName}"),
+        )
+        llmRepository.resolveConfirmation(true)
     }
 
     fun denyTool() {
-        val req = _pendingConfirmation.value ?: return
-        _pendingConfirmation.value = null
-        _messages.value = _messages.value + Message("system", "Denied: ${req.toolName}")
-        app.resolveConfirmation(false)
+        val req = _uiState.value.pendingConfirmation ?: return
+        _uiState.value = _uiState.value.copy(
+            pendingConfirmation = null,
+            messages = _uiState.value.messages + Message("system", "Denied: ${req.toolName}"),
+        )
+        llmRepository.resolveConfirmation(false)
     }
 
     fun cancelGeneration() {
-        app.cancelInference()
-        _isGenerating.value = false
-        _currentGeneratingText.value = ""
-        _pendingConfirmation.value = null
+        llmRepository.cancelInference()
+        _uiState.value = _uiState.value.copy(
+            isGenerating = false,
+            currentGeneratingText = "",
+            pendingConfirmation = null,
+        )
     }
 
     fun getTokensPerSecond(): Float {
-        val tokens = _tokenCount.value
-        val elapsed = _elapsedMs.value
+        val tokens = _uiState.value.tokenCount
+        val elapsed = _uiState.value.elapsedMs
         if (elapsed <= 0) return 0f
         return (tokens.toFloat() / elapsed) * 1000f
     }
 
     fun importModelFromUri(uri: Uri, fileName: String) {
-        if (_isImporting.value) return
-        _isImporting.value = true
+        if (_uiState.value.isImporting) return
+        _uiState.value = _uiState.value.copy(isImporting = true)
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    modelFileManager.importModelFromUri(uri, fileName)
+                    modelRepository.importModelFromUri(uri, fileName)
                 }
                 refreshModels()
             } catch (e: Exception) {
                 Log.e("ChatVM", "Model import failed: ${e.message}")
             } finally {
-                _isImporting.value = false
+                _uiState.value = _uiState.value.copy(isImporting = false)
             }
         }
     }

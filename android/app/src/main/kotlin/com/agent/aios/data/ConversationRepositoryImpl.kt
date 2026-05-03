@@ -2,24 +2,26 @@ package com.agent.aios.data
 
 import android.content.Context
 import android.util.Log
+import com.agent.aios.domain.model.ConversationMessage
+import com.agent.aios.domain.repository.ConversationRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 
-data class ConversationMessage(
-    val role: String,
-    val content: String,
-)
-
-class ConversationStore(private val context: Context) {
-
+@Singleton
+class ConversationRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : ConversationRepository {
     private val TAG = "AIOS-ConvStore"
     private val convDir = File(context.filesDir, "conversations")
 
     private val activeFile: File
         get() = File(convDir, "active.json")
 
-    fun save(messages: List<ConversationMessage>) {
+    override fun save(messages: List<ConversationMessage>) {
         try {
             convDir.mkdirs()
             val arr = JSONArray()
@@ -35,7 +37,7 @@ class ConversationStore(private val context: Context) {
         }
     }
 
-    fun load(): List<ConversationMessage> {
+    override fun load(): List<ConversationMessage> {
         try {
             if (!activeFile.exists()) return emptyList()
             val text = activeFile.readText()
@@ -43,10 +45,12 @@ class ConversationStore(private val context: Context) {
             val messages = mutableListOf<ConversationMessage>()
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
-                messages.add(ConversationMessage(
-                    role = obj.getString("role"),
-                    content = obj.getString("content"),
-                ))
+                messages.add(
+                    ConversationMessage(
+                        role = obj.getString("role"),
+                        content = obj.getString("content"),
+                    ),
+                )
             }
             return messages
         } catch (e: Exception) {
@@ -55,7 +59,7 @@ class ConversationStore(private val context: Context) {
         }
     }
 
-    fun clear() {
+    override fun clear() {
         try {
             if (activeFile.exists()) activeFile.delete()
         } catch (e: Exception) {
@@ -63,7 +67,10 @@ class ConversationStore(private val context: Context) {
         }
     }
 
-    fun appendMessage(role: String, content: String) {
+    override fun appendMessage(
+        role: String,
+        content: String,
+    ) {
         val existing = load().toMutableList()
         existing.add(ConversationMessage(role, content))
         save(existing)

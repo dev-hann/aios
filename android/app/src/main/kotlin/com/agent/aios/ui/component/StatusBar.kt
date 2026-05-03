@@ -9,7 +9,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -20,42 +19,45 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.agent.aios.AIOSApp
+import com.agent.aios.domain.model.ServiceState
 import com.agent.aios.ui.theme.AIOSColors
 
 @Composable
 fun StatusBar(
-    state: AIOSApp.ServiceState,
+    state: ServiceState,
     modifier: Modifier = Modifier,
 ) {
-    val (color, label) = when (state) {
-        AIOSApp.ServiceState.DISCONNECTED -> AIOSColors.StatusIdle to "Offline"
-        AIOSApp.ServiceState.CONNECTING -> AIOSColors.StatusRunning to "Connecting"
-        AIOSApp.ServiceState.READY -> AIOSColors.StatusIdle to "Ready"
-        AIOSApp.ServiceState.MODEL_LOADED -> AIOSColors.StatusReady to "Online"
-        AIOSApp.ServiceState.GENERATING -> AIOSColors.StatusRunning to "Generating"
-        AIOSApp.ServiceState.AGENT_RUNNING -> AIOSColors.Accent to "Agent Active"
-    }
+    val (color, label) =
+        when (state) {
+            ServiceState.DISCONNECTED -> AIOSColors.StatusIdle to "Offline"
+            ServiceState.CONNECTING -> AIOSColors.StatusRunning to "Connecting"
+            ServiceState.READY -> AIOSColors.StatusIdle to "Ready"
+            ServiceState.MODEL_LOADED -> AIOSColors.StatusReady to "Online"
+            ServiceState.GENERATING -> AIOSColors.StatusRunning to "Generating"
+            ServiceState.AGENT_RUNNING -> AIOSColors.Accent to "Agent Active"
+        }
 
-    val isAnimating = state == AIOSApp.ServiceState.GENERATING ||
-            state == AIOSApp.ServiceState.AGENT_RUNNING ||
-            state == AIOSApp.ServiceState.CONNECTING
+    val isAnimating =
+        state == ServiceState.GENERATING ||
+            state == ServiceState.AGENT_RUNNING ||
+            state == ServiceState.CONNECTING
 
     val infiniteTransition = rememberInfiniteTransition()
     val pulse by infiniteTransition.animateFloat(
         initialValue = 0.4f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(800),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "pulse",
     )
 
     val animatedColor by animateColorAsState(
         targetValue = color,
         animationSpec = tween(300),
-        label = "statusColor"
+        label = "statusColor",
     )
 
     Row(
@@ -64,12 +66,13 @@ fun StatusBar(
         modifier = modifier,
     ) {
         androidx.compose.foundation.layout.Box(
-            modifier = Modifier
-                .size(7.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isAnimating) animatedColor.copy(alpha = pulse) else animatedColor
-                )
+            modifier =
+                Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isAnimating) animatedColor.copy(alpha = pulse) else animatedColor,
+                    ),
         )
         Text(
             text = label,

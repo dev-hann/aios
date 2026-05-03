@@ -1,47 +1,50 @@
 package com.agent.aios.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.agent.aios.AIOSApp
-import com.agent.aios.settings.SettingsRepository
+import com.agent.aios.domain.repository.SettingsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class SettingsViewModelFactory(private val app: AIOSApp) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return SettingsViewModel(app.settingsRepository) as T
-    }
-}
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val repo: SettingsRepository,
+) : ViewModel() {
+    val contextSize: StateFlow<Int> =
+        repo.contextSize
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_CONTEXT_SIZE)
 
-class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
+    val maxTokensChat: StateFlow<Int> =
+        repo.maxTokensChat
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_MAX_TOKENS_CHAT)
 
-    val contextSize: StateFlow<Int> = repo.contextSize
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_CONTEXT_SIZE)
+    val maxTokensAgent: StateFlow<Int> =
+        repo.maxTokensAgent
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_MAX_TOKENS_AGENT)
 
-    val maxTokensChat: StateFlow<Int> = repo.maxTokensChat
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_MAX_TOKENS_CHAT)
+    val temperature: StateFlow<Float> =
+        repo.temperature
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_TEMPERATURE)
 
-    val maxTokensAgent: StateFlow<Int> = repo.maxTokensAgent
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_MAX_TOKENS_AGENT)
+    val topK: StateFlow<Int> =
+        repo.topK
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_TOP_K)
 
-    val temperature: StateFlow<Float> = repo.temperature
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_TEMPERATURE)
+    val topP: StateFlow<Float> =
+        repo.topP
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_TOP_P)
 
-    val topK: StateFlow<Int> = repo.topK
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_TOP_K)
+    val agentMaxIterations: StateFlow<Int> =
+        repo.agentMaxIterations
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_AGENT_MAX_ITERATIONS)
 
-    val topP: StateFlow<Float> = repo.topP
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_TOP_P)
-
-    val agentMaxIterations: StateFlow<Int> = repo.agentMaxIterations
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_AGENT_MAX_ITERATIONS)
-
-    val repeatPenalty: StateFlow<Float> = repo.repeatPenalty
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_REPEAT_PENALTY)
+    val repeatPenalty: StateFlow<Float> =
+        repo.repeatPenalty
+            .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsRepository.DEFAULT_REPEAT_PENALTY)
 
     fun updateContextSize(value: Int) {
         viewModelScope.launch { repo.setContextSize(value) }
@@ -52,7 +55,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
     }
 
     fun updateMaxTokensAgent(value: Int) {
-        viewModelScope.launch { repo.setMaxTokensAgent(value) }
+        viewModelScope.launch { repo.setMaxTokensAgent(value.coerceIn(128, 1024)) }
     }
 
     fun updateTemperature(value: Float) {
@@ -68,7 +71,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
     }
 
     fun updateAgentMaxIterations(value: Int) {
-        viewModelScope.launch { repo.setAgentMaxIterations(value) }
+        viewModelScope.launch { repo.setAgentMaxIterations(value.coerceIn(2, 20)) }
     }
 
     fun updateRepeatPenalty(value: Float) {

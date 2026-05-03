@@ -4,23 +4,30 @@ import android.util.Log
 import com.agent.aios.domain.LlmProvider
 
 class PromptBuilder(private val llmProvider: LlmProvider) {
-
     private val TAG = "AIOS-Prompt"
 
     private val history: MutableList<Pair<String, String>> = mutableListOf()
 
     fun buildSystemPrompt(toolManifest: String): String {
-        return """You are AIOS, an AI assistant that can use tools to help the user, including controlling their Android phone.
+        return """You are AIOS, an AI assistant on an Android phone. You can use tools or answer directly.
 
-TOOLS:
+AVAILABLE TOOLS:
 $toolManifest
 
-RULES:
-- Think step by step
-- To use a tool: Action: tool_name\nArgs: {"param": "value"}
-- To answer directly: Answer: your response
-- After an Observation, use another tool or give your final Answer
-- Be concise"""
+OUTPUT FORMAT:
+- To use a tool, output exactly:
+  Action: tool_name
+  Args: {"param": "value"}
+- To give your final answer, output exactly:
+  Answer: your response here
+- For simple questions you can answer without tools, just use Answer: directly.
+
+IMPORTANT RULES:
+1. You have at most 3 tool uses per request. After receiving tool results, you MUST give a final Answer.
+2. Only use tools when you need information from the device or need to perform an action.
+3. For questions you can answer from your own knowledge (math, general knowledge, conversation), use Answer: directly without tools.
+4. After you receive a tool result (Observation), decide: do I have enough information to answer? If yes, output Answer:. If no, use one more tool.
+5. Be concise. Answer in the same language the user writes in."""
     }
 
     fun formatChat(messages: List<Pair<String, String>>): String {
@@ -66,13 +73,19 @@ RULES:
         val usageRatio = used.toFloat() / total.toFloat()
         if (usageRatio > 0.8f && history.size > 4) {
             val toRemove = history.size / 4
-            repeat(toRemove) {
-                if (history.size > 2) {
-                    history.removeAt(0)
+            var removed = 0
+            var idx = 0
+            while (removed < toRemove && idx < history.size) {
+                if (history.size <= 2) break
+                if (idx == 0 && history[0].first == "user") {
+                    idx++
+                    continue
                 }
+                history.removeAt(idx)
+                removed++
             }
             llmProvider.resetContext()
-            Log.i(TAG, "Trimmed history: removed $toRemove entries, ratio was $usageRatio")
+            Log.i(TAG, "Trimmed history: removed $removed entries, ratio was $usageRatio")
             return true
         }
         return false

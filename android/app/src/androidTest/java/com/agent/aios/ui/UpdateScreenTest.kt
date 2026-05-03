@@ -22,7 +22,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class UpdateScreenTest {
-
     @get:Rule
     val composeRule = createComposeRule()
 
@@ -30,13 +29,17 @@ class UpdateScreenTest {
 
     @Before
     fun setup() {
-        val app = InstrumentationRegistry.getInstrumentation()
-            .targetContext.applicationContext as Application
+        val app =
+            InstrumentationRegistry.getInstrumentation()
+                .targetContext.applicationContext as Application
         viewModel = UpdateViewModel(app)
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun setFlow(fieldName: String, value: Any?) {
+    private fun setFlow(
+        fieldName: String,
+        value: Any?,
+    ) {
         val field = UpdateViewModel::class.java.getDeclaredField(fieldName)
         field.isAccessible = true
         (field.get(viewModel) as MutableStateFlow<Any?>).value = value
@@ -87,11 +90,14 @@ class UpdateScreenTest {
     @Test
     fun upToDate_showsCheckmarkAndText() {
         setFlow("_status", UpdateStatus.NOT_AVAILABLE)
-        setFlow("_updateInfo", testUpdateInfo(
-            isUpdateAvailable = false,
-            currentVersion = "1.1.0",
-            latestVersion = "1.1.0",
-        ))
+        setFlow(
+            "_updateInfo",
+            testUpdateInfo(
+                isUpdateAvailable = false,
+                currentVersion = "1.1.0",
+                latestVersion = "1.1.0",
+            ),
+        )
         setContentWithTheme()
 
         composeRule.onNodeWithText("You're up to date!").assertIsDisplayed()
