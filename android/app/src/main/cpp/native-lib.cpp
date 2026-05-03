@@ -13,6 +13,9 @@
 
 constexpr int BATCH_SIZE = 512;
 constexpr int OVERFLOW_HEADROOM = 4;
+constexpr int N_THREADS_MIN = 2;
+constexpr int N_THREADS_MAX = 4;
+constexpr int N_THREADS_HEADROOM = 2;
 
 static llama_model *g_model = nullptr;
 static llama_context *g_ctx = nullptr;
@@ -31,12 +34,11 @@ static float g_repeat_penalty = 1.1f;
 
 static std::string g_cached_token_chars;
 static bool g_initialized = false;
+static llama_pos g_system_prompt_pos = 0;
 
-static std::vector<llama_token> g_kv_tokens;
-static llama_pos g_system_prompt_end = 0;
-
-static std::vector<uint8_t> g_cached_system_kv;
-static std::vector<llama_token> g_cached_system_tokens;
+static float g_load_progress = 0.0f;
+static int g_load_stage = 0;
+static std::string g_load_model_name;
 
 static void batch_clear() { g_batch.n_tokens = 0; }
 
@@ -50,48 +52,16 @@ static void batch_add(llama_token id, llama_pos pos, bool logits) {
     g_batch.n_tokens++;
 }
 
-struct PrefixResult {
-    int kv_keep;
-    int new_start_idx;
-};
-
-static PrefixResult find_common_prefix(const std::vector<llama_token> &new_tokens) {
-    if (g_kv_tokens.empty() || new_tokens.empty()) return {0, 0};
-
-    int kv_i = 0;
-    int new_i = 0;
-
-    llama_token bos = llama_vocab_bos(g_vocab);
-    if (g_kv_tokens[0] == bos && new_tokens[0] != bos) {
-        kv_i = 1;
-    }
-    if (new_tokens[0] == bos && g_kv_tokens[0] != bos) {
-        new_i = 1;
-    }
-
-    while (kv_i < (int)g_kv_tokens.size() && new_i < (int)new_tokens.size()) {
-        if (g_kv_tokens[kv_i] != new_tokens[new_i]) break;
-        kv_i++;
-        new_i++;
-    }
-
-    return {kv_i, new_i};
-}
-
 static void shift_context() {
-    const int n_discard = (g_current_pos - g_system_prompt_end) / 2;
+    const int n_discard = (g_current_pos - g_system_prompt_pos) / 2;
     if (n_discard <= 0) return;
-    LOGI("shift_context: discarding %d tokens (cur=%d, sys_end=%d, ctx=%d)",
-         n_discard, (int)g_current_pos, (int)g_system_prompt_end, g_n_ctx);
+    LOGI("shift_context: discard %d (cur=%d, sys=%d, ctx=%d)",
+         n_discard, (int)g_current_pos, (int)g_system_prompt_pos, g_n_ctx);
     llama_memory_t mem = llama_get_memory(g_ctx);
-    llama_memory_seq_rm(mem, 0, g_system_prompt_end, g_system_prompt_end + n_discard);
-    llama_memory_seq_add(mem, 0, g_system_prompt_end + n_discard, g_current_pos, -n_discard);
+    llama_memory_seq_rm(mem, 0, g_system_prompt_pos, g_system_prompt_pos + n_discard);
+    llama_memory_seq_add(mem, 0, g_system_prompt_pos + n_discard, g_current_pos, -n_discard);
     g_current_pos -= n_discard;
-
-    auto erase_end = g_kv_tokens.begin() + std::min<size_t>(g_system_prompt_end + n_discard, g_kv_tokens.size());
-    g_kv_tokens.erase(g_kv_tokens.begin() + g_system_prompt_end, erase_end);
-
-    LOGI("shift_context: done, pos=%d, kv_tokens=%zu", (int)g_current_pos, g_kv_tokens.size());
+    LOGI("shift_context: done, pos=%d", (int)g_current_pos);
 }
 
 static std::vector<llama_token> tokenize(const char *text, bool add_bos) {
@@ -100,10 +70,28 @@ static std::vector<llama_token> tokenize(const char *text, bool add_bos) {
         g_vocab, text, strlen(text), nullptr, 0, add_bos, true);
     if (n_tokens <= 0) return {};
     std::vector<llama_token> tokens(n_tokens);
-    llama_tokenize(
-        g_vocab, text, strlen(text),
-        tokens.data(), tokens.size(), add_bos, true);
+    llama_tokenize(g_vocab, text, strlen(text), tokens.data(), tokens.size(), add_bos, true);
     return tokens;
+}
+
+static int decode_tokens(const std::vector<llama_token> &tokens, llama_pos start_pos, bool last_logit) {
+    for (int i = 0; i < (int)tokens.size(); i += BATCH_SIZE) {
+        int cur_size = std::min((int)tokens.size() - i, BATCH_SIZE);
+        if (start_pos + i + cur_size >= g_n_ctx - OVERFLOW_HEADROOM) {
+            shift_context();
+        }
+        batch_clear();
+        for (int j = 0; j < cur_size; j++) {
+            bool want_logit = last_logit && (i + j == (int)tokens.size() - 1);
+            batch_add(tokens[i + j], start_pos + i + j, want_logit);
+        }
+        int rc = llama_decode(g_ctx, g_batch);
+        if (rc != 0) {
+            LOGE("decode_tokens: failed at offset %d (rc=%d)", i, rc);
+            return -1;
+        }
+    }
+    return 0;
 }
 
 static llama_sampler *create_sampler() {
@@ -145,45 +133,57 @@ Java_com_agent_aios_LlamaBridge_nativeInit(
     env->ReleaseStringUTFChars(nativeLibDir, dir);
     llama_backend_init();
     g_initialized = true;
-    LOGI("nativeInit: backend initialized");
+    LOGI("nativeInit: done");
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         JNIEnv *env, jobject, jstring model_path, jint context_size) {
-
     const char *path = env->GetStringUTFChars(model_path, nullptr);
     if (!path) return JNI_FALSE;
     LOGI("loadModel: %s (ctx=%d)", path, context_size);
+
+    g_load_progress = 0.0f;
+    g_load_stage = 0;
+    g_load_model_name = path;
 
     if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
     if (g_batch.token) { llama_batch_free(g_batch); g_batch = {}; }
     if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
     if (g_model) { llama_model_free(g_model); g_model = nullptr; g_vocab = nullptr; }
 
+    g_load_progress = 0.05f;
+    g_load_stage = 1;
+
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = 0;
     model_params.use_mmap = true;
     model_params.use_mlock = false;
+    model_params.progress_callback = [](float progress, void *) {
+        g_load_progress = 0.05f + progress * 0.75f;
+        return true;
+    };
 
     g_model = llama_model_load_from_file(path, model_params);
     env->ReleaseStringUTFChars(model_path, path);
 
     if (!g_model) {
-        LOGE("loadModel: failed");
+        LOGE("loadModel: model load failed");
+        g_load_stage = -1;
         return JNI_FALSE;
     }
 
+    g_load_progress = 0.8f;
+    g_load_stage = 2;
     g_vocab = llama_model_get_vocab(g_model);
 
-    int cpu_count = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
-    if (cpu_count <= 0) cpu_count = 4;
-    g_n_threads = std::max(2, std::min(cpu_count * 3 / 5, 8));
-
+    g_n_threads = std::max(N_THREADS_MIN, std::min(N_THREADS_MAX,
+        (int)sysconf(_SC_NPROCESSORS_ONLN) - N_THREADS_HEADROOM));
     int n_layers = llama_model_n_layer(g_model);
     if (n_layers <= 24) g_n_threads = std::min(g_n_threads, 4);
 
     g_n_ctx = context_size;
+    g_load_progress = 0.85f;
 
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = context_size;
@@ -198,394 +198,178 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         llama_model_free(g_model);
         g_model = nullptr;
         g_vocab = nullptr;
+        g_load_stage = -1;
         return JNI_FALSE;
     }
+
+    g_load_progress = 0.95f;
+    g_load_stage = 3;
 
     g_batch = llama_batch_init(BATCH_SIZE, 0, 1);
     g_sampler = create_sampler();
     g_current_pos = 0;
     g_cached_token_chars.clear();
-    g_kv_tokens.clear();
-    g_system_prompt_end = 0;
+    g_system_prompt_pos = 0;
 
-    LOGI("loadModel: done (ctx=%d, threads=%d, layers=%d)",
-         context_size, g_n_threads, n_layers);
+    g_load_progress = 1.0f;
+    g_load_stage = 4;
+
+    LOGI("loadModel: done (ctx=%d, threads=%d, layers=%d)", context_size, g_n_threads, n_layers);
     return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT jfloat JNICALL
+Java_com_agent_aios_LlamaBridge_nativeGetLoadProgress(JNIEnv *, jobject) { return g_load_progress; }
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_agent_aios_LlamaBridge_nativeGetLoadStage(JNIEnv *, jobject) { return g_load_stage; }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_agent_aios_LlamaBridge_nativeGetLoadModelName(JNIEnv *env, jobject) {
+    if (g_load_model_name.empty()) return env->NewStringUTF("");
+    size_t slash = g_load_model_name.find_last_of('/');
+    std::string name = (slash != std::string::npos) ? g_load_model_name.substr(slash + 1) : g_load_model_name;
+    return env->NewStringUTF(name.c_str());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeFormatChat(
         JNIEnv *env, jobject, jobjectArray roles, jobjectArray contents) {
-
     if (!g_model) return env->NewStringUTF("");
 
     jsize len = env->GetArrayLength(roles);
     if (len == 0) return env->NewStringUTF("");
 
-    std::vector<std::string> role_strings;
-    std::vector<std::string> content_strings;
-    role_strings.reserve(len);
-    content_strings.reserve(len);
-
+    std::vector<std::string> role_strs, content_strs;
     for (jsize i = 0; i < len; i++) {
-        auto *role_str = static_cast<jstring>(env->GetObjectArrayElement(roles, i));
-        auto *content_str = static_cast<jstring>(env->GetObjectArrayElement(contents, i));
-
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-            if (role_str) env->DeleteLocalRef(role_str);
-            if (content_str) env->DeleteLocalRef(content_str);
-            continue;
-        }
-
-        if (!role_str || !content_str) {
-            if (role_str) env->DeleteLocalRef(role_str);
-            if (content_str) env->DeleteLocalRef(content_str);
-            continue;
-        }
-
-        const char *role = env->GetStringUTFChars(role_str, nullptr);
-        const char *content = env->GetStringUTFChars(content_str, nullptr);
-
-        if (role && content) {
-            role_strings.emplace_back(role);
-            content_strings.emplace_back(content);
-        }
-
-        if (role) env->ReleaseStringUTFChars(role_str, role);
-        if (content) env->ReleaseStringUTFChars(content_str, content);
-        env->DeleteLocalRef(role_str);
-        env->DeleteLocalRef(content_str);
+        auto *r = static_cast<jstring>(env->GetObjectArrayElement(roles, i));
+        auto *c = static_cast<jstring>(env->GetObjectArrayElement(contents, i));
+        if (env->ExceptionCheck()) { env->ExceptionClear(); continue; }
+        if (!r || !c) continue;
+        const char *rv = env->GetStringUTFChars(r, nullptr);
+        const char *cv = env->GetStringUTFChars(c, nullptr);
+        if (rv && cv) { role_strs.emplace_back(rv); content_strs.emplace_back(cv); }
+        if (rv) env->ReleaseStringUTFChars(r, rv);
+        if (cv) env->ReleaseStringUTFChars(c, cv);
+        env->DeleteLocalRef(r);
+        env->DeleteLocalRef(c);
     }
 
-    std::vector<llama_chat_message> messages;
-    messages.reserve(role_strings.size());
-    for (size_t i = 0; i < role_strings.size(); i++) {
-        messages.push_back({role_strings[i].c_str(), content_strings[i].c_str()});
+    std::vector<llama_chat_message> msgs;
+    for (size_t i = 0; i < role_strs.size(); i++) {
+        msgs.push_back({role_strs[i].c_str(), content_strs[i].c_str()});
     }
 
     std::vector<char> buf(4096);
-    int32_t res = llama_chat_apply_template(
-        nullptr, messages.data(), static_cast<int32_t>(messages.size()),
-        true, buf.data(), static_cast<int32_t>(buf.size()));
-
-    if (res < 0) {
-        LOGE("formatChat: template failed");
-        return env->NewStringUTF("");
-    }
-
-    if (res >= static_cast<int32_t>(buf.size())) {
+    int32_t res = llama_chat_apply_template(nullptr, msgs.data(), (int32_t)msgs.size(), true, buf.data(), (int32_t)buf.size());
+    if (res < 0) return env->NewStringUTF("");
+    if (res >= (int32_t)buf.size()) {
         buf.resize(res + 1);
-        messages.clear();
-        for (size_t i = 0; i < role_strings.size(); i++) {
-            messages.push_back({role_strings[i].c_str(), content_strings[i].c_str()});
-        }
-        llama_chat_apply_template(
-            nullptr, messages.data(), static_cast<int32_t>(messages.size()),
-            true, buf.data(), static_cast<int32_t>(buf.size()));
+        msgs.clear();
+        for (size_t i = 0; i < role_strs.size(); i++) msgs.push_back({role_strs[i].c_str(), content_strs[i].c_str()});
+        llama_chat_apply_template(nullptr, msgs.data(), (int32_t)msgs.size(), true, buf.data(), (int32_t)buf.size());
     }
-
     return env->NewStringUTF(std::string(buf.data(), res).c_str());
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_agent_aios_LlamaBridge_nativeProcessSystemPrompt(
+        JNIEnv *env, jobject, jstring prompt) {
+    if (!g_ctx || !g_model || !g_vocab) return -1;
+
+    const char *str = env->GetStringUTFChars(prompt, nullptr);
+    if (!str) return -1;
+    LOGI("processSystemPrompt: %zu chars (pos=%d/%d)", strlen(str), (int)g_current_pos, g_n_ctx);
+
+    g_cached_token_chars.clear();
+    if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
+    g_sampler = create_sampler();
+
+    bool add_bos = (g_current_pos == 0);
+    auto tokens = tokenize(str, add_bos);
+    env->ReleaseStringUTFChars(prompt, str);
+
+    if (tokens.empty()) { LOGE("processSystemPrompt: tokenize failed"); return -1; }
+    if ((int)tokens.size() >= g_n_ctx) { LOGE("processSystemPrompt: too many tokens"); return -1; }
+
+    if (decode_tokens(tokens, g_current_pos, true) != 0) return -1;
+
+    g_current_pos += (llama_pos)tokens.size();
+    g_system_prompt_pos = g_current_pos;
+
+    LOGI("processSystemPrompt: done (%zu tokens, pos=%d, sys=%d)",
+         tokens.size(), (int)g_current_pos, (int)g_system_prompt_pos);
+    return 0;
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_agent_aios_LlamaBridge_nativeProcessPrompt(
         JNIEnv *env, jobject, jstring prompt) {
-
     if (!g_ctx || !g_model || !g_vocab) return -1;
 
-    const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
-    if (!prompt_str) return -1;
-
-    LOGI("processPrompt: %zu chars (pos=%d/%d)",
-         strlen(prompt_str), (int)g_current_pos, g_n_ctx);
+    const char *str = env->GetStringUTFChars(prompt, nullptr);
+    if (!str) return -1;
+    LOGI("processPrompt: %zu chars (pos=%d/%d)", strlen(str), (int)g_current_pos, g_n_ctx);
 
     g_cached_token_chars.clear();
-    if (g_sampler) llama_sampler_free(g_sampler);
+    if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
     g_sampler = create_sampler();
 
     bool add_bos = (g_current_pos == 0);
-    auto tokens = tokenize(prompt_str, add_bos);
-    env->ReleaseStringUTFChars(prompt, prompt_str);
+    auto tokens = tokenize(str, add_bos);
+    env->ReleaseStringUTFChars(prompt, str);
 
-    if (tokens.empty()) {
-        LOGE("processPrompt: tokenization failed or empty prompt");
-        return -1;
-    }
+    if (tokens.empty()) { LOGE("processPrompt: tokenize failed"); return -1; }
+    if ((int)tokens.size() >= g_n_ctx) { LOGE("processPrompt: too many tokens"); return -1; }
 
-    if (static_cast<int>(tokens.size()) >= g_n_ctx) {
-        LOGE("processPrompt: tokens(%zu) >= ctx(%d)",
-             tokens.size(), g_n_ctx);
-        return -1;
-    }
+    if (decode_tokens(tokens, g_current_pos, false) != 0) return -1;
 
-    for (int i = 0; i < static_cast<int>(tokens.size()); i += BATCH_SIZE) {
-        int cur_size = std::min(static_cast<int>(tokens.size()) - i, BATCH_SIZE);
-
-        if (g_current_pos + cur_size >= g_n_ctx - OVERFLOW_HEADROOM) {
-            LOGW("processPrompt: context overflow approaching, shifting...");
-            shift_context();
-        }
-
-        batch_clear();
-        for (int j = 0; j < cur_size; j++) {
-            bool want_logit = (i + j == static_cast<int>(tokens.size()) - 1);
-            batch_add(tokens[i + j], g_current_pos + i + j, want_logit);
-        }
-
-        if (llama_decode(g_ctx, g_batch) != 0) {
-            LOGE("processPrompt: decode failed at offset %d", i);
-            return -1;
-        }
-    }
-
-    g_current_pos += static_cast<llama_pos>(tokens.size());
-    LOGI("processPrompt: done (pos=%d/%d, tokens=%zu)",
-         (int)g_current_pos, g_n_ctx, tokens.size());
+    g_current_pos += (llama_pos)tokens.size();
+    LOGI("processPrompt: done (pos=%d/%d, tokens=%zu)", (int)g_current_pos, g_n_ctx, tokens.size());
     return 0;
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_agent_aios_LlamaBridge_nativeProcessPromptIncremental(
         JNIEnv *env, jobject, jstring prompt) {
-
     if (!g_ctx || !g_model || !g_vocab) return -1;
 
-    const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
-    if (!prompt_str) return -1;
+    const char *str = env->GetStringUTFChars(prompt, nullptr);
+    if (!str) return -1;
+    LOGI("processPromptInc: %zu chars (reset KV, full decode)", strlen(str));
 
-    LOGI("processPromptInc: %zu chars (pos=%d/%d, kv_tokens=%zu)",
-         strlen(prompt_str), (int)g_current_pos, g_n_ctx, g_kv_tokens.size());
-
+    llama_memory_clear(llama_get_memory(g_ctx), false);
+    g_current_pos = 0;
+    g_system_prompt_pos = 0;
     g_cached_token_chars.clear();
-
-    bool add_bos = (g_current_pos == 0);
-    auto tokens = tokenize(prompt_str, add_bos);
-    env->ReleaseStringUTFChars(prompt, prompt_str);
-
-    if (tokens.empty()) {
-        LOGE("processPromptInc: tokenization failed");
-        return -1;
-    }
-
-    if (static_cast<int>(tokens.size()) >= g_n_ctx) {
-        LOGE("processPromptInc: tokens(%zu) >= ctx(%d)", tokens.size(), g_n_ctx);
-        return -1;
-    }
-
-    if (g_kv_tokens.empty()) {
-        if (!g_cached_system_kv.empty()) {
-            LOGI("processPromptInc: restoring cached system prompt (%zu bytes, %zu tokens)",
-                 g_cached_system_kv.size(), g_cached_system_tokens.size());
-            size_t restored = llama_state_seq_set_data_ext(
-                g_ctx, g_cached_system_kv.data(), g_cached_system_kv.size(), 0, 0);
-            if (restored == g_cached_system_kv.size()) {
-                g_kv_tokens = g_cached_system_tokens;
-                g_current_pos = (llama_pos)g_kv_tokens.size();
-                g_system_prompt_end = g_current_pos;
-                if (g_sampler) llama_sampler_free(g_sampler);
-                g_sampler = create_sampler();
-                LOGI("processPromptInc: restored (pos=%d, sys_end=%d, sampler=%s)",
-                     (int)g_current_pos, (int)g_system_prompt_end,
-                     g_sampler ? "ok" : "NULL");
-            } else {
-                LOGE("processPromptInc: cache restore failed (%zu/%zu), full decode (sampler=%s)",
-                     restored, g_cached_system_kv.size(),
-                     g_sampler ? "ok" : "NULL");
-                g_cached_system_kv.clear();
-                g_cached_system_tokens.clear();
-            }
-        }
-
-        if (g_kv_tokens.empty()) {
-            LOGI("processPromptInc: full decode (kv empty)");
-            if (g_sampler) llama_sampler_free(g_sampler);
-            g_sampler = create_sampler();
-
-            for (int i = 0; i < static_cast<int>(tokens.size()); i += BATCH_SIZE) {
-                int cur_size = std::min(static_cast<int>(tokens.size()) - i, BATCH_SIZE);
-                if (g_current_pos + cur_size >= g_n_ctx - OVERFLOW_HEADROOM) {
-                    shift_context();
-                }
-                batch_clear();
-                for (int j = 0; j < cur_size; j++) {
-                    bool want_logit = (i + j == static_cast<int>(tokens.size()) - 1);
-                    batch_add(tokens[i + j], g_current_pos + j, want_logit);
-                }
-                if (llama_decode(g_ctx, g_batch) != 0) {
-                    LOGE("processPromptInc: decode failed at offset %d", i);
-                    return -1;
-                }
-                g_current_pos += cur_size;
-            }
-
-            g_kv_tokens = tokens;
-            g_system_prompt_end = 0;
-            LOGI("processPromptInc: full done (pos=%d, kv=%zu)", (int)g_current_pos, g_kv_tokens.size());
-            return 0;
-        }
-    }
-
-    auto result = find_common_prefix(tokens);
-    int kv_keep = result.kv_keep;
-    int new_start_idx = result.new_start_idx;
-
-    LOGI("processPromptInc: prefix kv_keep=%d, new_start=%d", kv_keep, new_start_idx);
-
-    if (kv_keep < (int)g_kv_tokens.size()) {
-        llama_memory_t mem = llama_get_memory(g_ctx);
-        llama_memory_seq_rm(mem, 0, kv_keep, g_current_pos);
-        g_current_pos = kv_keep;
-        g_kv_tokens.resize(kv_keep);
-        if (g_system_prompt_end > 0 && kv_keep < (int)g_system_prompt_end) {
-            LOGW("processPromptInc: system_prompt_end reset (%d > kv_keep=%d)",
-                 (int)g_system_prompt_end, kv_keep);
-            g_system_prompt_end = 0;
-        }
-    }
-
-    int delta = (int)tokens.size() - new_start_idx;
-    if (delta <= 0) {
-        LOGI("processPromptInc: no new tokens");
-        return 0;
-    }
-
-    LOGI("processPromptInc: decoding %d new tokens (pos=%d)", delta, (int)g_current_pos);
-
-    for (int i = 0; i < delta; i += BATCH_SIZE) {
-        int cur_size = std::min(delta - i, BATCH_SIZE);
-        if (g_current_pos + cur_size >= g_n_ctx - OVERFLOW_HEADROOM) {
-            shift_context();
-        }
-        batch_clear();
-        for (int j = 0; j < cur_size; j++) {
-            bool want_logit = (i + j == delta - 1);
-            batch_add(tokens[new_start_idx + i + j], g_current_pos + j, want_logit);
-        }
-        if (llama_decode(g_ctx, g_batch) != 0) {
-            LOGE("processPromptInc: decode failed at offset %d", i);
-            return -1;
-        }
-        g_current_pos += cur_size;
-    }
-
-    g_kv_tokens.insert(g_kv_tokens.end(),
-                       tokens.begin() + new_start_idx, tokens.end());
-
-    LOGI("processPromptInc: done (pos=%d/%d, kv=%zu, delta=%d)",
-         (int)g_current_pos, g_n_ctx, g_kv_tokens.size(), delta);
-    return 0;
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_agent_aios_LlamaBridge_nativeSetSystemPromptPosition(JNIEnv *, jobject) {
-    if (g_system_prompt_end == 0) {
-        g_system_prompt_end = g_current_pos;
-        LOGI("system_prompt_end set to %d", (int)g_system_prompt_end);
-    }
-}
-
-extern "C" JNIEXPORT jint JNICALL
-Java_com_agent_aios_LlamaBridge_nativeProcessSystemPrompt(
-        JNIEnv *env, jobject, jstring prompt) {
-
-    if (!g_ctx || !g_model || !g_vocab) return -1;
-
-    const char *prompt_str = env->GetStringUTFChars(prompt, nullptr);
-    if (!prompt_str) return -1;
-
-    LOGI("processSystemPrompt: %zu chars (pos=%d/%d)",
-         strlen(prompt_str), (int)g_current_pos, g_n_ctx);
-
-    if (!g_cached_system_kv.empty()) {
-        LOGI("processSystemPrompt: already cached (%zu bytes)", g_cached_system_kv.size());
-        env->ReleaseStringUTFChars(prompt, prompt_str);
-        return 0;
-    }
-
-    g_cached_token_chars.clear();
-    if (g_sampler) llama_sampler_free(g_sampler);
+    if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
     g_sampler = create_sampler();
 
-    bool add_bos = (g_current_pos == 0);
-    auto tokens = tokenize(prompt_str, add_bos);
-    env->ReleaseStringUTFChars(prompt, prompt_str);
+    auto tokens = tokenize(str, true);
+    env->ReleaseStringUTFChars(prompt, str);
 
-    if (tokens.empty()) {
-        LOGE("processSystemPrompt: tokenization failed");
-        return -1;
-    }
+    if (tokens.empty()) { LOGE("processPromptInc: tokenize failed"); return -1; }
+    if ((int)tokens.size() >= g_n_ctx) { LOGE("processPromptInc: too many tokens"); return -1; }
 
-    if (static_cast<int>(tokens.size()) >= g_n_ctx) {
-        LOGE("processSystemPrompt: tokens(%zu) >= ctx(%d)", tokens.size(), g_n_ctx);
-        return -1;
-    }
+    if (decode_tokens(tokens, 0, true) != 0) return -1;
 
-    for (int i = 0; i < static_cast<int>(tokens.size()); i += BATCH_SIZE) {
-        int cur_size = std::min(static_cast<int>(tokens.size()) - i, BATCH_SIZE);
-        if (g_current_pos + cur_size >= g_n_ctx - OVERFLOW_HEADROOM) {
-            shift_context();
-        }
-        batch_clear();
-        for (int j = 0; j < cur_size; j++) {
-            bool want_logit = (i + j == static_cast<int>(tokens.size()) - 1);
-            batch_add(tokens[i + j], g_current_pos + j, want_logit);
-        }
-        if (llama_decode(g_ctx, g_batch) != 0) {
-            LOGE("processSystemPrompt: decode failed at offset %d", i);
-            return -1;
-        }
-        g_current_pos += cur_size;
-    }
-
-    g_kv_tokens = tokens;
-    g_system_prompt_end = g_current_pos;
-
-    size_t kv_size = llama_state_seq_get_size_ext(g_ctx, 0, 0);
-    if (kv_size > 0) {
-        g_cached_system_kv.resize(kv_size);
-        size_t written = llama_state_seq_get_data_ext(
-            g_ctx, g_cached_system_kv.data(), kv_size, 0, 0);
-        if (written == kv_size) {
-            g_cached_system_tokens = g_kv_tokens;
-            LOGI("processSystemPrompt: cached %zu bytes (%zu tokens)",
-                 kv_size, g_cached_system_tokens.size());
-        } else {
-            LOGE("processSystemPrompt: KV serialize failed (wrote %zu/%zu)", written, kv_size);
-            g_cached_system_kv.clear();
-        }
-    }
-
-    llama_memory_t mem = llama_get_memory(g_ctx);
-    llama_memory_clear(mem, false);
-    g_current_pos = 0;
-    g_kv_tokens.clear();
-    g_system_prompt_end = 0;
-    if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
-
+    g_current_pos = (llama_pos)tokens.size();
+    LOGI("processPromptInc: done (pos=%d, tokens=%zu)", (int)g_current_pos, tokens.size());
     return 0;
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGenerateOneToken(
-        JNIEnv *env, jobject) {
-
+Java_com_agent_aios_LlamaBridge_nativeGenerateOneToken(JNIEnv *env, jobject) {
     if (!g_ctx || !g_model || !g_vocab) return nullptr;
-    if (!g_sampler) {
-        LOGW("generateOneToken: g_sampler null, recreating...");
-        g_sampler = create_sampler();
-        if (!g_sampler) return nullptr;
-    }
+    if (!g_sampler) g_sampler = create_sampler();
+    if (!g_sampler) return nullptr;
 
-    if (g_current_pos >= g_n_ctx - OVERFLOW_HEADROOM) {
-        LOGW("generateOneToken: context full, shifting...");
-        shift_context();
-    }
+    if (g_current_pos >= g_n_ctx - OVERFLOW_HEADROOM) shift_context();
 
     llama_token new_token = llama_sampler_sample(g_sampler, g_ctx, -1);
 
     if (llama_vocab_is_eog(g_vocab, new_token)) {
-        LOGI("generateOneToken: EOG token %d", new_token);
+        LOGI("generateOneToken: EOG");
         return nullptr;
     }
 
@@ -596,7 +380,6 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateOneToken(
         return nullptr;
     }
     g_current_pos++;
-    g_kv_tokens.push_back(new_token);
 
     char buf[256];
     int n = llama_token_to_piece(g_vocab, new_token, buf, sizeof(buf), 0, true);
@@ -612,20 +395,22 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateOneToken(
     } else {
         result = env->NewStringUTF("");
     }
-
     return result;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_agent_aios_LlamaBridge_nativeReleaseModel(
-        JNIEnv *, jobject) {
+Java_com_agent_aios_LlamaBridge_nativeSetSystemPromptPosition(JNIEnv *, jobject) {
+    if (g_system_prompt_pos == 0) {
+        g_system_prompt_pos = g_current_pos;
+        LOGI("system_prompt_pos=%d", (int)g_system_prompt_pos);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_agent_aios_LlamaBridge_nativeReleaseModel(JNIEnv *, jobject) {
     g_current_pos = 0;
+    g_system_prompt_pos = 0;
     g_cached_token_chars.clear();
-    g_kv_tokens.clear();
-    g_system_prompt_end = 0;
-    g_cached_system_kv.clear();
-    g_cached_system_kv.shrink_to_fit();
-    g_cached_system_tokens.clear();
     if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
     if (g_batch.token) { llama_batch_free(g_batch); g_batch = {}; }
     if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
@@ -634,52 +419,41 @@ Java_com_agent_aios_LlamaBridge_nativeReleaseModel(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_agent_aios_LlamaBridge_nativeResetContext(
-        JNIEnv *, jobject) {
-    if (g_ctx) {
-        llama_memory_clear(llama_get_memory(g_ctx), false);
-    }
+Java_com_agent_aios_LlamaBridge_nativeResetContext(JNIEnv *, jobject) {
+    if (g_ctx) llama_memory_clear(llama_get_memory(g_ctx), false);
     g_current_pos = 0;
+    g_system_prompt_pos = 0;
     g_cached_token_chars.clear();
-    g_kv_tokens.clear();
-    g_system_prompt_end = 0;
-    LOGI("Context reset (kv_tokens cleared)");
+    LOGI("Context reset");
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_agent_aios_LlamaBridge_nativeIsModelLoaded(
-        JNIEnv *, jobject) {
-    return (g_model != nullptr && g_ctx != nullptr) ? JNI_TRUE : JNI_FALSE;
+Java_com_agent_aios_LlamaBridge_nativeIsModelLoaded(JNIEnv *, jobject) {
+    return (g_model && g_ctx) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(
-        JNIEnv *env, jobject) {
+Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(JNIEnv *env, jobject) {
     if (!g_model) return env->NewStringUTF("No model loaded");
-
     char info[512];
-    snprintf(info, sizeof(info),
-             "n_ctx_train=%d, n_embd=%d, n_layer=%d, threads=%d, ctx=%d",
-             llama_model_n_ctx_train(g_model),
-             llama_model_n_embd(g_model),
-             llama_model_n_layer(g_model),
-             g_n_threads, g_n_ctx);
+    snprintf(info, sizeof(info), "n_ctx_train=%d, n_embd=%d, n_layer=%d, threads=%d, ctx=%d",
+        llama_model_n_ctx_train(g_model), llama_model_n_embd(g_model),
+        llama_model_n_layer(g_model), g_n_threads, g_n_ctx);
     return env->NewStringUTF(info);
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGetContextUsage(
-        JNIEnv *env, jobject) {
-    char usage[64];
-    snprintf(usage, sizeof(usage), "%d/%d", (int)g_current_pos, g_n_ctx);
-    return env->NewStringUTF(usage);
+Java_com_agent_aios_LlamaBridge_nativeGetContextUsage(JNIEnv *env, jobject) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%d/%d", (int)g_current_pos, g_n_ctx);
+    return env->NewStringUTF(buf);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeSetSamplingParams(
-        JNIEnv *, jobject, jfloat temperature, jint top_k, jfloat top_p, jfloat repeat_penalty) {
-    g_temperature = temperature;
+        JNIEnv *, jobject, jfloat temp, jint top_k, jfloat top_p, jfloat rep_penalty) {
+    g_temperature = temp;
     g_top_k = top_k;
     g_top_p = top_p;
-    g_repeat_penalty = repeat_penalty;
+    g_repeat_penalty = rep_penalty;
 }
