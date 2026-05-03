@@ -3,10 +3,13 @@ package com.agent.aios
 import android.content.Context
 import android.os.Environment
 import android.util.Log
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -22,7 +25,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class NativeInferenceTest {
-
     companion object {
         private const val TAG = "AIOS-NativeTest"
         private const val TEST_MODEL_URL =
@@ -47,16 +49,18 @@ class NativeInferenceTest {
     fun teardown() {
         try {
             bridge.nativeReleaseModel()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun findOrDownloadModel(): File {
         val modelsDir = File(context.filesDir, "models")
         modelsDir.mkdirs()
 
-        val existing = modelsDir.listFiles()
-            ?.filter { it.extension == "gguf" && it.length() > 1_000_000 }
-            ?.maxByOrNull { it.length() }
+        val existing =
+            modelsDir.listFiles()
+                ?.filter { it.extension == "gguf" && it.length() > 1_000_000 }
+                ?.maxByOrNull { it.length() }
 
         if (existing != null) {
             Log.i(TAG, "Using existing model: ${existing.name} (${existing.length()} bytes)")
@@ -65,9 +69,10 @@ class NativeInferenceTest {
         }
 
         val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val downloaded = downloadDir.listFiles()
-            ?.filter { it.name.endsWith(".gguf") && it.length() > 1_000_000 }
-            ?.maxByOrNull { it.length() }
+        val downloaded =
+            downloadDir.listFiles()
+                ?.filter { it.name.endsWith(".gguf") && it.length() > 1_000_000 }
+                ?.maxByOrNull { it.length() }
 
         if (downloaded != null) {
             Log.i(TAG, "Using downloaded model: ${downloaded.name}")
@@ -96,7 +101,10 @@ class NativeInferenceTest {
         return target
     }
 
-    private fun downloadModel(url: URL, target: File) {
+    private fun downloadModel(
+        url: URL,
+        target: File,
+    ) {
         val conn = url.openConnection() as HttpURLConnection
         conn.connectTimeout = 30_000
         conn.readTimeout = 60_000
@@ -134,7 +142,10 @@ class NativeInferenceTest {
         conn.disconnect()
     }
 
-    private fun inferHelper(formatted: String, maxTokens: Int): Int {
+    private fun inferHelper(
+        formatted: String,
+        maxTokens: Int,
+    ): Int {
         bridge.nativeResetContext()
         val procResult = bridge.nativeProcessPrompt(formatted)
         if (procResult != 0) return procResult
@@ -169,10 +180,11 @@ class NativeInferenceTest {
         val model = findOrDownloadModel()
         assertTrue(bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE))
 
-        val result = bridge.nativeFormatChat(
-            arrayOf("system", "user"),
-            arrayOf("You are helpful.", "Hello")
-        )
+        val result =
+            bridge.nativeFormatChat(
+                arrayOf("system", "user"),
+                arrayOf("You are helpful.", "Hello"),
+            )
         assertFalse("Formatted chat should not be empty", result.isEmpty())
     }
 
@@ -181,10 +193,11 @@ class NativeInferenceTest {
         val model = findOrDownloadModel()
         assertTrue(bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE))
 
-        val formatted = bridge.nativeFormatChat(
-            arrayOf("user"),
-            arrayOf("Say hi")
-        )
+        val formatted =
+            bridge.nativeFormatChat(
+                arrayOf("user"),
+                arrayOf("Say hi"),
+            )
         assertFalse(formatted.isEmpty())
 
         val charCount = inferHelper(formatted, 16)
@@ -196,10 +209,11 @@ class NativeInferenceTest {
         val model = findOrDownloadModel()
         assertTrue(bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE))
 
-        val formatted = bridge.nativeFormatChat(
-            arrayOf("user"),
-            arrayOf("Say hello")
-        )
+        val formatted =
+            bridge.nativeFormatChat(
+                arrayOf("user"),
+                arrayOf("Say hello"),
+            )
 
         val tokens = AtomicInteger(0)
         val latch = CountDownLatch(1)
@@ -220,10 +234,11 @@ class NativeInferenceTest {
         assertTrue(bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE))
 
         val longPrompt = "Repeat: " + "A".repeat(2000)
-        val formatted = bridge.nativeFormatChat(
-            arrayOf("user"),
-            arrayOf(longPrompt)
-        )
+        val formatted =
+            bridge.nativeFormatChat(
+                arrayOf("user"),
+                arrayOf(longPrompt),
+            )
 
         val result = inferHelper(formatted, 8)
         assertTrue("Should not crash on context overflow", result >= -1)
@@ -251,21 +266,23 @@ class NativeInferenceTest {
         val error = AtomicReference<Throwable?>(null)
         val latch = CountDownLatch(2)
 
-        val threads = (1..2).map { i ->
-            Thread {
-                try {
-                    val formatted = bridge.nativeFormatChat(
-                        arrayOf("user"),
-                        arrayOf("Thread $i says hi")
-                    )
-                    inferHelper(formatted, 8)
-                } catch (e: Throwable) {
-                    error.set(e)
-                } finally {
-                    latch.countDown()
+        val threads =
+            (1..2).map { i ->
+                Thread {
+                    try {
+                        val formatted =
+                            bridge.nativeFormatChat(
+                                arrayOf("user"),
+                                arrayOf("Thread $i says hi"),
+                            )
+                        inferHelper(formatted, 8)
+                    } catch (e: Throwable) {
+                        error.set(e)
+                    } finally {
+                        latch.countDown()
+                    }
                 }
             }
-        }
 
         threads.forEach { it.start() }
         latch.await(30, TimeUnit.SECONDS)
@@ -323,20 +340,19 @@ class NativeInferenceTest {
         val loaded = service.loadModel(model.absolutePath, TEST_CONTEXT_SIZE)
         assertTrue("Service should load model", loaded)
 
-        val engine = service.getAgentEngine()
-        assertNotNull("Engine should be created", engine)
+        val strategy = com.agent.aios.domain.agent.ReactStrategy(service)
 
-        val steps = mutableListOf<AgentStep>()
-        engine!!.setStepCallback { step ->
-            steps.add(step)
+        val steps = mutableListOf<com.agent.aios.domain.model.AgentStep>()
+        val result = kotlinx.coroutines.runBlocking {
+            strategy.execute("What is 2+2?", maxIterations = 2) { step ->
+                steps.add(step)
+            }
         }
+        assertNotNull("Agent should return result", result)
+        assertTrue("Agent should complete with at least 1 step", result.steps.isNotEmpty())
 
-        val result = engine.run("What is 2+2?", maxIterations = 2)
-        assertNotNull("Agent should return steps", result)
-        assertTrue("Agent should complete with at least 1 step", result.isNotEmpty())
-
-        Log.i(TAG, "Agent completed with ${result.size} steps")
-        result.forEach { step ->
+        Log.i(TAG, "Agent completed with ${result.steps.size} steps")
+        result.steps.forEach { step ->
             Log.i(TAG, "  ${step.type}: ${step.content.take(80)}")
         }
 
@@ -388,25 +404,24 @@ class NativeInferenceTest {
         val service = LlmService()
         assertTrue(service.loadModel(model.absolutePath, TEST_CONTEXT_SIZE))
 
-        val engine = service.getAgentEngine()
-        assertNotNull(engine)
+        val strategy = com.agent.aios.domain.agent.ReactStrategy(service)
 
-        val flow = kotlinx.coroutines.flow.MutableSharedFlow<AgentStep>(extraBufferCapacity = 64)
+        val flow = kotlinx.coroutines.flow.MutableSharedFlow<com.agent.aios.domain.model.AgentStep>(extraBufferCapacity = 64)
         var stepCount = 0
 
-        engine!!.setStepCallback { step ->
-            try {
-                flow.tryEmit(step)
-            } catch (e: Exception) {
-                Log.e(TAG, "Step flow error: ${e.message}")
+        val result = kotlinx.coroutines.runBlocking {
+            strategy.execute("Hi", maxIterations = 1) { step ->
+                try {
+                    flow.tryEmit(step)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Step flow error: ${e.message}")
+                }
+                stepCount++
             }
-            stepCount++
         }
+        assertTrue("Agent should complete without crash (steps=$stepCount)", result.steps.isNotEmpty())
 
-        val result = engine.run("Hi", maxIterations = 1)
-        assertTrue("Agent should complete without crash (steps=$stepCount)", result.isNotEmpty())
-
-        Log.i(TAG, "AgentLoop with SharedFlow: ${result.size} steps, $stepCount callbacks")
+        Log.i(TAG, "AgentLoop with SharedFlow: ${result.steps.size} steps, $stepCount callbacks")
         service.releaseModel()
     }
 
@@ -432,6 +447,6 @@ class NativeInferenceTest {
         assertTrue("Should not crash during long streaming (tokens=${tokens.get()}, result=$result)", result >= 0)
         assertTrue("No exceptions in callback", exceptions.isEmpty())
 
-        Log.i(TAG, "Long streaming: ${tokens.get()} tokens, ${result} chars")
+        Log.i(TAG, "Long streaming: ${tokens.get()} tokens, $result chars")
     }
 }

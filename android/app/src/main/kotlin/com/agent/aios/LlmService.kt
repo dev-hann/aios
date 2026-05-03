@@ -11,7 +11,6 @@ import android.util.Log
 import com.agent.aios.domain.LlmProvider
 
 class LlmService : Service(), LlmProvider {
-
     private val TAG = "AIOS-Service"
     private val CHANNEL_ID = "aios_llm_channel"
     private val NOTIFICATION_ID = 1001
@@ -19,6 +18,7 @@ class LlmService : Service(), LlmProvider {
     private val binder = LlmBinder()
     private val llamaBridge = LlamaBridge()
     private val callbackLock = Any()
+
     @Volatile
     private var tokenCallback: ((String) -> Unit)? = null
 
@@ -33,7 +33,11 @@ class LlmService : Service(), LlmProvider {
         Log.i(TAG, "LlmService created")
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         val notification = buildNotification("AIOS ready")
         startForeground(NOTIFICATION_ID, notification)
         Log.i(TAG, "LlmService started as foreground")
@@ -52,11 +56,17 @@ class LlmService : Service(), LlmProvider {
     }
 
     @Synchronized
-    fun loadModel(path: String, contextSize: Int): Boolean {
+    fun loadModel(
+        path: String,
+        contextSize: Int,
+    ): Boolean {
         return llamaBridge.nativeLoadModel(path, contextSize)
     }
 
-    override fun formatChat(roles: Array<String>, contents: Array<String>): String {
+    override fun formatChat(
+        roles: Array<String>,
+        contents: Array<String>,
+    ): String {
         return llamaBridge.nativeFormatChat(roles, contents)
     }
 
@@ -126,7 +136,12 @@ class LlmService : Service(), LlmProvider {
         return llamaBridge.nativeGetContextUsage()
     }
 
-    override fun setSamplingParams(temperature: Float, topK: Int, topP: Float, repeatPenalty: Float) {
+    override fun setSamplingParams(
+        temperature: Float,
+        topK: Int,
+        topP: Float,
+        repeatPenalty: Float,
+    ) {
         llamaBridge.nativeSetSamplingParams(temperature, topK, topP, repeatPenalty)
     }
 
@@ -136,14 +151,15 @@ class LlmService : Service(), LlmProvider {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "AIOS LLM Service",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Keeps LLM running in background"
-            setShowBadge(false)
-        }
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                "AIOS LLM Service",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Keeps LLM running in background"
+                setShowBadge(false)
+            }
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(channel)
     }

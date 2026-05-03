@@ -2,6 +2,9 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jlleitschuh.gradle.ktlint")
+    id("com.google.dagger.hilt.android")
+    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
@@ -13,8 +16,8 @@ android {
         applicationId = "com.agent.aios"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10804
-        versionName = "1.8.4"
+        versionCode = 10900
+        versionName = "1.9.0"
 
         buildConfigField("String", "GITHUB_REPO", "\"dev-hann/aios\"")
 
@@ -75,17 +78,18 @@ android {
 
     packaging {
         resources {
-            excludes += setOf(
-                "META-INF/LICENSE.md",
-                "META-INF/LICENSE-notice.md",
-            )
+            excludes +=
+                setOf(
+                    "META-INF/LICENSE.md",
+                    "META-INF/LICENSE-notice.md",
+                )
         }
     }
 
     testOptions {
         unitTests.isReturnDefaultValues = true
-        unitTests.all {
-            it.jvmArgs("-Djava.library.path=${projectDir}/src/test/jniLibs")
+        unitTests.all { test ->
+            test.jvmArgs("-Djava.library.path=$projectDir/src/test/jniLibs")
         }
     }
 }
@@ -109,6 +113,10 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    implementation("com.google.dagger:hilt-android:2.56.2")
+    kapt("com.google.dagger:hilt-android-compiler:2.56.2")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.11.0")

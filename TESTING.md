@@ -113,11 +113,12 @@ androidTestImplementation("androidx.test:runner:1.5.2")
 androidTestImplementation("androidx.test:rules:1.5.0")
 ```
 
-## 8. CI Integration (Future)
+## 8. Local Development & Verification
 
-- `./gradlew test` runs on every PR
-- Test failure blocks merge
-- Coverage report generated per build
+- 모든 테스트는 로컬에서 실행: `cd android && ./gradlew test`
+- pre-commit: ktlint 코드 스타일 검사 자동 실행 (`.githooks/pre-commit`)
+- pre-push: 릴리즈 빌드 + GitHub Release 자동 생성 (`.githooks/pre-push`)
+- 테스트 실패 시 작업 중단, 다음 단계로 넘어가지 않음
 
 ## 9. Android Runtime Constraint Tests (Mandatory)
 
@@ -159,3 +160,44 @@ The following crashes identified in analysis must have regression tests:
 | P1-3 | loadModel leaks old model | LlmService lifecycle test |
 | P1-4 | collectStream callback not restored on cancel | AgentEngine cancel test |
 | P1-5 | notes map concurrent access | AgentEngine concurrency test |
+
+## 11. TDD Workflow
+
+### 개발 사이클
+
+| Phase | 작업 | 검증 |
+|-------|------|------|
+| RED | 테스트 케이스 작성 (§4 기준) | `cd android && ./gradlew test` → 실패 확인 |
+| GREEN | 최소 구현 코드 작성 | `cd android && ./gradlew test` → 전체 통과 |
+| REFACTOR | 코드 품질 개선 | `cd android && ./gradlew test` → 여전히 통과 |
+
+### 기능별 TDD 체크리스트
+
+**새 Tool 추가 시:**
+1. [ ] `execute()` 입력/출력 테스트 작성
+2. [ ] `classifyRisk()` 테스트 추가 (§P3)
+3. [ ] `buildSystemPrompt()` 매니페스트 포함 테스트
+4. [ ] Tool 구현 코드 작성
+5. [ ] `cd android && ./gradlew test` 전체 통과 확인
+
+**ViewModel 수정 시:**
+1. [ ] 상태 전이 테스트 작성 (초기 → 변경 → 결과)
+2. [ ] 에러/엣지케이스 테스트 작성
+3. [ ] ViewModel 코드 수정
+4. [ ] `cd android && ./gradlew test` 전체 통과 확인
+
+**Bug fix 시 (§5 준수):**
+1. [ ] 버그 재현 테스트 작성 (반드시 실패해야 함)
+2. [ ] 버그 수정 코드 작성
+3. [ ] 테스트 통과 확인
+4. [ ] 기존 테스트 여전히 통과 확인
+
+### 코드 스타일 검증
+
+```bash
+# ktlint 체크
+cd android && ./gradlew ktlintCheck
+
+# ktlint 자동 수정
+cd android && ./gradlew ktlintFormat
+```

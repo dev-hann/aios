@@ -19,8 +19,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.agent.aios.ui.navigation.AIOSNavHost
 import com.agent.aios.ui.theme.AIOSTheme
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var llmRepository: com.agent.aios.domain.repository.LlmRepository
 
     companion object {
         var pendingModelImport by mutableStateOf<Uri?>(null)
@@ -32,12 +37,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        (application as AIOSApp).bindLlmService()
+        llmRepository.bindService()
         setContent {
             AIOSTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     AIOSNavHost(
                         onPickModelFile = { launcher ->
@@ -48,7 +53,7 @@ class MainActivity : ComponentActivity() {
                         onImportConsumed = {
                             pendingModelImport = null
                             pendingModelImportName = null
-                        }
+                        },
                     )
                 }
             }
@@ -57,11 +62,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun rememberModelImportLauncher(
-    onResult: (Uri, String) -> Unit
-): androidx.activity.result.ActivityResultLauncher<Array<String>> {
+fun rememberModelImportLauncher(onResult: (Uri, String) -> Unit): androidx.activity.result.ActivityResultLauncher<Array<String>> {
     return rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
+        contract = ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         uri?.let {
             val name = getFileName(it)
@@ -74,8 +77,11 @@ private fun getFileName(uri: Uri): String {
     return try {
         AIOSApp.instance.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex)
-            else uri.lastPathSegment ?: "model.gguf"
+            if (cursor.moveToFirst() && nameIndex >= 0) {
+                cursor.getString(nameIndex)
+            } else {
+                uri.lastPathSegment ?: "model.gguf"
+            }
         } ?: uri.lastPathSegment ?: "model.gguf"
     } catch (e: Exception) {
         Log.w("MainActivity", "Failed to get file name", e)

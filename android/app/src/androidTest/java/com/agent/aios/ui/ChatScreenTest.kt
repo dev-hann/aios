@@ -20,7 +20,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ChatScreenTest {
-
     @get:Rule
     val composeRule = createComposeRule()
 
@@ -32,7 +31,10 @@ class ChatScreenTest {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun setFlow(fieldName: String, value: Any?) {
+    private fun setFlow(
+        fieldName: String,
+        value: Any?,
+    ) {
         val field = ChatViewModel::class.java.getDeclaredField(fieldName)
         field.isAccessible = true
         (field.get(viewModel) as MutableStateFlow<Any?>).value = value
@@ -115,10 +117,13 @@ class ChatScreenTest {
     @Test
     fun messages_areDisplayed() {
         setFlow("_isModelLoaded", true)
-        setFlow("_messages", listOf(
-            Message("user", "Hello AIOS"),
-            Message("assistant", "Hello! How can I help?"),
-        ))
+        setFlow(
+            "_messages",
+            listOf(
+                Message("user", "Hello AIOS"),
+                Message("assistant", "Hello! How can I help?"),
+            ),
+        )
         setContentWithTheme()
 
         composeRule.onNodeWithText("Hello AIOS").assertIsDisplayed()
@@ -128,11 +133,14 @@ class ChatScreenTest {
     @Test
     fun confirmationDialog_appears() {
         setFlow("_isModelLoaded", true)
-        setFlow("_pendingConfirmation", ConfirmationRequest(
-            toolName = "screen_action",
-            args = """{"action":"tap","text":"OK"}""",
-            risk = "HIGH",
-        ))
+        setFlow(
+            "_pendingConfirmation",
+            ConfirmationRequest(
+                toolName = "screen_action",
+                args = """{"action":"tap","text":"OK"}""",
+                risk = "HIGH",
+            ),
+        )
         setContentWithTheme()
 
         composeRule.onNodeWithText("Action Confirmation").assertIsDisplayed()

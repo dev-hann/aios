@@ -1,0 +1,16 @@
+#!/bin/bash
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+echo "[pre-commit] Running ktlint check..."
+
+cd "$REPO_ROOT/android"
+./gradlew ktlintCheck --quiet 2>&1 | tail -5
+
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo "[pre-commit] ktlint failed. Run './gradlew ktlintFormat' to auto-fix."
+    exit 1
+fi
+
+echo "[pre-commit] ktlint passed."
+exit 0

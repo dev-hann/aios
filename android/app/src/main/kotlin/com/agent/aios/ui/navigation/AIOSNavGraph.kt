@@ -11,20 +11,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.agent.aios.AIOSApp
-import com.agent.aios.data.model.ModelFileManager
+import com.agent.aios.domain.repository.ModelRepository
 import com.agent.aios.rememberModelImportLauncher
 import com.agent.aios.ui.screen.ChatScreen
 import com.agent.aios.ui.screen.SettingsScreen
 import com.agent.aios.ui.screen.UpdateScreen
 import com.agent.aios.ui.theme.AIOSColors
+import com.agent.aios.ui.viewmodel.ChatViewModel
+import javax.inject.Inject
 
 sealed class Screen(val route: String) {
     data object Chat : Screen("chat")
+
     data object Settings : Screen("settings")
+
     data object Update : Screen("update")
 }
 
@@ -36,34 +40,36 @@ fun AIOSNavHost(
     onImportConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
-    val app = AIOSApp.instance
-    val modelFileManager = remember { ModelFileManager(app) }
+    val chatViewModel: ChatViewModel = hiltViewModel()
 
     val pendingImportCallback = remember { mutableStateOf<((Uri, String) -> Unit)?>(null) }
 
-    val modelImportLauncher = rememberModelImportLauncher { uri, name ->
-        pendingImportCallback.value?.invoke(uri, name)
-        pendingImportCallback.value = null
-    }
+    val modelImportLauncher =
+        rememberModelImportLauncher { uri, name ->
+            pendingImportCallback.value?.invoke(uri, name)
+            pendingImportCallback.value = null
+        }
 
     Scaffold(
         containerColor = AIOSColors.Background,
     ) { innerPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             NavHost(
                 navController = navController,
                 startDestination = Screen.Chat.route,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             ) {
                 composable(Screen.Chat.route) {
                     ChatScreen(
+                        vm = chatViewModel,
                         onNavigateToSettings = {
                             navController.navigate(Screen.Settings.route)
-                        }
+                        },
                     )
                 }
                 composable(Screen.Settings.route) {
@@ -74,10 +80,11 @@ fun AIOSNavHost(
                         },
                         onImportFile = {
                             pendingImportCallback.value = { uri, name ->
-                                modelFileManager.importModelFromUri(uri, name)
+                                chatViewModel.importModelFromUri(uri, name)
                             }
                             onPickModelFile(modelImportLauncher)
-                        }
+                        },
+                        chatViewModel = chatViewModel,
                     )
                 }
                 composable(Screen.Update.route) {

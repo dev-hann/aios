@@ -8,10 +8,15 @@ import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class AIOSAccessibilityService : AccessibilityService() {
-
     private val TAG = "AIOS-A11y"
+
+    @Inject
+    lateinit var serviceRegistry: ServiceRegistry
 
     companion object {
         private var instance: AIOSAccessibilityService? = null
@@ -28,6 +33,7 @@ class AIOSAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        serviceRegistry.setAccessibilityService(this)
         Log.i(TAG, "Accessibility service connected")
     }
 
@@ -41,6 +47,7 @@ class AIOSAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
+        serviceRegistry.setAccessibilityService(null)
         super.onDestroy()
     }
 
@@ -55,7 +62,11 @@ class AIOSAccessibilityService : AccessibilityService() {
         return sb.toString()
     }
 
-    private fun dumpNodeText(node: AccessibilityNodeInfo, depth: Int, sb: StringBuilder) {
+    private fun dumpNodeText(
+        node: AccessibilityNodeInfo,
+        depth: Int,
+        sb: StringBuilder,
+    ) {
         if (depth > 30) return
         if (sb.length > 8000) return
 
@@ -93,7 +104,7 @@ class AIOSAccessibilityService : AccessibilityService() {
     private fun findNodesByTextRecursive(
         node: AccessibilityNodeInfo,
         text: String,
-        results: MutableList<AccessibilityNodeInfo>
+        results: MutableList<AccessibilityNodeInfo>,
     ) {
         val nodeText = node.text?.toString() ?: ""
         val contentDesc = node.contentDescription?.toString() ?: ""
@@ -115,7 +126,7 @@ class AIOSAccessibilityService : AccessibilityService() {
     private fun findNodesByDescRecursive(
         node: AccessibilityNodeInfo,
         desc: String,
-        results: MutableList<AccessibilityNodeInfo>
+        results: MutableList<AccessibilityNodeInfo>,
     ) {
         val contentDesc = node.contentDescription?.toString() ?: ""
         if (contentDesc.contains(desc, ignoreCase = true)) {
@@ -134,22 +145,32 @@ class AIOSAccessibilityService : AccessibilityService() {
         return node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
     }
 
-    fun typeText(node: AccessibilityNodeInfo, text: String): Boolean {
+    fun typeText(
+        node: AccessibilityNodeInfo,
+        text: String,
+    ): Boolean {
         val args = android.os.Bundle()
         args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
-    fun scrollNode(node: AccessibilityNodeInfo, direction: String): Boolean {
-        val action = when (direction.lowercase()) {
-            "forward" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
-            "backward" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-            else -> return false
-        }
+    fun scrollNode(
+        node: AccessibilityNodeInfo,
+        direction: String,
+    ): Boolean {
+        val action =
+            when (direction.lowercase()) {
+                "forward" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                "backward" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+                else -> return false
+            }
         return node.performAction(action)
     }
 
-    fun performTap(x: Float, y: Float): Boolean {
+    fun performTap(
+        x: Float,
+        y: Float,
+    ): Boolean {
         val path = Path()
         path.moveTo(x, y)
         val stroke = GestureDescription.StrokeDescription(path, 0, 100)
@@ -157,7 +178,13 @@ class AIOSAccessibilityService : AccessibilityService() {
         return dispatchGesture(gesture, null, null)
     }
 
-    fun performSwipe(startX: Float, startY: Float, endX: Float, endY: Float, duration: Long = 300): Boolean {
+    fun performSwipe(
+        startX: Float,
+        startY: Float,
+        endX: Float,
+        endY: Float,
+        duration: Long = 300,
+    ): Boolean {
         val path = Path()
         path.moveTo(startX, startY)
         path.lineTo(endX, endY)
@@ -167,17 +194,18 @@ class AIOSAccessibilityService : AccessibilityService() {
     }
 
     fun performGlobalAction(action: String): Boolean {
-        val globalAction = when (action.lowercase()) {
-            "back" -> GLOBAL_ACTION_BACK
-            "home" -> GLOBAL_ACTION_HOME
-            "recents" -> GLOBAL_ACTION_RECENTS
-            "notifications" -> GLOBAL_ACTION_NOTIFICATIONS
-            "quick_settings" -> GLOBAL_ACTION_QUICK_SETTINGS
-            "power_dialog" -> GLOBAL_ACTION_POWER_DIALOG
-            "lock_screen" -> GLOBAL_ACTION_LOCK_SCREEN
-            "split_screen" -> GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN
-            else -> return false
-        }
+        val globalAction =
+            when (action.lowercase()) {
+                "back" -> GLOBAL_ACTION_BACK
+                "home" -> GLOBAL_ACTION_HOME
+                "recents" -> GLOBAL_ACTION_RECENTS
+                "notifications" -> GLOBAL_ACTION_NOTIFICATIONS
+                "quick_settings" -> GLOBAL_ACTION_QUICK_SETTINGS
+                "power_dialog" -> GLOBAL_ACTION_POWER_DIALOG
+                "lock_screen" -> GLOBAL_ACTION_LOCK_SCREEN
+                "split_screen" -> GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN
+                else -> return false
+            }
         return performGlobalAction(globalAction)
     }
 

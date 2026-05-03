@@ -59,9 +59,10 @@ fun MessageBubble(
     val clipboardManager = LocalClipboardManager.current
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 5.dp),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -75,18 +76,20 @@ fun MessageBubble(
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
             if (role in listOf("agent_think", "agent_action", "agent_obs")) {
-                val labelColor = when (role) {
-                    "agent_think" -> AIOSColors.AgentThought
-                    "agent_action" -> AIOSColors.AgentAction
-                    "agent_obs" -> AIOSColors.AgentObservation
-                    else -> AIOSColors.TextTertiary
-                }
-                val labelText = when (role) {
-                    "agent_think" -> "THINKING"
-                    "agent_action" -> "ACTION: $toolName"
-                    "agent_obs" -> "OBSERVATION"
-                    else -> ""
-                }
+                val labelColor =
+                    when (role) {
+                        "agent_think" -> AIOSColors.AgentThought
+                        "agent_action" -> AIOSColors.AgentAction
+                        "agent_obs" -> AIOSColors.AgentObservation
+                        else -> AIOSColors.TextTertiary
+                    }
+                val labelText =
+                    when (role) {
+                        "agent_think" -> "THINKING"
+                        "agent_action" -> "ACTION: $toolName"
+                        "agent_obs" -> "OBSERVATION"
+                        else -> ""
+                    }
                 Text(
                     text = labelText,
                     style = MaterialTheme.typography.labelSmall,
@@ -96,45 +99,48 @@ fun MessageBubble(
                 )
             }
 
-            val (bgColor, textColor) = when (role) {
-                "user" -> AIOSColors.UserBubble to Color.White
-                "assistant", "agent_answer" -> AIOSColors.AssistantBubble to AIOSColors.TextPrimary
-                "agent_think" -> AIOSColors.AgentThinkBubble to AIOSColors.AgentThought
-                "agent_action" -> AIOSColors.AgentActionBubble to AIOSColors.AgentAction
-                "agent_obs" -> AIOSColors.AgentObsBubble to AIOSColors.AgentObservation
-                else -> AIOSColors.SurfaceVariant to AIOSColors.TextTertiary
-            }
+            val (bgColor, textColor) =
+                when (role) {
+                    "user" -> AIOSColors.UserBubble to Color.White
+                    "assistant", "agent_answer" -> AIOSColors.AssistantBubble to AIOSColors.TextPrimary
+                    "agent_think" -> AIOSColors.AgentThinkBubble to AIOSColors.AgentThought
+                    "agent_action" -> AIOSColors.AgentActionBubble to AIOSColors.AgentAction
+                    "agent_obs" -> AIOSColors.AgentObsBubble to AIOSColors.AgentObservation
+                    else -> AIOSColors.SurfaceVariant to AIOSColors.TextTertiary
+                }
 
-            val bubbleBackground = if (isUser) {
-                Brush.verticalGradient(
-                    colors = listOf(AIOSColors.Primary, AIOSColors.Primary.copy(alpha = 0.8f))
-                )
-            } else {
-                Brush.verticalGradient(colors = listOf(bgColor, bgColor))
-            }
+            val bubbleBackground =
+                if (isUser) {
+                    Brush.verticalGradient(
+                        colors = listOf(AIOSColors.Primary, AIOSColors.Primary.copy(alpha = 0.8f)),
+                    )
+                } else {
+                    Brush.verticalGradient(colors = listOf(bgColor, bgColor))
+                }
 
             Box(
-                modifier = Modifier
-                    .animateContentSize(animationSpec = tween(300))
-                    .clip(
-                        RoundedCornerShape(
-                            topStart = 20.dp,
-                            topEnd = 20.dp,
-                            bottomStart = if (isUser) 20.dp else 4.dp,
-                            bottomEnd = if (isUser) 4.dp else 20.dp,
+                modifier =
+                    Modifier
+                        .animateContentSize(animationSpec = tween(300))
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 20.dp,
+                                topEnd = 20.dp,
+                                bottomStart = if (isUser) 20.dp else 4.dp,
+                                bottomEnd = if (isUser) 4.dp else 20.dp,
+                            ),
                         )
-                    )
-                    .background(bubbleBackground)
-                    .combinedClickable(
-                        onClick = {},
-                        onLongClick = {
-                            if (text.isNotBlank()) {
-                                clipboardManager.setText(AnnotatedString(text))
-                                Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    )
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .background(bubbleBackground)
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = {
+                                if (text.isNotBlank()) {
+                                    clipboardManager.setText(AnnotatedString(text))
+                                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        )
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -153,11 +159,12 @@ fun MessageBubble(
                     }
                     if (role == "agent_action" && toolArgs.isNotBlank()) {
                         Box(
-                            modifier = Modifier
-                                .padding(top = 6.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black.copy(alpha = 0.2f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier =
+                                Modifier
+                                    .padding(top = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black.copy(alpha = 0.2f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             Text(
                                 text = toolArgs,
@@ -171,12 +178,13 @@ fun MessageBubble(
                         var isExpanded by remember { mutableStateOf(false) }
 
                         Box(
-                            modifier = Modifier
-                                .animateContentSize(animationSpec = tween(300))
-                                .padding(top = 6.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black.copy(alpha = 0.2f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier =
+                                Modifier
+                                    .animateContentSize(animationSpec = tween(300))
+                                    .padding(top = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black.copy(alpha = 0.2f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             Column {
                                 Text(
@@ -192,9 +200,10 @@ fun MessageBubble(
                                         color = textColor,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium,
-                                        modifier = Modifier
-                                            .padding(top = 4.dp)
-                                            .clickable { isExpanded = !isExpanded },
+                                        modifier =
+                                            Modifier
+                                                .padding(top = 4.dp)
+                                                .clickable { isExpanded = !isExpanded },
                                     )
                                 }
                             }
@@ -220,35 +229,39 @@ private fun StreamingCursor(color: Color) {
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(500),
+                repeatMode = RepeatMode.Reverse,
+            ),
         label = "cursor_blink",
     )
     Box(
-        modifier = Modifier
-            .padding(start = 2.dp)
-            .size(width = 2.dp, height = 16.dp)
-            .clip(RoundedCornerShape(1.dp))
-            .background(color.copy(alpha = alpha)),
+        modifier =
+            Modifier
+                .padding(start = 2.dp)
+                .size(width = 2.dp, height = 16.dp)
+                .clip(RoundedCornerShape(1.dp))
+                .background(color.copy(alpha = alpha)),
     )
 }
 
 @Composable
 private fun AIOSAvatar(role: String) {
-    val (bg, icon) = when (role) {
-        "assistant", "agent_answer" -> AIOSColors.Primary to "AI"
-        "agent_think" -> AIOSColors.AgentThought to "T"
-        "agent_action" -> AIOSColors.AgentAction to "A"
-        "agent_obs" -> AIOSColors.AgentObservation to "O"
-        else -> AIOSColors.SurfaceVariant to "?"
-    }
+    val (bg, icon) =
+        when (role) {
+            "assistant", "agent_answer" -> AIOSColors.Primary to "AI"
+            "agent_think" -> AIOSColors.AgentThought to "T"
+            "agent_action" -> AIOSColors.AgentAction to "A"
+            "agent_obs" -> AIOSColors.AgentObservation to "O"
+            else -> AIOSColors.SurfaceVariant to "?"
+        }
     Box(
-        modifier = Modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .background(bg),
+        modifier =
+            Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(bg),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -263,14 +276,15 @@ private fun AIOSAvatar(role: String) {
 @Composable
 private fun UserAvatar() {
     Box(
-        modifier = Modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(AIOSColors.Secondary, AIOSColors.Primary)
-                )
-            ),
+        modifier =
+            Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(AIOSColors.Secondary, AIOSColors.Primary),
+                    ),
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Text(

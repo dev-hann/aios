@@ -4,17 +4,19 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.telephony.SmsManager
-import com.agent.aios.AgentEngine
 import com.agent.aios.domain.ToolContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-class SmsSenderTool : AgentEngine.ExtendedTool {
+class SmsSenderTool : ExtendedTool {
     override val name = "sms_sender"
     override val description = "Send/read SMS. Args: {action: send|read, to, body, limit}"
     override val parameters = """{"action": "send|read", "to": "string, phone number (for send)", "body": "string, message text (for send)", "limit": "integer, max messages to return (for read, default 10)"}"""
 
-    override fun execute(args: String, toolContext: ToolContext): String {
+    override fun execute(
+        args: String,
+        toolContext: ToolContext,
+    ): String {
         return try {
             val json = JSONObject(args)
             val action = json.optString("action", "").lowercase()
@@ -29,7 +31,10 @@ class SmsSenderTool : AgentEngine.ExtendedTool {
         }
     }
 
-    private fun sendSms(json: JSONObject, toolContext: ToolContext): String {
+    private fun sendSms(
+        json: JSONObject,
+        toolContext: ToolContext,
+    ): String {
         val context = toolContext.appContext
         if (context.checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
             return "Error: SEND_SMS permission not granted. Grant it in Phone Control settings."
@@ -41,17 +46,21 @@ class SmsSenderTool : AgentEngine.ExtendedTool {
         if (to.isBlank()) return "Error: 'to' parameter required (phone number)"
         if (body.isBlank()) return "Error: 'body' parameter required (message text)"
 
-        val smsManager = if (android.os.Build.VERSION.SDK_INT >= 31) {
-            context.getSystemService(SmsManager::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            SmsManager.getDefault()
-        }
+        val smsManager =
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                context.getSystemService(SmsManager::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                SmsManager.getDefault()
+            }
         smsManager.sendTextMessage(to, null, body, null, null)
         return "SMS sent to $to"
     }
 
-    private fun readSms(json: JSONObject, toolContext: ToolContext): String {
+    private fun readSms(
+        json: JSONObject,
+        toolContext: ToolContext,
+    ): String {
         val context = toolContext.appContext
         if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
             return "Error: READ_SMS permission not granted. Grant it in Phone Control settings."
@@ -66,7 +75,7 @@ class SmsSenderTool : AgentEngine.ExtendedTool {
             arrayOf("address", "body", "date"),
             null,
             null,
-            "date DESC"
+            "date DESC",
         )?.use { cursor ->
             var count = 0
             while (cursor.moveToNext() && count < limit) {

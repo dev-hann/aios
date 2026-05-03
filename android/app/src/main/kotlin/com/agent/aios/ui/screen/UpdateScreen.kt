@@ -43,15 +43,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.agent.aios.domain.model.UpdateStatus
 import com.agent.aios.ui.theme.AIOSColors
-import com.agent.aios.ui.viewmodel.UpdateStatus
 import com.agent.aios.ui.viewmodel.UpdateViewModel
 
 @Composable
 fun UpdateScreen(
     onBack: () -> Unit,
-    vm: UpdateViewModel = viewModel(),
+    vm: UpdateViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val status by vm.status.collectAsState()
@@ -64,11 +64,12 @@ fun UpdateScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AIOSColors.Background)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(AIOSColors.Background)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -93,9 +94,10 @@ fun UpdateScreen(
 
             UpdateStatus.CHECKING -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 40.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -124,9 +126,10 @@ fun UpdateScreen(
 
             UpdateStatus.NOT_AVAILABLE -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 40.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -163,11 +166,12 @@ fun UpdateScreen(
 
             UpdateStatus.DOWNLOADING -> {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(AIOSColors.Surface)
-                        .padding(20.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(AIOSColors.Surface)
+                            .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -188,10 +192,11 @@ fun UpdateScreen(
 
                     LinearProgressIndicator(
                         progress = { downloadProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
                         color = AIOSColors.Primary,
                         trackColor = AIOSColors.SurfaceVariant,
                     )
@@ -207,11 +212,12 @@ fun UpdateScreen(
 
             UpdateStatus.DOWNLOADED -> {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(AIOSColors.Surface)
-                        .padding(20.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(AIOSColors.Surface)
+                            .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Icon(
@@ -236,9 +242,10 @@ fun UpdateScreen(
                         onClick = { vm.installUpdate() },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AIOSColors.Primary,
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = AIOSColors.Primary,
+                            ),
                     ) {
                         Text("Install Update", fontSize = 14.sp)
                     }
@@ -248,11 +255,12 @@ fun UpdateScreen(
             UpdateStatus.ERROR -> {
                 if (error == "INSTALL_PERMISSION_NEEDED") {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(AIOSColors.Surface)
-                            .padding(20.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(AIOSColors.Surface)
+                                .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Icon(
@@ -278,20 +286,22 @@ fun UpdateScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AIOSColors.Primary,
-                            ),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = AIOSColors.Primary,
+                                ),
                         ) {
                             Text("Open Settings")
                         }
                     }
                 } else {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(AIOSColors.Surface)
-                            .padding(20.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(AIOSColors.Surface)
+                                .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Icon(
@@ -329,15 +339,16 @@ fun UpdateScreen(
 
 @Composable
 private fun UpdateAvailableCard(
-    info: com.agent.aios.update.UpdateInfo,
+    info: com.agent.aios.domain.model.UpdateInfo,
     onDownload: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(AIOSColors.Surface)
-            .padding(20.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(AIOSColors.Surface)
+                .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -361,10 +372,11 @@ private fun UpdateAvailableCard(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Spacer(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(AIOSColors.TextTertiary),
+                modifier =
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(AIOSColors.TextTertiary),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -374,10 +386,11 @@ private fun UpdateAvailableCard(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Spacer(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(AIOSColors.StatusReady),
+                modifier =
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(AIOSColors.StatusReady),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -416,9 +429,10 @@ private fun UpdateAvailableCard(
             onClick = onDownload,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AIOSColors.Primary,
-            ),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = AIOSColors.Primary,
+                ),
         ) {
             Icon(
                 Icons.Filled.Download,

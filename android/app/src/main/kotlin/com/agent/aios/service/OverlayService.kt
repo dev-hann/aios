@@ -10,18 +10,24 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
-import com.agent.aios.AIOSApp
+import com.agent.aios.domain.model.ServiceState
+import com.agent.aios.domain.repository.LlmRepository
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class OverlayService : Service() {
-
     companion object {
         var isRunning = false
             private set
     }
+
+    @Inject
+    lateinit var llmRepository: LlmRepository
 
     private var overlayView: View? = null
     private var windowManager: WindowManager? = null
@@ -36,75 +42,86 @@ class OverlayService : Service() {
         isRunning = true
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = 200
-        }
+        params =
+            WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = 0
+                y = 200
+            }
 
         val icon = ImageView(this)
         icon.setImageResource(android.R.drawable.ic_dialog_info)
         icon.setPadding(16, 16, 16, 16)
-        updateIconColor(icon, AIOSApp.instance.serviceState.replayCache.firstOrNull())
+        updateIconColor(icon, llmRepository.serviceState.value)
 
-        stateJob = CoroutineScope(Dispatchers.Main).launch {
-            AIOSApp.instance.serviceState.collect { state ->
-                updateIconColor(icon, state)
+        stateJob =
+            CoroutineScope(Dispatchers.Main).launch {
+                llmRepository.serviceState.collect { state ->
+                    updateIconColor(icon, state)
+                }
             }
-        }
 
-        icon.setOnTouchListener(object : View.OnTouchListener {
-            private var initialX = 0
-            private var initialY = 0
-            private var initialTouchX = 0f
-            private var initialTouchY = 0f
-            private var isMoved = false
+        icon.setOnTouchListener(
+            object : View.OnTouchListener {
+                private var initialX = 0
+                private var initialY = 0
+                private var initialTouchX = 0f
+                private var initialTouchY = 0f
+                private var isMoved = false
 
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                val p = params ?: return false
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        initialX = p.x
-                        initialY = p.y
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
-                        isMoved = false
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val dx = (event.rawX - initialTouchX).toInt()
-                        val dy = (event.rawY - initialTouchY).toInt()
-                        if (dx * dx + dy * dy > 100) isMoved = true
-                        p.x = initialX + dx
-                        p.y = initialY + dy
-                        windowManager?.updateViewLayout(overlayView, p)
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        if (!isMoved) {
-                            openAIOS()
+                override fun onTouch(
+                    v: View,
+                    event: MotionEvent,
+                ): Boolean {
+                    val p = params ?: return false
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            initialX = p.x
+                            initialY = p.y
+                            initialTouchX = event.rawX
+                            initialTouchY = event.rawY
+                            isMoved = false
+                        }
+                        MotionEvent.ACTION_MOVE -> {
+                            val dx = (event.rawX - initialTouchX).toInt()
+                            val dy = (event.rawY - initialTouchY).toInt()
+                            if (dx * dx + dy * dy > 100) isMoved = true
+                            p.x = initialX + dx
+                            p.y = initialY + dy
+                            windowManager?.updateViewLayout(overlayView, p)
+                        }
+                        MotionEvent.ACTION_UP -> {
+                            if (!isMoved) {
+                                openAIOS()
+                            }
                         }
                     }
+                    return true
                 }
-                return true
-            }
-        })
+            },
+        )
 
         overlayView = icon
         windowManager?.addView(overlayView, params)
     }
 
-    private fun updateIconColor(icon: ImageView, state: AIOSApp.ServiceState?) {
-        val color = when (state) {
-            AIOSApp.ServiceState.GENERATING, AIOSApp.ServiceState.AGENT_RUNNING -> 0x80FFB74D.toInt()
-            AIOSApp.ServiceState.MODEL_LOADED -> 0x8000D4AA.toInt()
-            AIOSApp.ServiceState.READY -> 0x807C5CFC.toInt()
-            else -> 0x803F51B5.toInt()
-        }
+    private fun updateIconColor(
+        icon: ImageView,
+        state: ServiceState?,
+    ) {
+        val color =
+            when (state) {
+                ServiceState.GENERATING, ServiceState.AGENT_RUNNING -> 0x80FFB74D.toInt()
+                ServiceState.MODEL_LOADED -> 0x8000D4AA.toInt()
+                ServiceState.READY -> 0x807C5CFC.toInt()
+                else -> 0x803F51B5.toInt()
+            }
         icon.setBackgroundColor(color)
     }
 

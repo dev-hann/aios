@@ -1,11 +1,9 @@
 package com.agent.aios.ui.viewmodel
 
-import android.app.Application
-import com.agent.aios.update.ApkInstaller
-import com.agent.aios.update.UpdateChecker
-import com.agent.aios.update.UpdateDownloader
-import com.agent.aios.update.UpdateInfo
-import com.agent.aios.update.UpdateResult
+import com.agent.aios.domain.model.UpdateInfo
+import com.agent.aios.domain.model.UpdateResult
+import com.agent.aios.domain.model.UpdateStatus
+import com.agent.aios.domain.repository.UpdateRepository
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -18,15 +16,15 @@ import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class UpdateViewModelTest {
-
     private val testDispatcher = StandardTestDispatcher()
-    private lateinit var mockApplication: Application
+    private lateinit var mockRepo: UpdateRepository
     private lateinit var viewModel: UpdateViewModel
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        mockApplication = mockk(relaxed = true)
+        mockRepo = mockk(relaxed = true)
+        viewModel = UpdateViewModel(mockRepo)
     }
 
     @After
@@ -35,33 +33,16 @@ class UpdateViewModelTest {
         unmockkAll()
     }
 
-    private fun createViewModel(
-        checkResult: UpdateResult = UpdateResult.NotAvailable,
-        downloadResult: File? = null,
-        canInstall: Boolean = true,
-    ): UpdateViewModel {
-        mockkConstructor(UpdateChecker::class)
-        every { anyConstructed<UpdateChecker>().checkForUpdate() } returns checkResult
-
-        mockkConstructor(UpdateDownloader::class)
-        coEvery { anyConstructed<UpdateDownloader>().downloadApk(any(), any(), any()) } returns downloadResult
-
-        mockkConstructor(ApkInstaller::class)
-        every { anyConstructed<ApkInstaller>().canInstallApk() } returns canInstall
-        every { anyConstructed<ApkInstaller>().installApk(any()) } returns true
-
-        return UpdateViewModel(mockApplication)
-    }
-
-    private val testUpdateInfo = UpdateInfo(
-        isUpdateAvailable = true,
-        currentVersion = "1.0.0",
-        latestVersion = "1.1.0",
-        downloadUrl = "https://example.com/app.apk",
-        fileSize = 1024L,
-        releaseNotes = "Bug fixes",
-        publishedAt = "2025-01-01",
-    )
+    private val testUpdateInfo =
+        UpdateInfo(
+            isUpdateAvailable = true,
+            currentVersion = "1.0.0",
+            latestVersion = "1.1.0",
+            downloadUrl = "https://example.com/app.apk",
+            fileSize = 1024L,
+            releaseNotes = "Bug fixes",
+            publishedAt = "2025-01-01",
+        )
 
     private fun advance() {
         repeat(5) {
@@ -73,7 +54,7 @@ class UpdateViewModelTest {
 
     @Test
     fun checkForUpdate_updateAvailable_setsStatusAvailable() {
-        viewModel = createViewModel(checkResult = UpdateResult.Success(testUpdateInfo))
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Success(testUpdateInfo)
 
         viewModel.checkForUpdate()
         advance()
@@ -84,7 +65,7 @@ class UpdateViewModelTest {
 
     @Test
     fun checkForUpdate_noUpdate_setsStatusNotAvailable() {
-        viewModel = createViewModel(checkResult = UpdateResult.NotAvailable)
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.NotAvailable
 
         viewModel.checkForUpdate()
         advance()
@@ -94,7 +75,7 @@ class UpdateViewModelTest {
 
     @Test
     fun checkForUpdate_error_setsStatusError() {
-        viewModel = createViewModel(checkResult = UpdateResult.Error("Network error"))
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Error("Network error")
 
         viewModel.checkForUpdate()
         advance()
@@ -105,7 +86,7 @@ class UpdateViewModelTest {
 
     @Test
     fun checkForUpdate_setsCheckingThenResult() {
-        viewModel = createViewModel(checkResult = UpdateResult.NotAvailable)
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.NotAvailable
 
         viewModel.checkForUpdate()
 
@@ -118,8 +99,7 @@ class UpdateViewModelTest {
 
     @Test
     fun checkForUpdate_exception_setsErrorStatus() {
-        viewModel = createViewModel()
-        every { anyConstructed<UpdateChecker>().checkForUpdate() } throws RuntimeException("Oops")
+        coEvery { mockRepo.checkForUpdate() } throws RuntimeException("Oops")
 
         viewModel.checkForUpdate()
         advance()
@@ -131,7 +111,7 @@ class UpdateViewModelTest {
     @Test
     fun checkForUpdate_updateNotAvailableFalse_setsNotAvailable() {
         val info = testUpdateInfo.copy(isUpdateAvailable = false, latestVersion = "1.0.0")
-        viewModel = createViewModel(checkResult = UpdateResult.Success(info))
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Success(info)
 
         viewModel.checkForUpdate()
         advance()
@@ -142,10 +122,8 @@ class UpdateViewModelTest {
     @Test
     fun downloadUpdate_success_setsStatusDownloaded() {
         val mockFile = mockk<File>()
-        viewModel = createViewModel(
-            checkResult = UpdateResult.Success(testUpdateInfo),
-            downloadResult = mockFile,
-        )
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Success(testUpdateInfo)
+        coEvery { mockRepo.downloadApk(any(), any(), any()) } returns mockFile
 
         viewModel.checkForUpdate()
         advance()
@@ -158,10 +136,8 @@ class UpdateViewModelTest {
 
     @Test
     fun downloadUpdate_failure_setsErrorStatus() {
-        viewModel = createViewModel(
-            checkResult = UpdateResult.Success(testUpdateInfo),
-            downloadResult = null,
-        )
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Success(testUpdateInfo)
+        coEvery { mockRepo.downloadApk(any(), any(), any()) } returns null
 
         viewModel.checkForUpdate()
         advance()
@@ -175,8 +151,6 @@ class UpdateViewModelTest {
 
     @Test
     fun downloadUpdate_noUpdateInfo_returnsEarly() {
-        viewModel = createViewModel()
-
         viewModel.downloadUpdate()
         advance()
 
@@ -186,11 +160,8 @@ class UpdateViewModelTest {
     @Test
     fun downloadUpdate_progressUpdates() {
         val mockFile = mockk<File>()
-        viewModel = createViewModel(
-            checkResult = UpdateResult.Success(testUpdateInfo),
-            downloadResult = mockFile,
-        )
-        coEvery { anyConstructed<UpdateDownloader>().downloadApk(any(), any(), captureLambda()) } answers {
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Success(testUpdateInfo)
+        coEvery { mockRepo.downloadApk(any(), any(), captureLambda()) } answers {
             lambda<(Float) -> Unit>().captured.invoke(0.5f)
             mockFile
         }
@@ -207,11 +178,10 @@ class UpdateViewModelTest {
     @Test
     fun installUpdate_canInstall_triggersInstall() {
         val mockFile = mockk<File>()
-        viewModel = createViewModel(
-            checkResult = UpdateResult.Success(testUpdateInfo),
-            downloadResult = mockFile,
-            canInstall = true,
-        )
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Success(testUpdateInfo)
+        coEvery { mockRepo.downloadApk(any(), any(), any()) } returns mockFile
+        every { mockRepo.canInstallApk() } returns true
+        every { mockRepo.installApk(any()) } returns true
 
         viewModel.checkForUpdate()
         advance()
@@ -221,17 +191,15 @@ class UpdateViewModelTest {
 
         viewModel.installUpdate()
 
-        verify { anyConstructed<ApkInstaller>().installApk(mockFile) }
+        verify { mockRepo.installApk(mockFile) }
     }
 
     @Test
     fun installUpdate_cannotInstall_setsPermissionError() {
         val mockFile = mockk<File>()
-        viewModel = createViewModel(
-            checkResult = UpdateResult.Success(testUpdateInfo),
-            downloadResult = mockFile,
-            canInstall = false,
-        )
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Success(testUpdateInfo)
+        coEvery { mockRepo.downloadApk(any(), any(), any()) } returns mockFile
+        every { mockRepo.canInstallApk() } returns false
 
         viewModel.checkForUpdate()
         advance()
@@ -247,8 +215,6 @@ class UpdateViewModelTest {
 
     @Test
     fun installUpdate_noDownloadedApk_returnsEarly() {
-        viewModel = createViewModel()
-
         viewModel.installUpdate()
 
         assertThat(viewModel.status.value).isEqualTo(UpdateStatus.IDLE)
@@ -256,7 +222,7 @@ class UpdateViewModelTest {
 
     @Test
     fun reset_resetsToIdle() {
-        viewModel = createViewModel(checkResult = UpdateResult.Error("fail"))
+        coEvery { mockRepo.checkForUpdate() } returns UpdateResult.Error("fail")
 
         viewModel.checkForUpdate()
         advance()
@@ -272,19 +238,16 @@ class UpdateViewModelTest {
 
     @Test
     fun initialStatus_isIdle() {
-        viewModel = createViewModel()
         assertThat(viewModel.status.value).isEqualTo(UpdateStatus.IDLE)
     }
 
     @Test
     fun initialError_isEmpty() {
-        viewModel = createViewModel()
         assertThat(viewModel.error.value).isEmpty()
     }
 
     @Test
     fun initialDownloadProgress_isZero() {
-        viewModel = createViewModel()
         assertThat(viewModel.downloadProgress.value).isEqualTo(0f)
     }
 }

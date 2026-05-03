@@ -1,15 +1,14 @@
 package com.agent.aios
 
 import android.content.Context
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import java.io.File
 
 class LlamaBridgeInstrumentedTest {
-
     private lateinit var context: Context
     private lateinit var bridge: LlamaBridge
 
@@ -83,10 +82,11 @@ class LlamaBridgeInstrumentedTest {
             assertFalse("Model info should not be empty", info.isEmpty())
             assertFalse("Model info should not say 'No model'", info.startsWith("No"))
 
-            val formatted = bridge.nativeFormatChat(
-                arrayOf("user"),
-                arrayOf("Hello")
-            )
+            val formatted =
+                bridge.nativeFormatChat(
+                    arrayOf("user"),
+                    arrayOf("Hello"),
+                )
             assertFalse("Formatted chat should not be empty", formatted.isEmpty())
 
             bridge.nativeResetContext()

@@ -1,17 +1,18 @@
 package com.agent.aios.agent.tools
 
 import android.util.Log
-import com.agent.aios.AgentEngine
 import com.agent.aios.domain.ToolContext
-import com.agent.aios.service.AIOSAccessibilityService
 import org.json.JSONObject
 
-class ScreenReaderTool : AgentEngine.ExtendedTool {
+class ScreenReaderTool : ExtendedTool {
     override val name = "screen_reader"
     override val description = "Read all visible text on screen. Args: {}"
     override val parameters = """{}"""
 
-    override fun execute(args: String, toolContext: ToolContext): String {
+    override fun execute(
+        args: String,
+        toolContext: ToolContext,
+    ): String {
         return try {
             val service = toolContext.accessibilityService()
             if (service == null) {
@@ -27,19 +28,23 @@ class ScreenReaderTool : AgentEngine.ExtendedTool {
     }
 }
 
-class ScreenFindTool : AgentEngine.ExtendedTool {
+class ScreenFindTool : ExtendedTool {
     override val name = "screen_find"
     override val description = "Find UI elements by text. Args: {text}"
     override val parameters = """{"text": "string, text to search for on screen"}"""
 
-    override fun execute(args: String, toolContext: ToolContext): String {
+    override fun execute(
+        args: String,
+        toolContext: ToolContext,
+    ): String {
         return try {
             val json = JSONObject(args)
             val searchText = json.optString("text", "")
             if (searchText.isBlank()) return "Error: 'text' parameter required"
 
-            val service = toolContext.accessibilityService()
-                ?: return "Error: Accessibility service not enabled"
+            val service =
+                toolContext.accessibilityService()
+                    ?: return "Error: Accessibility service not enabled"
 
             val nodes = service.findNodesByText(searchText)
             if (nodes.isEmpty()) {

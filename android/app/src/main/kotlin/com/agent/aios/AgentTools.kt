@@ -42,9 +42,11 @@ class CalculatorTool : AgentTool {
                 tokens[i].isDigit() || tokens[i] == '.' -> {
                     val sb = StringBuilder()
                     while (i < tokens.size && (tokens[i].isDigit() || tokens[i] == '.')) {
-                        sb.append(tokens[i]); i++
+                        sb.append(tokens[i])
+                        i++
                     }
-                    values.push(sb.toString().toDouble()); continue
+                    values.push(sb.toString().toDouble())
+                    continue
                 }
                 tokens[i] in listOf('+', '-', '*', '/') -> {
                     while (ops.isNotEmpty() && prec(ops.peek() ?: '\u0000') >= prec(tokens[i]))
@@ -58,10 +60,28 @@ class CalculatorTool : AgentTool {
         return values.pop()
     }
 
-    private fun prec(c: Char) = when (c) { '+', '-' -> 1; '*', '/' -> 2; else -> 0 }
-    private fun applyOp(vals: java.util.ArrayDeque<Double>, op: Char) {
-        val b = vals.pop(); val a = vals.pop()
-        vals.push(when (op) { '+' -> a + b; '-' -> a - b; '*' -> a * b; '/' -> a / b; else -> a })
+    private fun prec(c: Char) =
+        when (c) {
+            '+', '-' -> 1
+            '*', '/' -> 2
+            else -> 0
+        }
+
+    private fun applyOp(
+        vals: java.util.ArrayDeque<Double>,
+        op: Char,
+    ) {
+        val b = vals.pop()
+        val a = vals.pop()
+        vals.push(
+            when (op) {
+                '+' -> a + b
+                '-' -> a - b
+                '*' -> a * b
+                '/' -> a / b
+                else -> a
+            },
+        )
     }
 }
 
@@ -132,8 +152,11 @@ class NotePadTool(private val notes: MutableMap<String, String>) : AgentTool {
                     notes[key] ?: "Note '$key' not found"
                 }
                 "list" -> {
-                    if (notes.isEmpty()) "No notes saved"
-                    else notes.entries.joinToString("\n") { "- ${it.key}: ${it.value}" }
+                    if (notes.isEmpty()) {
+                        "No notes saved"
+                    } else {
+                        notes.entries.joinToString("\n") { "- ${it.key}: ${it.value}" }
+                    }
                 }
                 "delete" -> {
                     val key = json.optString("key", "")

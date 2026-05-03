@@ -189,6 +189,34 @@ The LLM outputs one of:
 - `ChatViewModel.importModelFromUri()` copies selected file to internal `models/` directory
 - No scoped storage permission needed — SAF handles file access
 
+## TDD Workflow (필수)
+
+이 프로젝트는 **Test-Driven Development**를 엄격히 따릅니다.
+
+### Red → Green → Refactor
+
+1. **RED** — 구현 전, 실패하는 테스트를 먼저 작성
+   - TESTING.md §4 (Coverage Requirements)에 따라 테스트 케이스 식별
+   - Happy path + Edge case + Error path 최소 3개
+   - `cd android && ./gradlew test` 실행 → 테스트가 **실패**하는지 확인
+
+2. **GREEN** — 테스트를 통과하는 최소 구현 코드 작성
+   - 과도한 추상화 없이 테스트만 통과시킴
+   - `cd android && ./gradlew test` 실행 → **전체 테스트 통과** 확인
+
+3. **REFACTOR** — 코드 품질 개선
+   - 중복 제거, 네이밍 정리, 구조 개선
+   - `cd android && ./gradlew test` 재실행 → 여전히 통과 확인
+
+### 필수 규칙
+
+- **테스트 없는 구현 코드는 작성하지 않습니다**
+- 모든 수정 후 반드시 `cd android && ./gradlew test` 실행
+- 테스트 실패 시 다음 작업으로 넘어가지 않습니다
+- 새 Tool 추가 → TESTING.md §P3 테스트 먼저
+- ViewModel 수정 → TESTING.md §P1 테스트 먼저
+- Bug fix → TESTING.md §5 Regression Test 먼저
+
 ## Key Principles
 
 - **LLM is Runtime, not UI** — Model loaded once, reused across interactions
@@ -197,6 +225,7 @@ The LLM outputs one of:
 - **Privacy-first** — No network calls for inference, all processing on-device
 - **Phone control via Accessibility APIs** — No root required
 - **OTA updates via GitHub Releases** — No Play Store dependency
+- **Test-Driven Development** — 테스트 먼저 작성, Red → Green → Refactor
 
 ## Permissions Required
 
