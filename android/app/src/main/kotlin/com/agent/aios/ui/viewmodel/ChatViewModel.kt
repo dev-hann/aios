@@ -12,7 +12,6 @@ import com.agent.aios.domain.model.Message
 import com.agent.aios.domain.model.ModelInfo
 import com.agent.aios.domain.model.ServiceState
 import com.agent.aios.domain.repository.ConversationRepository
-import com.agent.aios.domain.repository.LlmRepository
 import com.agent.aios.domain.repository.ModelRepository
 import com.agent.aios.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -45,15 +44,12 @@ data class ChatUiState(
 class ChatViewModel
     @Inject
     constructor(
-        private val llmRepositoryImpl: LlmRepositoryImpl,
+        private val llmRepository: LlmRepositoryImpl,
         private val modelRepository: ModelRepository,
         private val conversationRepository: ConversationRepository,
         private val settingsRepository: SettingsRepository,
     ) : ViewModel() {
         private val TAG = "AIOS-ChatVM"
-
-        @Inject
-        lateinit var llmRepository: LlmRepository
 
         val updateAvailable: StateFlow<Boolean?> get() = llmRepository.updateAvailable
         val latestVersion: StateFlow<String> get() = llmRepository.latestVersion
@@ -226,7 +222,7 @@ class ChatViewModel
             generateStartTime = System.currentTimeMillis()
             persistMessage("user", text)
 
-            llmRepositoryImpl.runAgent(text) { steps ->
+            llmRepository.runAgent(text) { steps ->
                 _uiState.value = _uiState.value.copy(isGenerating = false)
                 _uiState.value =
                     _uiState.value.copy(
