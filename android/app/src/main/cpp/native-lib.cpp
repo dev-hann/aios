@@ -5,6 +5,7 @@
 #include <atomic>
 #include <android/log.h>
 #include <unistd.h>
+
 #include <llama.h>
 #include <ggml-backend.h>
 
@@ -242,6 +243,8 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         g_load_stage = -1;
         return JNI_FALSE;
     }
+
+
 
     g_load_progress = 0.95f;
     g_load_stage = 3;
