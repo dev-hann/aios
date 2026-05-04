@@ -39,13 +39,13 @@ class LoopDetector {
         return when {
             isRepeatedAction || consecutiveIdenticalObs -> {
                 if (warningGiven) {
-                    LoopCheckResult.FORCE_BREAK
+                    LoopCheckResult.ForceBreak
                 } else {
                     warningGiven = true
-                    LoopCheckResult.WARNING(consecutiveDuplicates, toolName)
+                    LoopCheckResult.Warning(consecutiveDuplicates, toolName)
                 }
             }
-            else -> LoopCheckResult.OK
+            else -> LoopCheckResult.Ok
         }
     }
 
@@ -72,8 +72,10 @@ class LoopDetector {
     }
 
     sealed class LoopCheckResult {
-        data object OK : LoopCheckResult()
-        data class WARNING(val count: Int, val toolName: String) : LoopCheckResult()
-        data object FORCE_BREAK : LoopCheckResult()
+        data object Ok : LoopCheckResult()
+
+        data class Warning(val count: Int, val toolName: String) : LoopCheckResult()
+
+        data object ForceBreak : LoopCheckResult()
     }
 }

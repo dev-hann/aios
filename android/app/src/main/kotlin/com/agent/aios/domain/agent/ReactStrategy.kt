@@ -5,8 +5,8 @@ import com.agent.aios.AgentTool
 import com.agent.aios.CalculatorTool
 import com.agent.aios.DeviceInfoTool
 import com.agent.aios.NotePadTool
-import com.agent.aios.TimerTool
 import com.agent.aios.PromptBuilder
+import com.agent.aios.TimerTool
 import com.agent.aios.agent.tools.AppLauncherTool
 import com.agent.aios.agent.tools.ContactSearchTool
 import com.agent.aios.agent.tools.ExtendedTool
@@ -172,19 +172,19 @@ class ReactStrategy(private val llmProvider: LlmProvider) : AgentStrategy {
 
                         val loopResult = loopDetector.record(parsed.toolName, parsed.args, observation)
                         when (loopResult) {
-                            is LoopCheckResult.WARNING -> {
+                            is LoopCheckResult.Warning -> {
                                 val nudge =
                                     "WARNING: You have called '${parsed.toolName}' ${loopResult.count} times with similar arguments. " +
                                         "Provide your final Answer now, or try a completely different approach."
                                 promptBuilder.addObservation(nudge)
                                 Log.w(TAG, "Loop warning: tool=${parsed.toolName}, dup=${loopResult.count}")
                             }
-                            is LoopCheckResult.FORCE_BREAK -> {
+                            is LoopCheckResult.ForceBreak -> {
                                 Log.w(TAG, "Force-breaking agent: loop detected (tool=${parsed.toolName})")
                                 promptBuilder.addObservation("SYSTEM: Loop detected. Provide your Answer now.")
                                 break
                             }
-                            LoopCheckResult.OK -> {
+                            LoopCheckResult.Ok -> {
                                 if (loopDetector.shouldNudge(i + 1, steps.none { it.type == "answer" })) {
                                     promptBuilder.addObservation(
                                         "Reminder: ${i + 1} steps completed. If you have enough information, provide your final Answer now.",

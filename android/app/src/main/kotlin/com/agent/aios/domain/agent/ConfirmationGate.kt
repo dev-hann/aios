@@ -1,11 +1,13 @@
 package com.agent.aios.domain.agent
 
+import android.util.Log
 import com.agent.aios.domain.model.AgentStep
 import com.agent.aios.domain.model.ToolRisk
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class ConfirmationGate {
+    private val TAG = "AIOS-Confirm"
     private var latch: CountDownLatch? = null
 
     @Volatile
@@ -33,7 +35,8 @@ class ConfirmationGate {
         return try {
             latch?.await(60, TimeUnit.SECONDS) ?: false
             approved
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Confirmation interrupted: ${e.message}")
             false
         } finally {
             latch = null
