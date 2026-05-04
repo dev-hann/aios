@@ -209,8 +209,10 @@ class LlmRepositoryImpl
                 _loadProgress.value = if (success) 1f else 0f
                 if (success) {
                     _serviceState.value = ServiceState.MODEL_LOADED
-                    withContext(Dispatchers.IO) {
-                        currentStrategy?.initSystemPrompt()
+                    appScope.launch {
+                        withContext(Dispatchers.IO) {
+                            currentStrategy?.initSystemPrompt()
+                        }
                     }
                 }
                 success
