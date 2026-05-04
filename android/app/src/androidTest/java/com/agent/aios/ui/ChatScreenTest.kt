@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.agent.aios.domain.model.ConfirmationRequest
 import com.agent.aios.domain.model.Message
 import com.agent.aios.domain.model.ServiceState
@@ -50,8 +51,11 @@ class ChatScreenTest {
         every { mockLlmRepo.loadStage } returns MutableStateFlow(0)
         every { mockLlmRepo.isModelLoaded() } returns false
 
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+
         viewModel =
             ChatViewModel::class.java.getDeclaredConstructor(
+                android.content.Context::class.java,
                 com.agent.aios.domain.repository.LlmRepository::class.java,
                 com.agent.aios.domain.repository.ModelRepository::class.java,
                 com.agent.aios.domain.repository.ConversationRepository::class.java,
@@ -59,6 +63,7 @@ class ChatScreenTest {
             ).apply {
                 isAccessible = true
             }.newInstance(
+                appContext,
                 mockLlmRepo,
                 mockk<com.agent.aios.domain.repository.ModelRepository>(relaxed = true),
                 mockk<com.agent.aios.domain.repository.ConversationRepository>(relaxed = true),
@@ -200,54 +205,50 @@ class ChatScreenTest {
     }
 
     @Test
-    fun modelLoadingView_showsProgressWhenGenerating() {
+    fun modelLoadingView_showsSpinnerWhenGenerating() {
         setState {
             copy(
                 isModelLoaded = false,
                 isGenerating = true,
                 serviceState = ServiceState.GENERATING,
-                loadProgress = 0.5f,
-                loadStage = 1,
             )
         }
         setContentWithTheme()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Loading model weights...").assertIsDisplayed()
-        composeRule.onNodeWithText("50%").assertIsDisplayed()
+        composeRule.onNodeWithText("Loading model...").assertIsDisplayed()
     }
 
     @Test
-    fun modelLoadingView_showsPreparingWhenProgressZero() {
+    fun modelLoadingView_showsWarningBanner() {
         setState {
             copy(
                 isModelLoaded = false,
                 isGenerating = true,
                 serviceState = ServiceState.GENERATING,
-                loadProgress = 0f,
-                loadStage = 0,
-            )
-        }
-        setContentWithTheme()
-
-        composeRule.onNodeWithText("Preparing...").assertIsDisplayed()
-    }
-
-    @Test
-    fun modelLoadingView_showsTemplateStage() {
-        setState {
-            copy(
-                isModelLoaded = false,
-                isGenerating = true,
-                serviceState = ServiceState.GENERATING,
-                loadProgress = 0.75f,
-                loadStage = 2,
+                modelSizeWarning = "Low memory: 500MB available",
             )
         }
         setContentWithTheme()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Applying chat template...").assertIsDisplayed()
-        composeRule.onNodeWithText("75%").assertIsDisplayed()
+        composeRule.onNodeWithText("Loading model...").assertIsDisplayed()
+        composeRule.onNodeWithText("Low memory: 500MB available").assertIsDisplayed()
+    }
+
+    @Test
+    fun modelLoadingView_noWarningByDefault() {
+        setState {
+            copy(
+                isModelLoaded = false,
+                isGenerating = true,
+                serviceState = ServiceState.GENERATING,
+            )
+        }
+        setContentWithTheme()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Loading model...").assertIsDisplayed()
+        composeRule.onNodeWithText("Low memory").assertIsNotDisplayed()
     }
 }
