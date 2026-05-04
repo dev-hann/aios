@@ -30,7 +30,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -176,16 +175,6 @@ class LlmRepositoryImpl
             _loadStage.value = 0
             return try {
                 val ctxSize = contextSize ?: settingsRepository.contextSize.first()
-                val pollJob =
-                    appScope.launch {
-                        while (isActive) {
-                            withContext(Dispatchers.IO) {
-                                _loadProgress.value = svc.getLoadProgress()
-                                _loadStage.value = svc.getLoadStage()
-                            }
-                            delay(200)
-                        }
-                    }
                 val success =
                     withContext(Dispatchers.IO) {
                         svc.updateNotification("Loading model...")
@@ -203,10 +192,10 @@ class LlmRepositoryImpl
                         } else {
                             _serviceState.value = ServiceState.READY
                         }
+                        _loadProgress.value = svc.getLoadProgress()
+                        _loadStage.value = svc.getLoadStage()
                         result
                     }
-                pollJob.cancel()
-                _loadProgress.value = if (success) 1f else 0f
                 if (success) {
                     _serviceState.value = ServiceState.MODEL_LOADED
                     appScope.launch {
