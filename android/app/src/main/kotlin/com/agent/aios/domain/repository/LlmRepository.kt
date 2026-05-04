@@ -13,6 +13,10 @@ interface LlmRepository {
     val latestVersion: StateFlow<String>
     val updateError: StateFlow<String?>
 
+    val loadProgress: StateFlow<Float>
+
+    val loadStage: StateFlow<Int>
+
     fun bindService()
 
     suspend fun loadModel(path: String, contextSize: Int? = null): Boolean

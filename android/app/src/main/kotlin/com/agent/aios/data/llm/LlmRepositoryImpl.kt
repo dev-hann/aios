@@ -22,6 +22,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -69,6 +71,12 @@ class LlmRepositoryImpl
 
         private val _updateError = MutableStateFlow<String?>(null)
         override val updateError: StateFlow<String?> = _updateError.asStateFlow()
+
+        private val _loadProgress = MutableStateFlow(0f)
+        override val loadProgress: StateFlow<Float> = _loadProgress.asStateFlow()
+
+        private val _loadStage = MutableStateFlow(0)
+        override val loadStage: StateFlow<Int> = _loadStage.asStateFlow()
 
         private val appScope = CoroutineScope(Dispatchers.Main)
         private var inferenceJob: Job? = null
@@ -164,28 +172,44 @@ class LlmRepositoryImpl
         ): Boolean {
             val svc = llmService ?: return false
             _serviceState.value = ServiceState.GENERATING
+            _loadProgress.value = 0f
+            _loadStage.value = 0
             return try {
                 val ctxSize = contextSize ?: settingsRepository.contextSize.first()
-                withContext(Dispatchers.IO) {
-                    svc.updateNotification("Loading model...")
-                    val success = svc.loadModel(path, ctxSize)
-                    if (success) {
-                        _serviceState.value = ServiceState.MODEL_LOADED
-                        svc.updateNotification("Model loaded - Ready")
-                        val strategy = ReactStrategy(svc)
-                        strategy.setToolContext(
-                            com.agent.aios.domain.ToolContext(
-                                appContext = context,
-                                accessibilityService = { serviceRegistry.accessibilityService.value },
-                            ),
-                        )
-                        currentStrategy = strategy
-                        strategy.initSystemPrompt()
-                    } else {
-                        _serviceState.value = ServiceState.READY
+                val pollJob =
+                    appScope.launch {
+                        while (isActive) {
+                            withContext(Dispatchers.IO) {
+                                _loadProgress.value = svc.getLoadProgress()
+                                _loadStage.value = svc.getLoadStage()
+                            }
+                            delay(200)
+                        }
                     }
-                    success
-                }
+                val success =
+                    withContext(Dispatchers.IO) {
+                        svc.updateNotification("Loading model...")
+                        val result = svc.loadModel(path, ctxSize)
+                        if (result) {
+                            _serviceState.value = ServiceState.MODEL_LOADED
+                            svc.updateNotification("Model loaded - Ready")
+                            val strategy = ReactStrategy(svc)
+                            strategy.setToolContext(
+                                com.agent.aios.domain.ToolContext(
+                                    appContext = context,
+                                    accessibilityService = { serviceRegistry.accessibilityService.value },
+                                ),
+                            )
+                            currentStrategy = strategy
+                            strategy.initSystemPrompt()
+                        } else {
+                            _serviceState.value = ServiceState.READY
+                        }
+                        result
+                    }
+                pollJob.cancel()
+                _loadProgress.value = if (success) 1f else 0f
+                success
             } catch (e: Exception) {
                 Log.e(TAG, "loadModel failed", e)
                 _serviceState.value = ServiceState.READY

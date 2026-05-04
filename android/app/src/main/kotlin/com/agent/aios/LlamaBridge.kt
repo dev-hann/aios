@@ -53,6 +53,10 @@ class LlamaBridge {
 
     external fun nativeGetModelInfo(): String
 
+    external fun nativeGetLoadProgress(): Float
+
+    external fun nativeGetLoadStage(): Int
+
     external fun nativeGetContextUsage(): String
 
     external fun nativeSetSamplingParams(

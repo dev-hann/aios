@@ -38,6 +38,8 @@ data class ChatUiState(
     val elapsedMs: Long = 0L,
     val contextUsage: String = "",
     val serviceState: ServiceState = ServiceState.DISCONNECTED,
+    val loadProgress: Float = 0f,
+    val loadStage: Int = 0,
 )
 
 @HiltViewModel
@@ -81,6 +83,16 @@ class ChatViewModel
             viewModelScope.launch {
                 llmRepository.serviceState.collect { state ->
                     _uiState.value = _uiState.value.copy(serviceState = state)
+                }
+            }
+            viewModelScope.launch {
+                llmRepository.loadProgress.collect { progress ->
+                    _uiState.value = _uiState.value.copy(loadProgress = progress)
+                }
+            }
+            viewModelScope.launch {
+                llmRepository.loadStage.collect { stage ->
+                    _uiState.value = _uiState.value.copy(loadStage = stage)
                 }
             }
             refreshModels()

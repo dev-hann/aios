@@ -149,6 +149,10 @@ class LlmService : Service(), LlmProvider {
         return llamaBridge?.nativeGetContextUsage() ?: ""
     }
 
+    fun getLoadProgress(): Float = llamaBridge?.nativeGetLoadProgress() ?: 0f
+
+    fun getLoadStage(): Int = llamaBridge?.nativeGetLoadStage() ?: 0
+
     override fun setSamplingParams(
         temperature: Float,
         topK: Int,

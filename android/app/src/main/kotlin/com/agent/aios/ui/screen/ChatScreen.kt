@@ -121,7 +121,10 @@ fun ChatScreen(
 
         if (!isModelLoaded) {
             if (isGenerating && serviceState == ServiceState.GENERATING) {
-                ModelLoadingView()
+                ModelLoadingView(
+                    progress = uiState.loadProgress,
+                    stage = uiState.loadStage,
+                )
             } else {
                 EmptyState(onGoToSettings = onNavigateToSettings)
             }
@@ -720,7 +723,10 @@ private fun parseArgsForDisplay(
 }
 
 @Composable
-private fun ModelLoadingView() {
+private fun ModelLoadingView(
+    progress: Float,
+    stage: Int,
+) {
     val infiniteTransition = rememberInfiniteTransition()
     val pulse by infiniteTransition.animateFloat(
         initialValue = 0.6f,
@@ -732,6 +738,15 @@ private fun ModelLoadingView() {
             ),
         label = "loading_pulse",
     )
+
+    val stageLabel =
+        when (stage) {
+            1 -> "Loading model weights..."
+            2 -> "Applying chat template..."
+            3 -> "Initializing context..."
+            else -> "Loading model..."
+        }
+    val progressPercent = (progress * 100).toInt()
 
     Box(
         modifier =
@@ -759,19 +774,20 @@ private fun ModelLoadingView() {
             }
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "Loading model...",
+                text = stageLabel,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
                 color = AIOSColors.TextPrimary,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "This may take a moment",
+                text = if (progress > 0f) "$progressPercent%" else "Preparing...",
                 fontSize = 14.sp,
                 color = AIOSColors.TextTertiary,
             )
             Spacer(modifier = Modifier.height(16.dp))
             androidx.compose.material3.LinearProgressIndicator(
+                progress = { progress },
                 modifier =
                     Modifier
                         .fillMaxWidth(0.5f)
