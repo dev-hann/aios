@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -72,13 +71,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.agent.aios.BuildConfig
 import com.agent.aios.crash.CrashLogManager
-import com.agent.aios.domain.model.ModelInfo
 import com.agent.aios.domain.model.ServiceState
 import com.agent.aios.service.AIOSAccessibilityService
 import com.agent.aios.service.OverlayService
@@ -196,7 +194,6 @@ fun SettingsScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

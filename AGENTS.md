@@ -230,6 +230,7 @@ TAG 형식: `"AIOS-{Component}"` (예: AIOS-React, AIOS-LlmRepo, AIOS-Bridge)
 5. **에러 처리**: Tool은 문자열 반환, Repository는 try-catch + 상태 업데이트
 6. **네이밍**: 위 네이밍 규약 준수
 7. **테스트**: TDD (테스트 먼저 작성)
+8. **실기 테스트**: 에뮬레이터/실기기에서 APK 설치 후 런치·UI·모델 로드 정상 확인 (→ [CONTRIBUTING.md](CONTRIBUTING.md) §배포 전 필수 실기 테스트)
 
 ---
 

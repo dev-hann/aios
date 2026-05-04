@@ -77,6 +77,32 @@ git config core.hooksPath .githooks
 - `versionCode`: `MAJOR * 10000 + MINOR * 100 + PATCH`
 - pre-push hook: versionName 변경 감지 시 자동 빌드 + GitHub Release 생성
 
+#### 배포 전 필수 실기 테스트 (MANDATORY)
+
+**에뮬레이터 또는 실기기에서 APK 설치 후 아래 항목을 반드시 검증해야 한다:**
+
+1. **앱 런치**: 크래시 없이 정상 실행
+2. **설정 화면**: UI 렌더링 정상 (패딩, 스크롤)
+3. **모델 로드**: ANR 없이 진행률 표시 후 완료
+4. **채팅**: 프롬프트 전송 → 응답 수신 정상
+5. **화면 전환**: 채팅 ↔ 설정 ↔ 뒤로가기 크래시 없음
+
+```bash
+# 에뮬레이터 실행 (AVD 없으면 생성)
+$ANDROID_HOME/emulator/emulator -avd aios_test -no-snapshot-load &
+
+# APK 설치
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+
+# 런치 로그 모니터링 (크래시 확인)
+adb logcat -s "AIOS-*" "AndroidRuntime" "ActivityManager"
+
+# 앱 실행
+adb shell am start -n com.agent.aios/.MainActivity
+```
+
+**릴리즈 업로드는 위 테스트 모두 통과 후에만 수행한다.**
+
 ## Development Workflow
 
 ### 1. Create a Branch

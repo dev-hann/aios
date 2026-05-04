@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <atomic>
 #include <android/log.h>
 #include <unistd.h>
 #include <llama.h>
@@ -37,8 +38,8 @@ static std::string g_cached_token_chars;
 static bool g_initialized = false;
 static llama_pos g_system_prompt_pos = 0;
 
-static float g_load_progress = 0.0f;
-static int g_load_stage = 0;
+static std::atomic<float> g_load_progress{0.0f};
+static std::atomic<int> g_load_stage{0};
 static std::string g_load_model_name;
 
 static std::mutex g_mutex;
@@ -260,14 +261,12 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
 
 extern "C" JNIEXPORT jfloat JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGetLoadProgress(JNIEnv *, jobject) {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    return g_load_progress;
+    return g_load_progress.load(std::memory_order_relaxed);
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGetLoadStage(JNIEnv *, jobject) {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    return g_load_stage;
+    return g_load_stage.load(std::memory_order_relaxed);
 }
 
 extern "C" JNIEXPORT jstring JNICALL
