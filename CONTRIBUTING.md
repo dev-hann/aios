@@ -26,20 +26,56 @@ Open the `android/` directory in Android Studio and sync Gradle.
 ### Build Commands
 
 ```bash
-# Debug build
+# Debug build (from android/ directory)
 ./gradlew assembleDebug
+
+# Release build (signed)
+./gradlew assembleRelease
 
 # Install on connected device
 ./gradlew installDebug
 
+# Clean build
+./gradlew clean
+
 # Run unit tests
 ./gradlew test
 
-# Clean build
-./gradlew clean
+# Run instrumented tests (requires device/emulator)
+./gradlew connectedAndroidTest
+
+# ktlint check
+./gradlew ktlintCheck
+
+# ktlint auto-fix
+./gradlew ktlintFormat
 ```
 
-For detailed build instructions, see [docs/build-guide.md](docs/build-guide.md).
+### Native Build
+
+C++ 레이어는 CMake로 Android 빌드 시 자동 빌드됨. Standalone 테스트:
+
+```bash
+cd native/tests
+mkdir build && cd build
+cmake .. -DLLAMA_CPP_DIR=../../native/llama.cpp
+make
+./test_inference
+```
+
+### Release & Deployment
+
+```bash
+# Git hooks 설정 (clone 후 1회)
+git config core.hooksPath .githooks
+
+# 수동 릴리즈 (버전 업 + 빌드 + 태그 + 푸시 + 릴리즈)
+./release.sh 1.1.0
+```
+
+- `versionName`: semver (`MAJOR.MINOR.PATCH`)
+- `versionCode`: `MAJOR * 10000 + MINOR * 100 + PATCH`
+- pre-push hook: versionName 변경 감지 시 자동 빌드 + GitHub Release 생성
 
 ## Development Workflow
 

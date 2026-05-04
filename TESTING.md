@@ -14,7 +14,7 @@
 
 | Module | File | What to Test |
 |--------|------|-------------|
-| AgentEngine | `AgentEngine.kt` | parseResponse, riskClassification, confirmationFlow, cancellation, threadInterruption |
+| ReactStrategy | `domain/agent/ReactStrategy.kt` | parseResponse, riskClassification, confirmationFlow, cancellation, threadInterruption |
 | ChatViewModel | `ChatViewModel.kt` | sendMessage, cancelGeneration, loadModel, importModel, stateConsistency |
 | LlmService | `LlmService.kt` | model lifecycle, concurrent access, callback swap, context reset |
 
@@ -154,12 +154,12 @@ The following crashes identified in analysis must have regression tests:
 | P0-1 | Native global state no thread safety (SIGSEGV) | Native mutex test |
 | P0-2 | JNI callback without ExceptionCheck | Native callback test |
 | P0-3 | tokenize() with null g_vocab | Native null guard test |
-| P0-4 | agentEngine not @Volatile | LlmService concurrency test |
+| P0-4 | agentEngine not @Volatile | ReactStrategy concurrency test |
 | P1-1 | onServiceConnected unsafe cast | AIOSApp binding test |
 | P1-2 | llmService!! force unwrap | AIOSApp null safety test |
 | P1-3 | loadModel leaks old model | LlmService lifecycle test |
-| P1-4 | collectStream callback not restored on cancel | AgentEngine cancel test |
-| P1-5 | notes map concurrent access | AgentEngine concurrency test |
+| P1-4 | collectStream callback not restored on cancel | ReactStrategy cancel test |
+| P1-5 | notes map concurrent access | ReactStrategy concurrency test |
 
 ## 11. TDD Workflow
 
