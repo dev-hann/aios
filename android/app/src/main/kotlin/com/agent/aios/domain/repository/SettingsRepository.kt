@@ -14,14 +14,23 @@ interface SettingsRepository {
     val lastModelPath: Flow<String>
 
     suspend fun setContextSize(value: Int)
+
     suspend fun setMaxTokensChat(value: Int)
+
     suspend fun setMaxTokensAgent(value: Int)
+
     suspend fun setTemperature(value: Float)
+
     suspend fun setTopK(value: Int)
+
     suspend fun setTopP(value: Float)
+
     suspend fun setAgentMaxIterations(value: Int)
+
     suspend fun setRepeatPenalty(value: Float)
+
     suspend fun setLastModelPath(path: String)
+
     suspend fun clearLastModelPath()
 
     companion object {

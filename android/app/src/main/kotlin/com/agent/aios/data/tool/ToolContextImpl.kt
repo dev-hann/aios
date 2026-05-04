@@ -10,15 +10,17 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ToolContextImpl @Inject constructor(
-    @ApplicationContext override val appContext: Context,
-    private val serviceRegistry: ServiceRegistry,
-) : ToolContext {
-    override fun getAccessibilityService(): AIOSAccessibilityService? {
-        return serviceRegistry.accessibilityService.value
-    }
+class ToolContextImpl
+    @Inject
+    constructor(
+        @ApplicationContext override val appContext: Context,
+        private val serviceRegistry: ServiceRegistry,
+    ) : ToolContext {
+        override fun getAccessibilityService(): AIOSAccessibilityService? {
+            return serviceRegistry.accessibilityService.value
+        }
 
-    override fun getNotificationService(): NotificationListener? {
-        return serviceRegistry.notificationService.value
+        override fun getNotificationService(): NotificationListener? {
+            return serviceRegistry.notificationService.value
+        }
     }
-}

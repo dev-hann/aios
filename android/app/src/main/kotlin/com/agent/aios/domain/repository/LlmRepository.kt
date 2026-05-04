@@ -14,12 +14,20 @@ interface LlmRepository {
     val updateError: StateFlow<String?>
 
     fun bindService()
+
     suspend fun loadModel(path: String, contextSize: Int? = null): Boolean
+
     fun releaseModel()
+
     fun isModelLoaded(): Boolean
+
     fun getModelInfo(): String
+
     fun getContextUsage(): String
+
     fun resetContext()
+
     fun cancelInference()
+
     fun resolveConfirmation(approved: Boolean)
 }

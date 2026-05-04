@@ -31,8 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.domain.model.ModelInfo
+import com.agent.aios.ui.theme.AIOSColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

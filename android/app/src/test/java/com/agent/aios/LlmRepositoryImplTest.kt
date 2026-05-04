@@ -2,11 +2,8 @@ package com.agent.aios
 
 import com.agent.aios.data.llm.LlmRepositoryImpl
 import com.agent.aios.data.tool.ToolContextImpl
-import com.agent.aios.domain.agent.AgentStrategy
-import com.agent.aios.domain.model.AgentResult
 import com.agent.aios.domain.model.AgentStep
 import com.agent.aios.domain.model.ServiceState
-import com.agent.aios.domain.repository.LlmRepository
 import com.agent.aios.domain.repository.SettingsRepository
 import com.agent.aios.domain.repository.UpdateRepository
 import com.agent.aios.service.ServiceRegistry
@@ -14,9 +11,6 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.*
 import org.junit.After
@@ -49,13 +43,14 @@ class LlmRepositoryImplTest {
         every { mockSettingsRepo.agentMaxIterations } returns flowOf(8)
         every { mockSettingsRepo.maxTokensAgent } returns flowOf(512)
 
-        repo = LlmRepositoryImpl(
-            context = mockk(relaxed = true),
-            settingsRepository = mockSettingsRepo,
-            serviceRegistry = mockServiceRegistry,
-            toolContextImpl = mockToolContextImpl,
-            updateRepository = mockUpdateRepo,
-        )
+        repo =
+            LlmRepositoryImpl(
+                context = mockk(relaxed = true),
+                settingsRepository = mockSettingsRepo,
+                serviceRegistry = mockServiceRegistry,
+                toolContextImpl = mockToolContextImpl,
+                updateRepository = mockUpdateRepo,
+            )
     }
 
     @After

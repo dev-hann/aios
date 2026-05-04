@@ -76,7 +76,9 @@ class ResponseParser(private val validToolNames: Set<String>) {
 
     sealed class ParseResult {
         data class Action(val toolName: String, val args: String) : ParseResult()
+
         data class Answer(val text: String) : ParseResult()
+
         data object Empty : ParseResult()
     }
 }

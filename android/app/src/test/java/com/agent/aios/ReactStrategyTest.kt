@@ -3,11 +3,8 @@ package com.agent.aios
 import com.agent.aios.domain.agent.ReactStrategy
 import com.agent.aios.domain.agent.ResponseParser
 import com.agent.aios.domain.agent.RiskClassifier
-import com.agent.aios.domain.agent.LoopDetector
-import com.agent.aios.domain.agent.AuditLog
-import com.agent.aios.domain.agent.ConfirmationGate
-import com.agent.aios.domain.model.AgentStep
 import com.agent.aios.domain.model.AgentResult
+import com.agent.aios.domain.model.AgentStep
 import com.agent.aios.domain.model.ToolRisk
 import io.mockk.every
 import io.mockk.mockk
@@ -357,11 +354,12 @@ class ReactStrategyTest {
         val latch = CountDownLatch(1)
 
         thread {
-            result = runBlocking {
-                strategy.execute("Tap the screen") { step ->
-                    callbackSteps.add(step)
+            result =
+                runBlocking {
+                    strategy.execute("Tap the screen") { step ->
+                        callbackSteps.add(step)
+                    }
                 }
-            }
             latch.countDown()
         }
 
@@ -411,11 +409,12 @@ class ReactStrategyTest {
         val latch = CountDownLatch(1)
 
         thread {
-            result = runBlocking {
-                strategy.execute("Tap something") { step ->
-                    callbackSteps.add(step)
+            result =
+                runBlocking {
+                    strategy.execute("Tap something") { step ->
+                        callbackSteps.add(step)
+                    }
                 }
-            }
             latch.countDown()
         }
 

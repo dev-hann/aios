@@ -15,14 +15,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.agent.aios.domain.repository.ModelRepository
 import com.agent.aios.rememberModelImportLauncher
 import com.agent.aios.ui.screen.ChatScreen
 import com.agent.aios.ui.screen.SettingsScreen
 import com.agent.aios.ui.screen.UpdateScreen
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.ChatViewModel
-import javax.inject.Inject
 
 sealed class Screen(val route: String) {
     data object Chat : Screen("chat")

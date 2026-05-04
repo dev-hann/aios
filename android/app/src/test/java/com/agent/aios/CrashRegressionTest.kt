@@ -6,8 +6,6 @@ import com.agent.aios.domain.agent.ConfirmationGate
 import com.agent.aios.domain.agent.ReactStrategy
 import com.agent.aios.domain.agent.ResponseParser
 import com.agent.aios.domain.agent.RiskClassifier
-import com.agent.aios.domain.model.AgentResult
-import com.agent.aios.domain.model.AgentStep
 import com.agent.aios.domain.model.ServiceState
 import com.agent.aios.domain.model.ToolRisk
 import com.agent.aios.domain.repository.SettingsRepository
@@ -157,13 +155,14 @@ class CrashRegressionTest {
         every { mockSettingsRepo.agentMaxIterations } returns kotlinx.coroutines.flow.flowOf(8)
         every { mockSettingsRepo.maxTokensAgent } returns kotlinx.coroutines.flow.flowOf(512)
 
-        val repo = LlmRepositoryImpl(
-            context = mockk(relaxed = true),
-            settingsRepository = mockSettingsRepo,
-            serviceRegistry = mockServiceRegistry,
-            toolContextImpl = mockToolContextImpl,
-            updateRepository = mockUpdateRepo,
-        )
+        val repo =
+            LlmRepositoryImpl(
+                context = mockk(relaxed = true),
+                settingsRepository = mockSettingsRepo,
+                serviceRegistry = mockServiceRegistry,
+                toolContextImpl = mockToolContextImpl,
+                updateRepository = mockUpdateRepo,
+            )
 
         repo.cancelInference()
         assertEquals(ServiceState.MODEL_LOADED, repo.serviceState.value)
@@ -176,13 +175,14 @@ class CrashRegressionTest {
         val mockServiceRegistry = mockk<ServiceRegistry>(relaxed = true)
         val mockToolContextImpl = mockk<ToolContextImpl>(relaxed = true)
 
-        val repo = LlmRepositoryImpl(
-            context = mockk(relaxed = true),
-            settingsRepository = mockSettingsRepo,
-            serviceRegistry = mockServiceRegistry,
-            toolContextImpl = mockToolContextImpl,
-            updateRepository = mockUpdateRepo,
-        )
+        val repo =
+            LlmRepositoryImpl(
+                context = mockk(relaxed = true),
+                settingsRepository = mockSettingsRepo,
+                serviceRegistry = mockServiceRegistry,
+                toolContextImpl = mockToolContextImpl,
+                updateRepository = mockUpdateRepo,
+            )
 
         repo.resolveConfirmation(true)
         repo.resolveConfirmation(false)

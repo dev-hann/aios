@@ -343,11 +343,12 @@ class NativeInferenceTest {
         val strategy = com.agent.aios.domain.agent.ReactStrategy(service)
 
         val steps = mutableListOf<com.agent.aios.domain.model.AgentStep>()
-        val result = kotlinx.coroutines.runBlocking {
-            strategy.execute("What is 2+2?", maxIterations = 2) { step ->
-                steps.add(step)
+        val result =
+            kotlinx.coroutines.runBlocking {
+                strategy.execute("What is 2+2?", maxIterations = 2) { step ->
+                    steps.add(step)
+                }
             }
-        }
         assertNotNull("Agent should return result", result)
         assertTrue("Agent should complete with at least 1 step", result.steps.isNotEmpty())
 
@@ -409,16 +410,17 @@ class NativeInferenceTest {
         val flow = kotlinx.coroutines.flow.MutableSharedFlow<com.agent.aios.domain.model.AgentStep>(extraBufferCapacity = 64)
         var stepCount = 0
 
-        val result = kotlinx.coroutines.runBlocking {
-            strategy.execute("Hi", maxIterations = 1) { step ->
-                try {
-                    flow.tryEmit(step)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Step flow error: ${e.message}")
+        val result =
+            kotlinx.coroutines.runBlocking {
+                strategy.execute("Hi", maxIterations = 1) { step ->
+                    try {
+                        flow.tryEmit(step)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Step flow error: ${e.message}")
+                    }
+                    stepCount++
                 }
-                stepCount++
             }
-        }
         assertTrue("Agent should complete without crash (steps=$stepCount)", result.steps.isNotEmpty())
 
         Log.i(TAG, "AgentLoop with SharedFlow: ${result.steps.size} steps, $stepCount callbacks")

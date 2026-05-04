@@ -68,13 +68,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.agent.aios.domain.model.ConfirmationRequest
 import com.agent.aios.domain.model.ServiceState
 import com.agent.aios.domain.model.ToolRisk
 import com.agent.aios.ui.component.MessageBubble
 import com.agent.aios.ui.theme.AIOSColors
 import com.agent.aios.ui.viewmodel.ChatViewModel
-import com.agent.aios.ui.viewmodel.ChatUiState
-import com.agent.aios.domain.model.ConfirmationRequest
 import kotlinx.coroutines.delay
 
 @Composable
