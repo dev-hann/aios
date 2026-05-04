@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.File
@@ -36,7 +38,7 @@ class LlamaBridgeInstrumentedTest {
 
     @Test
     fun testInfer_noModel() {
-        val result = bridge.nativeInfer("Hello", 32)
+        val result = bridge.nativeProcessPrompt("Hello")
         assertEquals("Should return -1 for no model", -1, result)
     }
 
@@ -90,8 +92,15 @@ class LlamaBridgeInstrumentedTest {
             assertFalse("Formatted chat should not be empty", formatted.isEmpty())
 
             bridge.nativeResetContext()
-            val tokenCount = bridge.nativeInfer("Hello, how are you?", 16)
-            assertTrue("Should generate some tokens", tokenCount > 0)
+            val procResult = bridge.nativeProcessPrompt("Hello, how are you?")
+            assertEquals("processPrompt should succeed", 0, procResult)
+
+            var generatedChars = 0
+            repeat(16) {
+                val token = bridge.nativeGenerateOneToken() ?: return@repeat
+                generatedChars += token.length
+            }
+            assertTrue("Should generate some tokens", generatedChars > 0)
 
             bridge.nativeReleaseModel()
             assertFalse(bridge.nativeIsModelLoaded())

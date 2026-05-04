@@ -27,7 +27,7 @@ class LlamaBridge {
         }
     }
 
-    external fun nativeInit(nativeLibDir: String)
+    external fun nativeInit(nativeLibDir: String): Boolean
 
     external fun nativeLoadModel(
         modelPath: String,

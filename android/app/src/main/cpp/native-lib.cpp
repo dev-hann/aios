@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include <vector>
+#include <mutex>
 #include <android/log.h>
 #include <unistd.h>
 #include <llama.h>
@@ -39,6 +40,8 @@ static llama_pos g_system_prompt_pos = 0;
 static float g_load_progress = 0.0f;
 static int g_load_stage = 0;
 static std::string g_load_model_name;
+
+static std::mutex g_mutex;
 
 static void batch_clear() { g_batch.n_tokens = 0; }
 
@@ -123,29 +126,67 @@ static bool is_valid_utf8(const char *s) {
     return true;
 }
 
-extern "C" JNIEXPORT void JNICALL
+static int processPromptInternal(JNIEnv *env, jstring prompt, bool set_sys_pos, const char *func_name) {
+    if (!g_ctx || !g_model || !g_vocab) return -1;
+
+    const char *str = env->GetStringUTFChars(prompt, nullptr);
+    if (!str) return -1;
+    LOGI("%s: %zu chars (pos=%d/%d)", func_name, strlen(str), (int)g_current_pos, g_n_ctx);
+
+    g_cached_token_chars.clear();
+    if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
+    g_sampler = create_sampler();
+
+    bool add_bos = (g_current_pos == 0);
+    auto tokens = tokenize(str, add_bos);
+    env->ReleaseStringUTFChars(prompt, str);
+
+    if (tokens.empty()) { LOGE("%s: tokenize failed", func_name); return -1; }
+    if ((int)tokens.size() >= g_n_ctx) { LOGE("%s: too many tokens", func_name); return -1; }
+
+    if (decode_tokens(tokens, g_current_pos, true) != 0) return -1;
+
+    g_current_pos += (llama_pos)tokens.size();
+    if (set_sys_pos) g_system_prompt_pos = g_current_pos;
+
+    LOGI("%s: done (%zu tokens, pos=%d)", func_name, tokens.size(), (int)g_current_pos);
+    return 0;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_com_agent_aios_LlamaBridge_nativeInit(
         JNIEnv *env, jobject, jstring nativeLibDir) {
-    if (g_initialized) return;
+    if (g_initialized) return JNI_TRUE;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_initialized) return JNI_TRUE;
     const char *dir = env->GetStringUTFChars(nativeLibDir, nullptr);
+    if (!dir) {
+        LOGE("nativeInit: failed to get native lib dir string");
+        return JNI_FALSE;
+    }
     LOGI("nativeInit: loading backends from %s", dir);
     ggml_backend_load_all_from_path(dir);
     env->ReleaseStringUTFChars(nativeLibDir, dir);
     llama_backend_init();
     g_initialized = true;
     LOGI("nativeInit: done");
+    return JNI_TRUE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         JNIEnv *env, jobject, jstring model_path, jint context_size) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     const char *path = env->GetStringUTFChars(model_path, nullptr);
     if (!path) return JNI_FALSE;
     LOGI("loadModel: %s (ctx=%d)", path, context_size);
 
     g_load_progress = 0.0f;
     g_load_stage = 0;
-    g_load_model_name = path;
+    std::string path_str(path);
+    size_t slash_pos = path_str.find_last_of('/');
+    g_load_model_name = (slash_pos != std::string::npos) ? path_str.substr(slash_pos + 1) : path_str;
+    env->ReleaseStringUTFChars(model_path, path);
 
     if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
     if (g_batch.token) { llama_batch_free(g_batch); g_batch = {}; }
@@ -164,8 +205,7 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
         return true;
     };
 
-    g_model = llama_model_load_from_file(path, model_params);
-    env->ReleaseStringUTFChars(model_path, path);
+    g_model = llama_model_load_from_file(path_str.c_str(), model_params);
 
     if (!g_model) {
         LOGE("loadModel: model load failed");
@@ -219,22 +259,27 @@ Java_com_agent_aios_LlamaBridge_nativeLoadModel(
 }
 
 extern "C" JNIEXPORT jfloat JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGetLoadProgress(JNIEnv *, jobject) { return g_load_progress; }
+Java_com_agent_aios_LlamaBridge_nativeGetLoadProgress(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_load_progress;
+}
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_agent_aios_LlamaBridge_nativeGetLoadStage(JNIEnv *, jobject) { return g_load_stage; }
+Java_com_agent_aios_LlamaBridge_nativeGetLoadStage(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_load_stage;
+}
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGetLoadModelName(JNIEnv *env, jobject) {
-    if (g_load_model_name.empty()) return env->NewStringUTF("");
-    size_t slash = g_load_model_name.find_last_of('/');
-    std::string name = (slash != std::string::npos) ? g_load_model_name.substr(slash + 1) : g_load_model_name;
-    return env->NewStringUTF(name.c_str());
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return env->NewStringUTF(g_load_model_name.c_str());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeFormatChat(
         JNIEnv *env, jobject, jobjectArray roles, jobjectArray contents) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_model) return env->NewStringUTF("");
 
     jsize len = env->GetArrayLength(roles);
@@ -256,6 +301,7 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
     }
 
     std::vector<llama_chat_message> msgs;
+    msgs.reserve(role_strs.size());
     for (size_t i = 0; i < role_strs.size(); i++) {
         msgs.push_back({role_strs[i].c_str(), content_strs[i].c_str()});
     }
@@ -266,6 +312,7 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
     if (res >= (int32_t)buf.size()) {
         buf.resize(res + 1);
         msgs.clear();
+        msgs.reserve(role_strs.size());
         for (size_t i = 0; i < role_strs.size(); i++) msgs.push_back({role_strs[i].c_str(), content_strs[i].c_str()});
         llama_chat_apply_template(nullptr, msgs.data(), (int32_t)msgs.size(), true, buf.data(), (int32_t)buf.size());
     }
@@ -275,63 +322,21 @@ Java_com_agent_aios_LlamaBridge_nativeFormatChat(
 extern "C" JNIEXPORT jint JNICALL
 Java_com_agent_aios_LlamaBridge_nativeProcessSystemPrompt(
         JNIEnv *env, jobject, jstring prompt) {
-    if (!g_ctx || !g_model || !g_vocab) return -1;
-
-    const char *str = env->GetStringUTFChars(prompt, nullptr);
-    if (!str) return -1;
-    LOGI("processSystemPrompt: %zu chars (pos=%d/%d)", strlen(str), (int)g_current_pos, g_n_ctx);
-
-    g_cached_token_chars.clear();
-    if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
-    g_sampler = create_sampler();
-
-    bool add_bos = (g_current_pos == 0);
-    auto tokens = tokenize(str, add_bos);
-    env->ReleaseStringUTFChars(prompt, str);
-
-    if (tokens.empty()) { LOGE("processSystemPrompt: tokenize failed"); return -1; }
-    if ((int)tokens.size() >= g_n_ctx) { LOGE("processSystemPrompt: too many tokens"); return -1; }
-
-    if (decode_tokens(tokens, g_current_pos, true) != 0) return -1;
-
-    g_current_pos += (llama_pos)tokens.size();
-    g_system_prompt_pos = g_current_pos;
-
-    LOGI("processSystemPrompt: done (%zu tokens, pos=%d, sys=%d)",
-         tokens.size(), (int)g_current_pos, (int)g_system_prompt_pos);
-    return 0;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return processPromptInternal(env, prompt, true, "processSystemPrompt");
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_agent_aios_LlamaBridge_nativeProcessPrompt(
         JNIEnv *env, jobject, jstring prompt) {
-    if (!g_ctx || !g_model || !g_vocab) return -1;
-
-    const char *str = env->GetStringUTFChars(prompt, nullptr);
-    if (!str) return -1;
-    LOGI("processPrompt: %zu chars (pos=%d/%d)", strlen(str), (int)g_current_pos, g_n_ctx);
-
-    g_cached_token_chars.clear();
-    if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
-    g_sampler = create_sampler();
-
-    bool add_bos = (g_current_pos == 0);
-    auto tokens = tokenize(str, add_bos);
-    env->ReleaseStringUTFChars(prompt, str);
-
-    if (tokens.empty()) { LOGE("processPrompt: tokenize failed"); return -1; }
-    if ((int)tokens.size() >= g_n_ctx) { LOGE("processPrompt: too many tokens"); return -1; }
-
-    if (decode_tokens(tokens, g_current_pos, false) != 0) return -1;
-
-    g_current_pos += (llama_pos)tokens.size();
-    LOGI("processPrompt: done (pos=%d/%d, tokens=%zu)", (int)g_current_pos, g_n_ctx, tokens.size());
-    return 0;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return processPromptInternal(env, prompt, false, "processPrompt");
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_agent_aios_LlamaBridge_nativeProcessPromptIncremental(
         JNIEnv *env, jobject, jstring prompt) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_ctx || !g_model || !g_vocab) return -1;
 
     const char *str = env->GetStringUTFChars(prompt, nullptr);
@@ -360,6 +365,7 @@ Java_com_agent_aios_LlamaBridge_nativeProcessPromptIncremental(
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGenerateOneToken(JNIEnv *env, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_ctx || !g_model || !g_vocab) return nullptr;
     if (!g_sampler) g_sampler = create_sampler();
     if (!g_sampler) return nullptr;
@@ -400,6 +406,7 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateOneToken(JNIEnv *env, jobject) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeSetSystemPromptPosition(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     if (g_system_prompt_pos == 0) {
         g_system_prompt_pos = g_current_pos;
         LOGI("system_prompt_pos=%d", (int)g_system_prompt_pos);
@@ -408,6 +415,7 @@ Java_com_agent_aios_LlamaBridge_nativeSetSystemPromptPosition(JNIEnv *, jobject)
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeReleaseModel(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     g_current_pos = 0;
     g_system_prompt_pos = 0;
     g_cached_token_chars.clear();
@@ -415,11 +423,15 @@ Java_com_agent_aios_LlamaBridge_nativeReleaseModel(JNIEnv *, jobject) {
     if (g_batch.token) { llama_batch_free(g_batch); g_batch = {}; }
     if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
     if (g_model) { llama_model_free(g_model); g_model = nullptr; g_vocab = nullptr; }
+    g_load_progress = 0.0f;
+    g_load_stage = 0;
+    g_load_model_name.clear();
     LOGI("Model released");
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeResetContext(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     if (g_ctx) llama_memory_clear(llama_get_memory(g_ctx), false);
     g_current_pos = 0;
     g_system_prompt_pos = 0;
@@ -429,11 +441,13 @@ Java_com_agent_aios_LlamaBridge_nativeResetContext(JNIEnv *, jobject) {
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_agent_aios_LlamaBridge_nativeIsModelLoaded(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     return (g_model && g_ctx) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(JNIEnv *env, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_model) return env->NewStringUTF("No model loaded");
     char info[512];
     snprintf(info, sizeof(info), "n_ctx_train=%d, n_embd=%d, n_layer=%d, threads=%d, ctx=%d",
@@ -444,6 +458,7 @@ Java_com_agent_aios_LlamaBridge_nativeGetModelInfo(JNIEnv *env, jobject) {
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_agent_aios_LlamaBridge_nativeGetContextUsage(JNIEnv *env, jobject) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     char buf[64];
     snprintf(buf, sizeof(buf), "%d/%d", (int)g_current_pos, g_n_ctx);
     return env->NewStringUTF(buf);
@@ -452,6 +467,7 @@ Java_com_agent_aios_LlamaBridge_nativeGetContextUsage(JNIEnv *env, jobject) {
 extern "C" JNIEXPORT void JNICALL
 Java_com_agent_aios_LlamaBridge_nativeSetSamplingParams(
         JNIEnv *, jobject, jfloat temp, jint top_k, jfloat top_p, jfloat rep_penalty) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     g_temperature = temp;
     g_top_k = top_k;
     g_top_p = top_p;

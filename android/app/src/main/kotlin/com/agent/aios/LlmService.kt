@@ -30,8 +30,12 @@ class LlmService : Service(), LlmProvider {
     override fun onCreate() {
         super.onCreate()
         if (llamaBridge != null) {
-            llamaBridge.nativeInit(applicationInfo.nativeLibraryDir)
-            Log.i(TAG, "LlmService created")
+            val initResult = llamaBridge.nativeInit(applicationInfo.nativeLibraryDir)
+            if (initResult) {
+                Log.i(TAG, "LlmService created")
+            } else {
+                Log.e(TAG, "LlmService created but nativeInit failed")
+            }
         } else {
             Log.e(TAG, "LlmService created but native library not available")
         }
