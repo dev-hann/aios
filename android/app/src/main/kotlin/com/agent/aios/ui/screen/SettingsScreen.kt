@@ -167,7 +167,7 @@ fun SettingsScreen(
             currentModelPath = null,
             isImporting = isImporting,
             onSelect = {
-                chatViewModel.loadModel(it.path)
+                chatViewModel.loadModel(it.path, it.size)
                 showModelPicker = false
             },
             onImportFile = {

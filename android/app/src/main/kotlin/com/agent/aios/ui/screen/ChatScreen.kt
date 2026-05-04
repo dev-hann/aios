@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -122,8 +123,7 @@ fun ChatScreen(
         if (!isModelLoaded) {
             if (isGenerating && serviceState == ServiceState.GENERATING) {
                 ModelLoadingView(
-                    progress = uiState.loadProgress,
-                    stage = uiState.loadStage,
+                    warning = uiState.modelSizeWarning,
                 )
             } else {
                 EmptyState(onGoToSettings = onNavigateToSettings)
@@ -724,8 +724,7 @@ private fun parseArgsForDisplay(
 
 @Composable
 private fun ModelLoadingView(
-    progress: Float,
-    stage: Int,
+    warning: String? = null,
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val pulse by infiniteTransition.animateFloat(
@@ -738,15 +737,6 @@ private fun ModelLoadingView(
             ),
         label = "loading_pulse",
     )
-
-    val stageLabel =
-        when (stage) {
-            1 -> "Loading model weights..."
-            2 -> "Applying chat template..."
-            3 -> "Initializing context..."
-            else -> "Loading model..."
-        }
-    val progressPercent = (progress * 100).toInt()
 
     Box(
         modifier =
@@ -774,28 +764,37 @@ private fun ModelLoadingView(
             }
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = stageLabel,
+                text = "Loading model...",
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
                 color = AIOSColors.TextPrimary,
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = if (progress > 0f) "$progressPercent%" else "Preparing...",
-                fontSize = 14.sp,
-                color = AIOSColors.TextTertiary,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            androidx.compose.material3.LinearProgressIndicator(
-                progress = { progress },
-                modifier =
-                    Modifier
-                        .fillMaxWidth(0.5f)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
-                color = AIOSColors.Primary,
-                trackColor = AIOSColors.SurfaceVariant,
-            )
+            if (warning != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(0.8f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AIOSColors.StatusError.copy(alpha = 0.1f))
+                            .border(1.dp, AIOSColors.StatusError.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Warning,
+                        contentDescription = null,
+                        tint = AIOSColors.StatusError,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = warning,
+                        fontSize = 12.sp,
+                        color = AIOSColors.StatusError,
+                    )
+                }
+            }
         }
     }
 }

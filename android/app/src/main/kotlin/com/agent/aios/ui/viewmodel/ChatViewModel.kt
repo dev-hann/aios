@@ -1,5 +1,7 @@
 package com.agent.aios.ui.viewmodel
 
+import android.app.ActivityManager
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -15,6 +17,7 @@ import com.agent.aios.domain.repository.LlmRepository
 import com.agent.aios.domain.repository.ModelRepository
 import com.agent.aios.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,12 +43,14 @@ data class ChatUiState(
     val serviceState: ServiceState = ServiceState.DISCONNECTED,
     val loadProgress: Float = 0f,
     val loadStage: Int = 0,
+    val modelSizeWarning: String? = null,
 )
 
 @HiltViewModel
 class ChatViewModel
     @Inject
     constructor(
+        @ApplicationContext private val appContext: Context,
         private val llmRepository: LlmRepository,
         private val modelRepository: ModelRepository,
         private val conversationRepository: ConversationRepository,
@@ -199,15 +204,53 @@ class ChatViewModel
             }
         }
 
-        fun loadModel(path: String) {
+        fun loadModel(path: String, modelSize: Long = 0L) {
+            _uiState.value = _uiState.value.copy(modelSizeWarning = null)
+
+            if (modelSize > 0) {
+                val actManager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                val memInfo = ActivityManager.MemoryInfo()
+                actManager.getMemoryInfo(memInfo)
+                val availMb = memInfo.availMem / (1024 * 1024)
+                val modelSizeMb = modelSize / (1024 * 1024)
+                val totalMb = memInfo.totalMem / (1024 * 1024)
+
+                // ~1.3x model file size needed for mmap + KV context + runtime overhead
+                val estimatedNeedMb = (modelSizeMb * 1.3).toInt()
+                if (modelSizeMb > totalMb * 0.6) {
+                    _uiState.value =
+                        _uiState.value.copy(
+                            modelSizeWarning = "Model (${modelSizeMb}MB) may be too large for this device (${totalMb}MB total RAM). App may freeze during loading.",
+                        )
+                } else if (estimatedNeedMb > availMb) {
+                    _uiState.value =
+                        _uiState.value.copy(
+                            modelSizeWarning = "Low memory: ${availMb}MB available, model needs ~${estimatedNeedMb}MB. App may freeze during loading.",
+                        )
+                }
+            }
+
             _uiState.value = _uiState.value.copy(isGenerating = true)
             viewModelScope.launch {
-                val contextSize = runCatching { settingsRepository.contextSize.first() }.getOrNull() ?: 2048
+                val savedContextSize = runCatching { settingsRepository.contextSize.first() }.getOrNull() ?: 2048
+                val contextSize =
+                    if (modelSize > 2_000_000_000L) {
+                        val reduced = minOf(savedContextSize, 1024)
+                        if (reduced < savedContextSize) {
+                            Log.w(TAG, "Large model (${modelSize / 1_000_000}MB): reducing context $savedContextSize → $reduced")
+                        }
+                        reduced
+                    } else if (modelSize > 1_500_000_000L) {
+                        minOf(savedContextSize, 1536)
+                    } else {
+                        savedContextSize
+                    }
                 val success = llmRepository.loadModel(path, contextSize)
                 _uiState.value =
                     _uiState.value.copy(
                         isModelLoaded = success,
                         isGenerating = false,
+                        modelSizeWarning = null,
                     )
                 if (success) {
                     viewModelScope.launch { settingsRepository.setLastModelPath(path) }
