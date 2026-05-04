@@ -45,7 +45,7 @@ class AgentToolsInstrumentedTest {
         val tool = DeviceInfoTool()
         val result = tool.execute("{}")
         val json = JSONObject(result)
-        assertEquals("SM-F741N", json.getString("device"))
+        assertTrue("device should not be empty", json.getString("device").isNotEmpty())
         assertTrue(json.has("android_version"))
     }
 

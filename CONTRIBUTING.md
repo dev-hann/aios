@@ -79,29 +79,31 @@ git config core.hooksPath .githooks
 
 #### 배포 전 필수 실기 테스트 (MANDATORY)
 
-**에뮬레이터 또는 실기기에서 APK 설치 후 아래 항목을 반드시 검증해야 한다:**
-
-1. **앱 런치**: 크래시 없이 정상 실행
-2. **설정 화면**: UI 렌더링 정상 (패딩, 스크롤)
-3. **모델 로드**: ANR 없이 진행률 표시 후 완료
-4. **채팅**: 프롬프트 전송 → 응답 수신 정상
-5. **화면 전환**: 채팅 ↔ 설정 ↔ 뒤로가기 크래시 없음
+**에뮬레이터 또는 실기기에서 instrumented 테스트를 실행하여 자동 검증한다:**
 
 ```bash
 # 에뮬레이터 실행 (AVD 없으면 생성)
 $ANDROID_HOME/emulator/emulator -avd aios_test -no-snapshot-load &
 
-# APK 설치
+# Instrumented 테스트 실행 (단위 + UI + 네이티브 + 모델 로드 진행률)
+cd android && ./gradlew connectedAndroidTest
+
+# 수동 검증이 필요한 경우에만 아래 실행
 adb install -r android/app/build/outputs/apk/release/app-release.apk
-
-# 런치 로그 모니터링 (크래시 확인)
 adb logcat -s "AIOS-*" "AndroidRuntime" "ActivityManager"
-
-# 앱 실행
 adb shell am start -n com.agent.aios/.MainActivity
 ```
 
-**릴리즈 업로드는 위 테스트 모두 통과 후에만 수행한다.**
+**`connectedAndroidTest`가 통과하면 아래 항목이 자동 검증된다:**
+
+| 테스트 클래스 | 검증 항목 |
+|---|---|
+| `LlamaBridgeInstrumentedTest` | 네이티브 로드, 진행률/스테이지 초기값 |
+| `NativeInferenceTest` | 모델 로드, 추론, 진행률 폴링, 릴리즈 후 리셋 |
+| `ChatScreenTest` | Compose UI 렌더링, 로딩 진행률 표시, 화면 전환 |
+| `AgentToolsInstrumentedTest` | 툴 동작 |
+
+**릴리즈 업로드는 `connectedAndroidTest` 통과 후에만 수행한다.**
 
 ## Development Workflow
 

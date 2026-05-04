@@ -34,4 +34,11 @@ interface LlmRepository {
     fun cancelInference()
 
     fun resolveConfirmation(approved: Boolean)
+
+    fun runAgent(
+        prompt: String,
+        maxIterations: Int? = null,
+        maxTokensAgent: Int = 512,
+        onComplete: (List<AgentStep>) -> Unit,
+    )
 }

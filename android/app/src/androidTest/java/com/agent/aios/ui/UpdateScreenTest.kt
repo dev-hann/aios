@@ -1,18 +1,16 @@
 package com.agent.aios.ui
 
-import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
+import com.agent.aios.domain.model.UpdateInfo
+import com.agent.aios.domain.model.UpdateStatus
 import com.agent.aios.ui.screen.UpdateScreen
 import com.agent.aios.ui.theme.AIOSTheme
-import com.agent.aios.ui.viewmodel.UpdateStatus
 import com.agent.aios.ui.viewmodel.UpdateViewModel
-import com.agent.aios.update.UpdateInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -29,10 +27,10 @@ class UpdateScreenTest {
 
     @Before
     fun setup() {
-        val app =
-            InstrumentationRegistry.getInstrumentation()
-                .targetContext.applicationContext as Application
-        viewModel = UpdateViewModel(app)
+        viewModel =
+            UpdateViewModel::class.java.getDeclaredConstructor().apply {
+                isAccessible = true
+            }.newInstance()
     }
 
     @Suppress("UNCHECKED_CAST")

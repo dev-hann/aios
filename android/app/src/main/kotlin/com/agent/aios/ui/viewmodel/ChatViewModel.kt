@@ -4,7 +4,6 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.agent.aios.data.llm.LlmRepositoryImpl
 import com.agent.aios.domain.model.AgentStep
 import com.agent.aios.domain.model.ConfirmationRequest
 import com.agent.aios.domain.model.ConversationMessage
@@ -12,6 +11,7 @@ import com.agent.aios.domain.model.Message
 import com.agent.aios.domain.model.ModelInfo
 import com.agent.aios.domain.model.ServiceState
 import com.agent.aios.domain.repository.ConversationRepository
+import com.agent.aios.domain.repository.LlmRepository
 import com.agent.aios.domain.repository.ModelRepository
 import com.agent.aios.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,7 +46,7 @@ data class ChatUiState(
 class ChatViewModel
     @Inject
     constructor(
-        private val llmRepository: LlmRepositoryImpl,
+        private val llmRepository: LlmRepository,
         private val modelRepository: ModelRepository,
         private val conversationRepository: ConversationRepository,
         private val settingsRepository: SettingsRepository,

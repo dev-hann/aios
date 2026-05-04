@@ -18,6 +18,7 @@ class LlamaBridgeInstrumentedTest {
     fun setup() {
         context = InstrumentationRegistry.getInstrumentation().targetContext
         bridge = LlamaBridge()
+        bridge.nativeReleaseModel()
     }
 
     @Test
@@ -52,6 +53,18 @@ class LlamaBridgeInstrumentedTest {
     fun testLoadModel_invalidPath() {
         val result = bridge.nativeLoadModel("/nonexistent/model.gguf", 512)
         assertFalse("Should fail for nonexistent file", result)
+    }
+
+    @Test
+    fun testGetLoadProgress_initiallyZero() {
+        val progress = bridge.nativeGetLoadProgress()
+        assertEquals("Load progress should be 0 initially", 0f, progress, 0.01f)
+    }
+
+    @Test
+    fun testGetLoadStage_initiallyZero() {
+        val stage = bridge.nativeGetLoadStage()
+        assertEquals("Load stage should be 0 initially", 0, stage)
     }
 
     @Test

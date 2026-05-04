@@ -123,6 +123,16 @@ class LlmRepositoryImplTest {
     }
 
     @Test
+    fun loadProgress_initiallyZero() {
+        assertThat(repo.loadProgress.value).isEqualTo(0f)
+    }
+
+    @Test
+    fun loadStage_initiallyZero() {
+        assertThat(repo.loadStage.value).isEqualTo(0)
+    }
+
+    @Test
     fun serviceState_containsAllExpectedStates() {
         val states = ServiceState.entries
         assertThat(states).containsExactly(

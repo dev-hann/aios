@@ -191,7 +191,6 @@ class LlmRepositoryImpl
                         svc.updateNotification("Loading model...")
                         val result = svc.loadModel(path, ctxSize)
                         if (result) {
-                            _serviceState.value = ServiceState.MODEL_LOADED
                             svc.updateNotification("Model loaded - Ready")
                             val strategy = ReactStrategy(svc)
                             strategy.setToolContext(
@@ -201,7 +200,6 @@ class LlmRepositoryImpl
                                 ),
                             )
                             currentStrategy = strategy
-                            strategy.initSystemPrompt()
                         } else {
                             _serviceState.value = ServiceState.READY
                         }
@@ -209,6 +207,12 @@ class LlmRepositoryImpl
                     }
                 pollJob.cancel()
                 _loadProgress.value = if (success) 1f else 0f
+                if (success) {
+                    _serviceState.value = ServiceState.MODEL_LOADED
+                    withContext(Dispatchers.IO) {
+                        currentStrategy?.initSystemPrompt()
+                    }
+                }
                 success
             } catch (e: Exception) {
                 Log.e(TAG, "loadModel failed", e)
@@ -217,10 +221,10 @@ class LlmRepositoryImpl
             }
         }
 
-        fun runAgent(
+        override fun runAgent(
             prompt: String,
-            maxIterations: Int? = null,
-            maxTokensAgent: Int = 512,
+            maxIterations: Int?,
+            maxTokensAgent: Int,
             onComplete: (List<AgentStep>) -> Unit,
         ) {
             val svc = llmService

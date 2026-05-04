@@ -451,4 +451,60 @@ class NativeInferenceTest {
 
         Log.i(TAG, "Long streaming: ${tokens.get()} tokens, $result chars")
     }
+
+    @Test
+    fun test17_loadProgress_startsAtZeroAndChangesDuringLoad() {
+        val progressBefore = bridge.nativeGetLoadProgress()
+        val stageBefore = bridge.nativeGetLoadStage()
+        assertEquals("Progress should be 0 before load", 0f, progressBefore, 0.01f)
+        assertEquals("Stage should be 0 before load", 0, stageBefore)
+
+        val model = findOrDownloadModel()
+        val latch = CountDownLatch(1)
+        val maxProgressSeen = AtomicInteger(0)
+        val stagesSeen = mutableSetOf<Int>()
+
+        val poller =
+            Thread {
+                while (!Thread.currentThread().isInterrupted) {
+                    val p = bridge.nativeGetLoadProgress()
+                    val s = bridge.nativeGetLoadStage()
+                    synchronized(stagesSeen) {
+                        stagesSeen.add(s)
+                    }
+                    if (p > 0f) {
+                        maxProgressSeen.set((p * 100).toInt())
+                    }
+                    try {
+                        Thread.sleep(50)
+                    } catch (_: InterruptedException) {
+                        break
+                    }
+                }
+                latch.countDown()
+            }
+        poller.start()
+
+        val loaded = bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE)
+        poller.interrupt()
+        latch.await(5, TimeUnit.SECONDS)
+
+        assertTrue("Model should load successfully", loaded)
+
+        val finalProgress = bridge.nativeGetLoadProgress()
+        assertTrue("Final progress should be > 0 (got $finalProgress)", finalProgress > 0f)
+
+        Log.i(TAG, "Load progress test: maxProgress=${maxProgressSeen.get()}%, stages=$stagesSeen, finalProgress=$finalProgress")
+    }
+
+    @Test
+    fun test18_loadProgress_afterRelease_resetsToZero() {
+        val model = findOrDownloadModel()
+        assertTrue(bridge.nativeLoadModel(model.absolutePath, TEST_CONTEXT_SIZE))
+        assertTrue(bridge.nativeGetLoadProgress() > 0f)
+
+        bridge.nativeReleaseModel()
+        assertEquals("Progress should reset after release", 0f, bridge.nativeGetLoadProgress(), 0.01f)
+        assertEquals("Stage should reset after release", 0, bridge.nativeGetLoadStage())
+    }
 }
