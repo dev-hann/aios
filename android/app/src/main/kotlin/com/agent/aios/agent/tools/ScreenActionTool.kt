@@ -6,6 +6,8 @@ import com.agent.aios.service.AIOSAccessibilityService
 import org.json.JSONObject
 
 class ScreenActionTool : ExtendedTool {
+    private val TAG = "AIOS-ScreenAction"
+
     override val name = "screen_action"
     override val description = "Screen action: tap|long_click|type|scroll|swipe|global. Args: {action, text, content, x, y, direction, global_action}"
     override val parameters = """{"action": "tap|long_click|type|scroll|swipe|global", "text": "string, text of element to click (for tap/long_click)", "content": "string, text to type (for type)", "x": "float, x coordinate (for tap)", "y": "float, y coordinate (for tap)", "direction": "up|down|left|right (for scroll)", "global_action": "back|home|recents|notifications|quick_settings (for global)"}"""
@@ -32,7 +34,7 @@ class ScreenActionTool : ExtendedTool {
                 else -> "Error: Unknown action '$action'. Use tap, long_click, type, scroll, swipe, or global."
             }
         } catch (e: Exception) {
-            Log.e("ScreenAction", "Error: ${e.message}", e)
+            Log.e(TAG, "Error: ${e.message}", e)
             "Error: ${e.message}"
         }
     }

@@ -5,6 +5,8 @@ import com.agent.aios.domain.ToolContext
 import org.json.JSONObject
 
 class ScreenReaderTool : ExtendedTool {
+    private val TAG = "AIOS-ScreenReader"
+
     override val name = "screen_reader"
     override val description = "Read all visible text on screen. Args: {}"
     override val parameters = """{}"""
@@ -22,7 +24,7 @@ class ScreenReaderTool : ExtendedTool {
                 if (text.isBlank()) "Screen appears to be empty or no readable content found." else text
             }
         } catch (e: Exception) {
-            Log.e("ScreenReader", "Error: ${e.message}", e)
+            Log.e(TAG, "Error: ${e.message}", e)
             "Error: ${e.message}"
         }
     }
