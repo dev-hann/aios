@@ -84,7 +84,7 @@ private fun getFileName(uri: Uri): String {
             }
         } ?: uri.lastPathSegment ?: "model.gguf"
     } catch (e: Exception) {
-        Log.w("MainActivity", "Failed to get file name", e)
+        Log.w("AIOS-Main", "Failed to get file name", e)
         "model.gguf"
     }
 }
