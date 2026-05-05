@@ -42,9 +42,18 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
     git commit -m "chore: bump to ${TAG}" --no-verify
 fi
 
-echo "[pre-push] Building release APK for ${TAG}..."
+echo "[pre-push] Running flutter test..."
 
 cd "$REPO_ROOT"
+flutter test 2>&1 | tail -3
+
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo "[pre-push] ERROR: flutter test failed"
+    exit 1
+fi
+
+echo "[pre-push] Building release APK for ${TAG}..."
+
 flutter build apk --release 2>&1 | tail -3
 
 APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
