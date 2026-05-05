@@ -28,7 +28,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
     });
   }
 
-  Future<void> sendMessage(String text) async {
+  Future<void> sendMessage(
+    String text, {
+    double? temperature,
+    int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
+  }) async {
     if (text.trim().isEmpty) return;
 
     final userMessage = ChatMessage(
@@ -38,12 +45,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
       createdAt: DateTime.now(),
     );
 
+    final previousMessages = List<ChatMessage>.from(state.messages);
+
     state = state.copyWith(
       messages: [...state.messages, userMessage],
       isGenerating: true,
       currentResponse: '',
       errorMessage: null,
     );
+
+    await _conversationRepository.appendMessage(userMessage);
 
     _tokenSub = _llmRepository.tokenStream.listen(
       (token) {
@@ -64,8 +75,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     try {
       await _llmRepository.sendMessage(
-        state.messages,
+        previousMessages,
         userMessage: text.trim(),
+        temperature: temperature,
+        maxTokens: maxTokens,
+        topK: topK,
+        topP: topP,
+        repeatPenalty: repeatPenalty,
       );
 
       await _tokenSub?.cancel();
@@ -105,6 +121,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
         currentResponse: '',
       );
       await _conversationRepository.appendMessage(assistantMessage);
+    } else {
+      state = state.copyWith(
+        errorMessage: 'No response from model',
+      );
     }
     state = state.copyWith(isGenerating: false);
   }
@@ -119,11 +139,33 @@ class ChatNotifier extends StateNotifier<ChatState> {
     await _finalizeResponse();
   }
 
+  Future<void> loadConversation() async {
+    try {
+      final messages = await _conversationRepository.load();
+      if (!mounted) return;
+      if (messages.isNotEmpty) {
+        state = state.copyWith(messages: messages);
+        developer.log(
+          'Loaded ${messages.length} messages',
+          name: _tag,
+        );
+      }
+    } on Object catch (e) {
+      developer.log(
+        'loadConversation failed',
+        name: _tag,
+        error: e,
+        level: 1000,
+      );
+    }
+  }
+
   Future<void> loadModel(String path, {int? contextSize}) async {
     await _llmRepository.loadModel(path, contextSize: contextSize);
   }
 
-  void clearChat() {
+  Future<void> clearChat() async {
+    await _conversationRepository.clear();
     state = const ChatState();
   }
 

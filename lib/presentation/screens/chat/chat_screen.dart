@@ -4,6 +4,7 @@ import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/presentation/providers/chat_providers.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
+import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/widgets/input_bar.dart';
 import 'package:aios/presentation/widgets/message_bubble.dart';
 import 'package:aios/presentation/widgets/status_bar.dart';
@@ -11,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class ChatScreen extends ConsumerWidget {
+class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
   void _showClearChatDialog(BuildContext context, WidgetRef ref) {
@@ -46,7 +47,20 @@ class ChatScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(chatStateProvider.notifier).loadConversation(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final chatState = ref.watch(chatStateProvider);
     final llmRepo = ref.watch(llmRepositoryProvider);
     final contextUsage = chatState.serviceState == ServiceState.ready
@@ -69,6 +83,13 @@ class ChatScreen extends ConsumerWidget {
               onPressed: () => _showClearChatDialog(context, ref),
             ),
           IconButton(
+            icon: const Icon(Icons.delete_outline, color: AppColors.textSecondary),
+            onPressed: () {
+              ref.read(chatStateProvider.notifier).clearChat();
+            },
+            tooltip: 'Clear chat',
+          ),
+          IconButton(
             icon: const Icon(Icons.settings, color: AppColors.textPrimary),
             onPressed: () => context.push('/settings'),
           ),
@@ -78,6 +99,8 @@ class ChatScreen extends ConsumerWidget {
           ? const _ModelLoadingView()
           : Column(
               children: [
+                if (chatState.errorMessage != null)
+                  _ErrorBar(message: chatState.errorMessage!),
                 Expanded(
                   child: chatState.messages.isEmpty && !chatState.isGenerating
                       ? const _WelcomeView()
@@ -86,12 +109,52 @@ class ChatScreen extends ConsumerWidget {
                 InputBar(
                   onSubmitted: (text) {
                     if (text.isEmpty) return;
-                    ref.read(chatStateProvider.notifier).sendMessage(text);
+                    final settings = ref.read(settingsProvider);
+                    ref.read(chatStateProvider.notifier).sendMessage(
+                          text,
+                          temperature: settings.temperature,
+                          maxTokens: settings.maxTokens,
+                          topK: settings.topK,
+                          topP: settings.topP,
+                          repeatPenalty: settings.repeatPenalty,
+                        );
+                  },
+                  onStop: () {
+                    ref.read(chatStateProvider.notifier).stopGeneration();
                   },
                   isGenerating: chatState.isGenerating,
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _ErrorBar extends StatelessWidget {
+  const _ErrorBar({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: AppColors.error.withValues(alpha: 0.15),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: AppColors.error, fontSize: 13),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

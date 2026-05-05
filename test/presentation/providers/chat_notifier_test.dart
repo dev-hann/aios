@@ -20,6 +20,11 @@ class _MockLlmRepository implements LlmRepository {
   bool stopGenerationCalled = false;
   Object? sendMessageError;
   List<String> tokens = [];
+  double? lastTemperature;
+  int? lastMaxTokens;
+  int? lastTopK;
+  double? lastTopP;
+  double? lastRepeatPenalty;
 
   @override
   Stream<ServiceState> get state => _stateController.stream;
@@ -63,12 +68,20 @@ class _MockLlmRepository implements LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {
     if (sendMessageError != null) {
       throw sendMessageError!;
     }
     lastHistory = history;
     lastUserMessage = userMessage;
+    lastTemperature = temperature;
+    lastMaxTokens = maxTokens;
+    lastTopK = topK;
+    lastTopP = topP;
+    lastRepeatPenalty = repeatPenalty;
     _stateController.add(ServiceState.generating);
     for (final token in tokens) {
       _tokenController.add(token);
@@ -224,7 +237,7 @@ void main() {
 
       expect(notifier.state.messages, isNotEmpty);
 
-      notifier.clearChat();
+      await notifier.clearChat();
 
       expect(notifier.state.messages, isEmpty);
       expect(notifier.state.currentResponse, isEmpty);
@@ -245,8 +258,7 @@ void main() {
       expect(notifier.state.messages, isEmpty);
     });
 
-    test('sendMessage_emptyResponse_doesNotAppendAssistantMessage',
-        () async {
+    test('sendMessage_emptyResponse_setsErrorMessage', () async {
       llmRepo.tokens = [];
       await notifier.sendMessage('Hello');
 
@@ -254,7 +266,43 @@ void main() {
           .where((m) => m.role == 'assistant')
           .toList();
       expect(assistantMessages, isEmpty);
-      expect(conversationRepo.lastAppendedMessage, isNull);
+      expect(notifier.state.errorMessage, 'No response from model');
+    });
+
+    test('sendMessage_passesPreviousMessagesAsHistory', () async {
+      llmRepo.tokens = ['Hi'];
+
+      final prev = ChatMessage(
+        id: 'prev',
+        role: 'user',
+        content: 'Old message',
+        createdAt: DateTime.now(),
+      );
+      notifier.state = notifier.state.copyWith(messages: [prev]);
+
+      await notifier.sendMessage('New message');
+
+      expect(llmRepo.lastHistory, [prev]);
+      expect(llmRepo.lastUserMessage, 'New message');
+    });
+
+    test('sendMessage_passesSettingsToRepository', () async {
+      llmRepo.tokens = ['Ok'];
+
+      await notifier.sendMessage(
+        'Hello',
+        temperature: 0.5,
+        maxTokens: 256,
+        topK: 30,
+        topP: 0.8,
+        repeatPenalty: 1.15,
+      );
+
+      expect(llmRepo.lastTemperature, 0.5);
+      expect(llmRepo.lastMaxTokens, 256);
+      expect(llmRepo.lastTopK, 30);
+      expect(llmRepo.lastTopP, 0.8);
+      expect(llmRepo.lastRepeatPenalty, 1.15);
     });
 
     test('sendMessage_savesAssistantMessageToConversationRepo', () async {

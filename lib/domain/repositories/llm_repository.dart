@@ -18,6 +18,9 @@ abstract class LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   });
   Future<void> stopGeneration();
 

@@ -12,8 +12,29 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
   StreamSubscription<GenerationEvent>? _activeSub;
   StreamController<String>? _activeController;
   bool _stopRequested = false;
+  String? _detectedTemplate;
 
   static const _tag = 'AIOS-RealEngine';
+
+  static const _templatePatterns = [
+    KnownChatTemplates.commandR,
+    KnownChatTemplates.falcon3,
+    KnownChatTemplates.deepseek,
+    KnownChatTemplates.vicuna,
+    KnownChatTemplates.llama3,
+    KnownChatTemplates.gemma,
+    KnownChatTemplates.chatml,
+    KnownChatTemplates.mistral,
+    KnownChatTemplates.phi3,
+  ];
+
+  static String? _classifyTemplate(String? rawTemplate) {
+    if (rawTemplate == null) return null;
+    for (final pattern in _templatePatterns) {
+      if (rawTemplate.contains(pattern)) return pattern;
+    }
+    return null;
+  }
 
   @override
   Future<bool> loadModel(String path, {int? contextSize}) async {
@@ -27,9 +48,11 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
       );
 
       _chat = await _engine!.createChat();
+      _detectedTemplate = _classifyTemplate(_engine!.modelChatTemplate);
 
       developer.log(
-        'Model loaded: $path (ctx=${contextSize ?? 2048})',
+        'Model loaded: $path (ctx=${contextSize ?? 2048}, '
+        'template=${_detectedTemplate != null ? "override" : "native"})',
         name: _tag,
       );
       return true;
@@ -41,6 +64,7 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
       );
       _engine = null;
       _chat = null;
+      _detectedTemplate = null;
       return false;
     }
   }
@@ -54,6 +78,7 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     }
     _activeController = null;
     _chat = null;
+    _detectedTemplate = null;
     if (_engine != null) {
       await _engine!.dispose();
       _engine = null;
@@ -67,7 +92,8 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
   @override
   String getModelInfo() {
     if (_engine == null) return 'No model loaded';
-    return 'Engine active (accelerator: ${_engine!.primaryAcceleratorName ?? 'CPU'})';
+    return 'Engine active '
+        '(accelerator: ${_engine!.primaryAcceleratorName ?? 'CPU'})';
   }
 
   @override
@@ -82,6 +108,9 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     String userMessage, {
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) {
     _stopRequested = false;
     final controller = StreamController<String>();
@@ -92,12 +121,16 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
       userMessage,
       temperature: temperature,
       maxTokens: maxTokens,
+      topK: topK,
+      topP: topP,
+      repeatPenalty: repeatPenalty,
       controller: controller,
     ).catchError((Object e) {
       developer.log('generate error', name: _tag, error: e, level: 1000);
       if (!controller.isClosed) {
-        controller.addError(e);
-        controller.close();
+        controller
+          ..addError(e)
+          ..close();
       }
     });
 
@@ -107,9 +140,12 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
   Future<void> _doGenerate(
     List<ChatMessage> history,
     String userMessage, {
+    required StreamController<String> controller,
     double? temperature,
     int? maxTokens,
-    required StreamController<String> controller,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {
     if (_chat == null) {
       controller.add('Error: No model loaded');
@@ -117,8 +153,8 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
       return;
     }
 
-    final chat = _chat!;
-    chat.clearHistory();
+    final chat = _chat!
+      ..clearHistory();
 
     for (final msg in history) {
       switch (msg.role) {
@@ -134,13 +170,15 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
 
     final sampler = SamplerParams(
       temperature: temperature ?? 0.8,
-      topK: 40,
-      topP: 0.95,
+      topK: topK ?? 40,
+      topP: topP ?? 0.95,
+      repeatPenalty: repeatPenalty ?? 1.0,
     );
 
     final eventStream = chat.generate(
       sampler: sampler,
       maxTokens: maxTokens ?? 512,
+      templateOverride: _detectedTemplate,
     );
 
     await for (final event in eventStream) {
