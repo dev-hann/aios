@@ -1,9 +1,5 @@
-import 'package:aios/domain/repositories/llm_repository.dart';
-
 class PromptBuilder {
-  PromptBuilder(this._llmRepository);
-
-  final LlmRepository _llmRepository;
+  PromptBuilder();
 
   final List<({String role, String content})> _history = [];
 

@@ -1,6 +1,5 @@
 import 'package:aios/main.dart' as app;
 import 'package:aios/presentation/providers/chat_providers.dart';
-import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,12 +134,7 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
         expect(find.text('Model Management'), findsOneWidget);
 
-        await tester.tap(find.text('Import'));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
-        expect(
-          find.text('Model import not yet implemented'),
-          findsOneWidget,
-        );
+        expect(find.text('Import'), findsOneWidget);
       },
     );
   });

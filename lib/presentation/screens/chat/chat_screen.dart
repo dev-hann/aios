@@ -15,8 +15,21 @@ import 'package:go_router/go_router.dart';
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
+  @override
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(chatStateProvider.notifier).loadConversation(),
+    );
+  }
+
   void _showClearChatDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
@@ -38,24 +51,13 @@ class ChatScreen extends ConsumerStatefulWidget {
               ref.read(chatStateProvider.notifier).clearChat();
               Navigator.of(ctx).pop();
             },
-            child: const Text('Clear',
-                style: TextStyle(color: AppColors.error)),
+            child: const Text(
+              'Clear',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  @override
-  ConsumerState<ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends ConsumerState<ChatScreen> {
-  @override
-  void initState() {
-    super.initState();
-    Future.microtask(
-      () => ref.read(chatStateProvider.notifier).loadConversation(),
     );
   }
 
@@ -76,18 +78,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           contextUsage: contextUsage,
         ),
         actions: [
-          if (chatState.messages.isNotEmpty && !chatState.isGenerating)
-            IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  color: AppColors.textPrimary),
-              onPressed: () => _showClearChatDialog(context, ref),
-            ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppColors.textSecondary),
-            onPressed: () {
-              ref.read(chatStateProvider.notifier).clearChat();
-            },
+            icon: const Icon(
+              Icons.delete_outline,
+              color: AppColors.textSecondary,
+            ),
             tooltip: 'Clear chat',
+            onPressed: () => _showClearChatDialog(context, ref),
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: AppColors.textPrimary),

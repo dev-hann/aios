@@ -5,5 +5,5 @@ abstract class ExtendedTool {
   String get description;
   String get parameters;
 
-  String execute(String args, ToolContext toolContext);
+  Future<String> execute(String args, ToolContext toolContext);
 }

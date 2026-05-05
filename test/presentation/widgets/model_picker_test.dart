@@ -1,4 +1,3 @@
-import 'package:aios/core/theme/app_colors.dart';
 import 'package:aios/domain/entities/model_info.dart';
 import 'package:aios/presentation/widgets/model_picker.dart';
 import 'package:flutter/material.dart';

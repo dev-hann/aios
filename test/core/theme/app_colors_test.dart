@@ -1,6 +1,5 @@
 import 'package:aios/core/theme/app_colors.dart';
 import 'package:aios/domain/entities/service_state.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

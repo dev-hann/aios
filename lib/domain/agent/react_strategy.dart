@@ -40,8 +40,7 @@ class ReactStrategy implements AgentStrategy {
   final _confirmationGate = ConfirmationGate();
   final _auditLog = AuditLog();
 
-  late final PromptBuilder _promptBuilder =
-      PromptBuilder(_llmRepository);
+  late final PromptBuilder _promptBuilder = PromptBuilder();
 
   late final Map<String, AgentTool> _basicTools = {
     for (final tool in [

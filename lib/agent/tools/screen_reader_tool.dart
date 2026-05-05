@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 
@@ -47,6 +49,18 @@ class ScreenFindTool implements ExtendedTool {
       return result ?? 'No elements found';
     } on Object catch (e) {
       return 'Error: $e';
+    }
+  }
+
+  String _parseArg(String args, String key) {
+    try {
+      final decoded = jsonDecode(args);
+      if (decoded is Map<String, dynamic>) {
+        return decoded[key]?.toString() ?? '';
+      }
+      return '';
+    } on Object {
+      return '';
     }
   }
 }
