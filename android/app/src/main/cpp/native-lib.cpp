@@ -38,6 +38,7 @@ static float g_repeat_penalty = 1.1f;
 static std::string g_cached_token_chars;
 static bool g_initialized = false;
 static llama_pos g_system_prompt_pos = 0;
+static std::atomic<bool> g_cancelled{false};
 
 static std::atomic<float> g_load_progress{0.0f};
 static std::atomic<int> g_load_stage{0};
@@ -130,6 +131,8 @@ static bool is_valid_utf8(const char *s) {
 
 static int processPromptInternal(JNIEnv *env, jstring prompt, bool set_sys_pos, const char *func_name) {
     if (!g_ctx || !g_model || !g_vocab) return -1;
+
+    g_cancelled.store(false, std::memory_order_relaxed);
 
     const char *str = env->GetStringUTFChars(prompt, nullptr);
     if (!str) return -1;
@@ -341,6 +344,8 @@ Java_com_agent_aios_LlamaBridge_nativeProcessPromptIncremental(
     std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_ctx || !g_model || !g_vocab) return -1;
 
+    g_cancelled.store(false, std::memory_order_relaxed);
+
     const char *str = env->GetStringUTFChars(prompt, nullptr);
     if (!str) return -1;
     LOGI("processPromptInc: %zu chars (reset KV, full decode)", strlen(str));
@@ -404,6 +409,54 @@ Java_com_agent_aios_LlamaBridge_nativeGenerateOneToken(JNIEnv *env, jobject) {
         result = env->NewStringUTF("");
     }
     return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_agent_aios_LlamaBridge_nativeCancelGeneration(JNIEnv *, jobject) {
+    g_cancelled.store(true, std::memory_order_relaxed);
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_agent_aios_LlamaBridge_nativeGenerateTokensBatch(JNIEnv *env, jobject, jint max_tokens) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_ctx || !g_model || !g_vocab) return nullptr;
+    if (!g_sampler) g_sampler = create_sampler();
+    if (!g_sampler) return nullptr;
+
+    g_cancelled.store(false, std::memory_order_relaxed);
+    std::string result;
+
+    for (int generated = 0; generated < max_tokens; generated++) {
+        if (g_cancelled.load(std::memory_order_relaxed)) break;
+
+        if (g_current_pos >= g_n_ctx - OVERFLOW_HEADROOM) shift_context();
+
+        llama_token new_token = llama_sampler_sample(g_sampler, g_ctx, -1);
+
+        if (llama_vocab_is_eog(g_vocab, new_token)) break;
+
+        batch_clear();
+        batch_add(new_token, g_current_pos, true);
+        if (llama_decode(g_ctx, g_batch) != 0) break;
+        g_current_pos++;
+
+        char buf[256];
+        int n = llama_token_to_piece(g_vocab, new_token, buf, sizeof(buf), 0, true);
+        if (n > 0) {
+            g_cached_token_chars += std::string(buf, n);
+            if (is_valid_utf8(g_cached_token_chars.c_str())) {
+                result += g_cached_token_chars;
+                g_cached_token_chars.clear();
+            }
+        }
+    }
+
+    if (!g_cached_token_chars.empty()) {
+        result += g_cached_token_chars;
+        g_cached_token_chars.clear();
+    }
+
+    return env->NewStringUTF(result.c_str());
 }
 
 extern "C" JNIEXPORT void JNICALL

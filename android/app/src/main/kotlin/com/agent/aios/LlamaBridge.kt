@@ -45,6 +45,10 @@ class LlamaBridge {
 
     external fun nativeGenerateOneToken(): String?
 
+    external fun nativeGenerateTokensBatch(maxTokens: Int): String?
+
+    external fun nativeCancelGeneration()
+
     external fun nativeReleaseModel()
 
     external fun nativeResetContext()

@@ -9,6 +9,10 @@ interface LlmProvider {
 
     fun generateOneToken(): String?
 
+    fun generateTokensBatch(maxTokens: Int): String? = null
+
+    fun cancelGeneration() {}
+
     fun formatChat(
         roles: Array<String>,
         contents: Array<String>,

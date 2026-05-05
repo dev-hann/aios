@@ -113,6 +113,25 @@ class LlmService : Service(), LlmProvider {
         return token
     }
 
+    override fun generateTokensBatch(maxTokens: Int): String? {
+        val bridge = llamaBridge ?: return null
+        val result = bridge.nativeGenerateTokensBatch(maxTokens)
+        if (result != null && result.isNotEmpty()) {
+            synchronized(callbackLock) {
+                try {
+                    tokenCallback?.invoke(result)
+                } catch (e: Exception) {
+                    Log.e(TAG, "tokenCallback error: ${e.message}", e)
+                }
+            }
+        }
+        return result
+    }
+
+    override fun cancelGeneration() {
+        llamaBridge?.nativeCancelGeneration()
+    }
+
     override fun resetContext() {
         llamaBridge?.nativeResetContext()
     }
