@@ -2,189 +2,179 @@
 
 ## 1. Principles
 
-- All **public functions** must have at least one unit test
-- **State-changing** ViewModel functions must verify state transitions
-- **Async/concurrent** code must be tested with coroutine test scenarios
-- Bug fixes must include a **regression test** that reproduces the original bug
-- Tests are written **before or alongside** the feature, never after-the-fact only
+- 모든 **public 함수**는 최소 1개 이상의 단위 테스트를 가져야 함
+- **상태 변경** Notifier 함수는 상태 전이를 반드시 검증
+- 버그 수정 시 원본 버그를 재현하는 **회귀 테스트** 포함 필수
+- 테스트는 기능 구현 **이전에 작성** (TDD)
 
 ## 2. Test Scope
 
-### P0: Core Logic (Mandatory)
+### P0: Core Logic (필수)
 
-| Module | File | What to Test |
-|--------|------|-------------|
-| ReactStrategy | `domain/agent/ReactStrategy.kt` | parseResponse, riskClassification, confirmationFlow, cancellation, threadInterruption |
-| ChatViewModel | `ChatViewModel.kt` | sendMessage, cancelGeneration, loadModel, importModel, stateConsistency |
-| LlmService | `LlmService.kt` | model lifecycle, concurrent access, callback swap, context reset |
+| Module | File | Test 항목 |
+|--------|------|-----------|
+| LlmRepositoryImpl | `lib/data/llm_repository_impl.dart` | llama_cpp_dart 래핑, 모델 로드/해제, 추론 호출, 에러 처리 |
+| ChatNotifier | `lib/ui/chat/chat_notifier.dart` | sendMessage, cancelGeneration, loadModel, importModel, state 일관성 |
+| Model Lifecycle | `lib/data/llm_repository_impl.dart` | 모델 로드→추론→해제 전체 주기, 동시 접근, Isolate 정리 |
 
-### P1: State Management (Mandatory)
+### P1: State Management (필수)
 
-| Module | File | What to Test |
-|--------|------|-------------|
-| AIOSApp | `AIOSApp.kt` | service binding, agent lifecycle, cancelInference, state transitions |
-| SettingsViewModel | `SettingsViewModel.kt` | settings read/write, defaults |
-| UpdateViewModel | `UpdateViewModel.kt` | check/download/install flow, error states |
+| Module | File | Test 항목 |
+|--------|------|-----------|
+| SettingsNotifier | `lib/ui/settings/settings_notifier.dart` | 설정 읽기/쓰기, 기본값, 영속성 |
+| UpdateNotifier | `lib/ui/update/update_notifier.dart` | check/download/install 흐름, 에러 상태 |
 
-### P2: UI (Mandatory)
+### P2: UI (필수)
 
-| Screen | File | What to Test |
-|--------|------|-------------|
-| ChatScreen | `ChatScreen.kt` | send message, stop button, input bar visibility, empty state |
-| SettingsScreen | `SettingsScreen.kt` | permission rows, advanced toggle, overlay service switch |
-| ConfirmationDialog | `ChatScreen.kt` | countdown, auto-deny, allow/deny actions |
-| UpdateScreen | `UpdateScreen.kt` | state transitions, download progress |
+| Screen | File | Test 항목 |
+|--------|------|-----------|
+| ChatScreen | `lib/ui/chat/chat_screen.dart` | 메시지 전송, 정지 버튼, 입력바 가시성, 빈 상태 |
+| SettingsScreen | `lib/ui/settings/settings_screen.dart` | 권한 설정, 고급 옵션 토글, 오버레이 서비스 스위치 |
+| UpdateScreen | `lib/ui/update/update_screen.dart` | 상태 전이, 다운로드 진행률 |
 
-### P3: Tools (Mandatory)
+### P3: Domain (필수, 향후 Agent 시스템)
 
-| Module | File | What to Test |
-|--------|------|-------------|
-| Basic Tools | `AgentTools.kt` | calculator, timer, notepad, device_info — all actions |
-| Screen Tools | `ScreenReaderTool.kt`, `ScreenActionTool.kt` | action parsing, validation |
-| App Launcher | `AppLauncherTool.kt` | open_app, open_url |
-| Notification | `NotificationTool.kt` | read notifications |
+| Module | File | Test 항목 |
+|--------|------|-----------|
+| ResponseParser | `lib/domain/response_parser.dart` | Action/Thought/Answer 파싱, malformed 입력 |
+| RiskClassifier | `lib/domain/risk_classifier.dart` | 위험도 분류 (LOW/MEDIUM/HIGH/CRITICAL) |
+| LoopDetector | `lib/domain/loop_detector.dart` | 반복 감지, 임계값 초과 |
 
-### P4: Native (Separate Plan)
+### P4: Integration (별도 계획)
 
-| Module | File | What to Test |
-|--------|------|-------------|
-| JNI Bridge | `native-lib.cpp` | load/infer/release lifecycle, null model guards, concurrent access |
-| CTest framework in `native/tests/` | Thread safety via TSan/ASan |
+| Module | What to Test |
+|--------|--------------|
+| llama_cpp_dart on-device | 실제 GGUF 모델 로드→추론→해제 |
+| Full Chat Flow | 메시지 전송→스트리밍→완료 전체 흐름 |
+| Database | Hive/SQLite CRUD, 마이그레이션 |
+| Update | GitHub Release 확인→다운로드→설치 |
 
 ## 3. Test Categories
 
 ```
-test/           → Unit tests (MockK, Turbine, coroutines-test)
-androidTest/    → Integration tests (real Context, Compose UI tests)
-native/tests/   → C++ unit tests (CTest)
+test/                → Unit + Widget 테스트 (호스트 머신에서 실행, 기기 불필요)
+integration_test/    → Integration 테스트 (실제 기기/에뮬레이터 필요)
 ```
 
 ## 4. Coverage Requirements
 
-### Per Function
-- **Happy path**: 1 test (normal input → expected output)
-- **Edge case**: 1 test minimum (null, empty, boundary values)
-- **Error path**: 1 test for each known failure mode
+### 함수별
+- **Happy path**: 1 test (정상 입력 → 예상 출력)
+- **Edge case**: 1 test 이상 (null, empty, 경계값)
+- **Error path**: 알려진 각 실패 모드당 1 test
 
-### Per Concurrency Scenario
-- **Cancel during execution**: 1 test
-- **Race condition**: 1 test per identified race
+### 동시성 시나리오별
+- **실행 중 취소**: 1 test
+- **Race condition**: 식별된 race당 1 test
 - **Timeout**: 1 test
 
-### Per UI Screen
-- **Initial render**: 1 test
-- **Key interaction**: 1 test per user action
-- **State transition**: 1 test per visible state change
+### UI Screen별
+- **초기 렌더링**: 1 test
+- **핵심 인터랙션**: 사용자 액션당 1 test
+- **상태 전이**: 가시적 상태 변화당 1 test
 
 ## 5. Regression Test Rule
 
-When a bug is reported:
-1. Write a test that **reproduces the bug** (must fail)
-2. Fix the bug
-3. Verify the test **passes**
-4. Commit test + fix together
+버그 리포트 시:
+1. **버그를 재현하는 테스트** 작성 (반드시 실패해야 함)
+2. 버그 수정
+3. 테스트 **통과** 확인
+4. 테스트 + 수정 함께 커밋
 
 ## 6. Naming Conventions
 
 ```
-Class:     {ModuleName}Test.kt
-Function:  {method}_{scenario}_expectedResult()
+File:     {name}_test.dart
+Function: {method}_{scenario}_expectedResult()
 
 Examples:
   sendMessage_whenGenerating_doesNotSend()
-  cancelGeneration_duringAgentRun_resetsState()
-  parseResponse_withActionAndArgs_returnsActionMap()
-  ConfirmationDialog_countdownExpires_autoDenies()
+  loadModel_withInvalidPath_setsErrorState()
+  parseResponse_withActionAndArgs_returnsAction()
+  cancelGeneration_duringInference_resetsState()
 ```
 
-## 7. Required Dependencies
+## 7. Required Dependencies (pubspec.yaml)
 
-```kotlin
-testImplementation("io.mockk:mockk:1.13.8")
-testImplementation("app.cash.turbine:turbine:1.0.0")
-testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-testImplementation("com.google.truth:truth:1.1.5")
-testImplementation(kotlin("test"))
-
-androidTestImplementation("io.mockk:mockk-android:1.13.8")
-androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-androidTestImplementation("androidx.test.ext:junit:1.1.5")
-androidTestImplementation("androidx.test:runner:1.5.2")
-androidTestImplementation("androidx.test:rules:1.5.0")
+```yaml
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  mockito: ^5.4.5
+  build_runner: ^2.4.14
 ```
 
-## 8. Local Development & Verification
+## 8. Runtime Constraint Tests
 
-- 모든 테스트는 로컬에서 실행: `cd android && ./gradlew test`
-- pre-commit: ktlint 코드 스타일 검사 자동 실행 (`.githooks/pre-commit`)
-- pre-push: 릴리즈 빌드 + GitHub Release 자동 생성 (`.githooks/pre-push`)
-- 테스트 실패 시 작업 중단, 다음 단계로 넘어가지 않음
+### 기존 Android Runtime Constraint (R-1 ~ R-5) — 더 이상 필요 없음
 
-## 9. Android Runtime Constraint Tests (Mandatory)
+Kotlin/Android에서 Flutter로 마이그레이션하면서 다음 제약 테스트는 **불필요**:
 
-Unit tests (Robolectric/MockK)은 Android 프레임워크 제약을 검증할 수 없습니다.
-다음 케이스는 **Instrumented Test (androidTest)** 로만 검증 가능하며, 필수입니다.
+| 기존 ID | 제약 | 불필요한 이유 |
+|---------|------|---------------|
+| R-1 | ForegroundServiceStartNotAllowedException | Flutter는 Foreground Service 사용 안 함 (llama_cpp_dart가 Isolate 사용) |
+| R-2 | Application.onCreate()에서 서비스 시작 금지 | JNI 브릿지 없음 |
+| R-3 | startForeground() 5초 내 호출 의무 | Native lifecycle 관리 없음 |
+| R-4 | 권한 거부 시 graceful degradation | Flutter가 lifecycle을 다르게 처리 |
+| R-5 | Android 16 백그라운드 제한 | Isolate 기반이므로 해당 없음 |
 
-### P0-Runtime: Framework Restrictions
+### 새로운 Flutter Runtime Constraint Tests (필수)
 
 | ID | Constraint | Test Location | What to Verify |
 |----|-----------|---------------|----------------|
-| R-1 | `ForegroundServiceStartNotAllowedException` (Android 12+) | `androidTest/` | Service는 Activity 포그라운드 상태에서만 시작 가능 |
-| R-2 | `Application.onCreate()`에서 포그라운드 서비스 시작 금지 | `androidTest/` | AIOSApp.onCreate()가 startForegroundService()를 직접 호출하지 않음 |
-| R-3 | `Context.startForegroundService()` → `Service.onStartCommand()` 5초 내 `startForeground()` 필수 | `androidTest/` | LlmService가 ANR 없이 5초 내 알림 게시 |
-| R-4 | 권한 거부 시 서비스 바인딩 graceful degradation | `androidTest/` | 예외 발생 시 DISCONNECTED 상태 전이, 크래시 없음 |
-| R-5 | Android 16 (SDK 36) 백그라운드 제한 | `androidTest/` | Activity 없이 서비스 시작 시 예외 catch됨 |
+| FR-1 | GGUF 모델 파일 파일시스템 접근 권한 | `test/` | 모델 경로 존재 여부, 읽기 권한 확인 |
+| FR-2 | 저장 공간 부족 처리 | `test/` | 디스크 공간 체크, 부족 시 사용자 안내 |
+| FR-3 | Isolate lifecycle (spawn/dispose) | `test/` | Isolate 정상 생성, 에러 시 정리, 메모리 누수 없음 |
+| FR-4 | Isolate 간 통신 (SendPort/ReceivePort) | `test/` | 메시지 송수신, 대용량 텍스트 전달, 타임아웃 |
 
 ### 규칙
 
-1. **Application.lifecycle vs Activity.lifecycle 구분 필수**
-   - `Application.onCreate()`: 크래시 로거, Settings 저장소 등 프레임워크 독립적 초기화만
-   - `Activity.onCreate()`: 포그라운드 서비스, 권한 요청 등 UI 컨텍스트 필요 작업
-2. **서비스 시작은 항상 try-catch로 보호**
-   - `startForegroundService()` / `bindService()` 호출부는 반드시 예외 처리
-3. **새 Android 버전 릴리즈 시 회귀 테스트 업데이트**
-   - targetSdkVersion 변경 시 R-x 테스트 케이스 재검증
+1. **Isolate는 반드시 try-catch로 보호**
+   - `Isolate.spawn()` 호출부는 예외 처리 필수
+2. **파일 접근 시 path 존재 확인**
+   - GGUF 파일 로드 전 파일 존재 + 크기 > 0 검증
+3. **새 Flutter/Android 버전 릴리즈 시 회귀 테스트 업데이트**
+   - targetSdkVersion 변경 시 FR-x 테스트 케이스 재검증
 
-## 10. Known Crash Regression Tests
+## 9. Known Crash Regression Tests
 
-The following crashes identified in analysis must have regression tests:
+기존 Kotlin/Android 분석에서 식별된 크래시 중 Flutter 마이그레이션 후에도 관련 있는 항목:
 
 | ID | Crash | Test Required |
 |----|-------|---------------|
-| P0-1 | Native global state no thread safety (SIGSEGV) | Native mutex test |
-| P0-2 | JNI callback without ExceptionCheck | Native callback test |
-| P0-3 | tokenize() with null g_vocab | Native null guard test |
-| P0-4 | agentEngine not @Volatile | ReactStrategy concurrency test |
-| P1-1 | onServiceConnected unsafe cast | AIOSApp binding test |
-| P1-2 | llmService!! force unwrap | AIOSApp null safety test |
-| P1-3 | loadModel leaks old model | LlmService lifecycle test |
-| P1-4 | collectStream callback not restored on cancel | ReactStrategy cancel test |
-| P1-5 | notes map concurrent access | ReactStrategy concurrency test |
+| P0-1 | Isolate 전역 상태 스레드 안전성 | Isolate 동시성 테스트 |
+| P0-2 | llama_cpp_dart 콜백 예외 처리 | Native callback 에러 테스트 |
+| P0-3 | null 모델로 tokenize 호출 | LlmRepositoryImpl null guard 테스트 |
+| P0-4 | agentEngine 동시성 (Isolate) | ChatNotifier 동시성 테스트 |
+| P1-1 | Isolate spawn 실패 시 graceful 처리 | LlmRepositoryImpl 에러 테스트 |
+| P1-2 | 모델 로드 시 기존 모델 누수 | LlmRepositoryImpl lifecycle 테스트 |
+| P1-3 | 취소 시 스트리밍 콜백 미복원 | ChatNotifier cancel 테스트 |
 
-## 11. TDD Workflow
+## 10. TDD Workflow
 
 ### 개발 사이클
 
 | Phase | 작업 | 검증 |
 |-------|------|------|
-| RED | 테스트 케이스 작성 (§4 기준) | `cd android && ./gradlew test` → 실패 확인 |
-| GREEN | 최소 구현 코드 작성 | `cd android && ./gradlew test` → 전체 통과 |
-| REFACTOR | 코드 품질 개선 | `cd android && ./gradlew test` → 여전히 통과 |
+| RED | 테스트 케이스 작성 (§4 기준) | `flutter test` → 실패 확인 |
+| GREEN | 최소 구현 코드 작성 | `flutter test` → 전체 통과 |
+| REFACTOR | 코드 품질 개선 | `flutter test` → 여전히 통과 |
 
 ### 기능별 TDD 체크리스트
 
-**새 Tool 추가 시:**
-1. [ ] `execute()` 입력/출력 테스트 작성
-2. [ ] `classifyRisk()` 테스트 추가 (§P3)
-3. [ ] `buildSystemPrompt()` 매니페스트 포함 테스트
-4. [ ] Tool 구현 코드 작성
-5. [ ] `cd android && ./gradlew test` 전체 통과 확인
+**새 기능 추가 시:**
+1. [ ] 입력/출력 테스트 작성
+2. [ ] 에러/엣지케이스 테스트 작성
+3. [ ] 기능 구현 코드 작성
+4. [ ] `flutter test` 전체 통과 확인
 
-**ViewModel 수정 시:**
+**Notifier 수정 시:**
 1. [ ] 상태 전이 테스트 작성 (초기 → 변경 → 결과)
 2. [ ] 에러/엣지케이스 테스트 작성
-3. [ ] ViewModel 코드 수정
-4. [ ] `cd android && ./gradlew test` 전체 통과 확인
+3. [ ] Notifier 코드 수정
+4. [ ] `flutter test` 전체 통과 확인
 
 **Bug fix 시 (§5 준수):**
 1. [ ] 버그 재현 테스트 작성 (반드시 실패해야 함)
@@ -192,12 +182,117 @@ The following crashes identified in analysis must have regression tests:
 3. [ ] 테스트 통과 확인
 4. [ ] 기존 테스트 여전히 통과 확인
 
-### 코드 스타일 검증
+## 11. Flutter-Specific Test Patterns
+
+### Widget Testing
+
+```dart
+testWidgets('ChatScreen renders empty state', (tester) async {
+  await tester.pumpWidget(
+    const MaterialApp(home: ChatScreen()),
+  );
+  await tester.pump();
+
+  expect(find.text('메시지를 입력하세요'), findsOneWidget);
+});
+
+testWidgets('Send button triggers sendMessage', (tester) async {
+  await tester.pumpWidget(
+    const MaterialApp(home: ChatScreen()),
+  );
+  await tester.pump();
+
+  await tester.enterText(find.byType(TextField), 'Hello');
+  await tester.tap(find.byType(IconButton));
+  await tester.pump();
+
+  // verify state change
+});
+```
+
+### Riverpod Testing (ProviderScope + overrides)
+
+```dart
+testWidgets('ChatScreen displays messages from provider', (tester) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        chatProvider.overrideWith(() => MockChatNotifier()),
+      ],
+      child: const MaterialApp(home: ChatScreen()),
+    ),
+  );
+  await tester.pump();
+
+  expect(find.text('Hello'), findsOneWidget);
+});
+```
+
+### Mock Setup (@GenerateMocks + build_runner)
+
+```dart
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+
+@GenerateMocks([LlmRepository])
+import 'chat_notifier_test.mocks.dart';
+
+void main() {
+  late MockLlmRepository mockRepository;
+  late ChatNotifier notifier;
+
+  setUp(() {
+    mockRepository = MockLlmRepository();
+    notifier = ChatNotifier(repository: mockRepository);
+  });
+
+  test('sendMessage_whenGenerating_doesNotSend', () async {
+    // arrange
+    when(mockRepository.isGenerating).thenReturn(true);
+
+    // act
+    await notifier.sendMessage('test');
+
+    // assert
+    verifyNever(mockRepository.infer(any));
+  });
+}
+```
+
+Mock 생성 명령:
 
 ```bash
-# ktlint 체크
-cd android && ./gradlew ktlintCheck
-
-# ktlint 자동 수정
-cd android && ./gradlew ktlintFormat
+dart run build_runner build
 ```
+
+### Stream Testing
+
+```dart
+test('inferenceStream emits tokens in order', () async {
+  final stream = Stream.fromIterable(['Hello', ' ', 'World']);
+
+  await expectLater(stream, emitsInOrder(['Hello', ' ', 'World']));
+});
+
+test('loadModel emits loading then loaded states', () async {
+  when(mockRepository.loadModel(any)).thenAnswer((_) async {});
+
+  final states = <AppState>[];
+  notifier.addListener(states.add);
+  await notifier.loadModel('/path/to/model.gguf');
+
+  expect(states, [
+    isA<AppLoading>(),
+    isA<AppLoaded>(),
+  ]);
+});
+```
+
+## 12. Local Development & Verification
+
+- 모든 단위/위젯 테스트 로컬 실행: `flutter test`
+- 특정 파일만 실행: `flutter test test/ui/chat/chat_notifier_test.dart`
+- Integration 테스트: `flutter test integration_test/`
+- 코드 스타일 검사: `dart format --set-exit-if-changed .`
+- 정적 분석: `dart analyze`
+- 테스트 실패 시 작업 중단, 다음 단계로 넘어가지 않음

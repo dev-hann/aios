@@ -2,15 +2,24 @@
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
-echo "[pre-commit] Running ktlint check..."
+echo "[pre-commit] Running flutter analyze..."
 
-cd "$REPO_ROOT/android"
-./gradlew ktlintCheck --quiet 2>&1 | tail -5
+cd "$REPO_ROOT"
+flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tail -5
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
-    echo "[pre-commit] ktlint failed. Run './gradlew ktlintFormat' to auto-fix."
+    echo "[pre-commit] flutter analyze failed."
     exit 1
 fi
 
-echo "[pre-commit] ktlint passed."
+echo "[pre-commit] Running flutter test..."
+
+flutter test 2>&1 | tail -3
+
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo "[pre-commit] flutter test failed."
+    exit 1
+fi
+
+echo "[pre-commit] All checks passed."
 exit 0

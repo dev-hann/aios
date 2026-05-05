@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/test_inference.dir/test_inference.cpp.o -o test_inference  -Wl,-rpath,/home/hann/Documents/aios/native/tests/build/bin bin/libllama.so.0.0.8986 bin/libggml.so.0.10.1 bin/libggml-cpu.so.0.10.1 bin/libggml-base.so.0.10.1 

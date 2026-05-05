@@ -1,4 +1,0 @@
-<resources>
-    <string name="app_name">AIOS</string>
-    <string name="accessibility_service_description">AIOS uses accessibility to read your screen and perform actions on your behalf. This allows the AI agent to interact with apps, tap buttons, read text, and control your device.</string>
-</resources>

@@ -1,0 +1,43 @@
+name: aios
+description: "AIOS - On-device AI Agent"
+publish_to: 'none'
+version: 2.0.0+20000
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
+  llama_cpp_dart: ^0.9.0-dev.6
+  drift: ^2.22.1
+  sqlite3_flutter_libs: ^0.5.28
+  shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.4
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+  dio: ^5.8.0+1
+  url_launcher: ^6.3.1
+  package_info_plus: ^8.3.0
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  build_runner: ^2.4.14
+  drift_dev: ^2.22.1
+  freezed: ^2.5.8
+  json_serializable: ^6.9.4
+  mockito: ^5.4.5
+  very_good_analysis: ^7.0.0
+  sqlite3: ^2.9.4
+
+flutter:
+  uses-material-design: true

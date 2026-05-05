@@ -1,15 +1,35 @@
-*.iml
-.gradle
-/local.properties
-/.idea
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-android/app/build/
-wt/
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/build/
+*.lock
+!pubspec.lock
 
-# Test model files (use download_test_model.sh)
-native/tests/models/*.gguf
+# Android
+android/app/libs/*.aar
+android/aios-release.jks
+android/.gradle/
+android/local.properties
+**/*.iml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Native (removed)
+native/
+
+# General
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Generated
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+android/aios-release.jks
+android/app/libs/
