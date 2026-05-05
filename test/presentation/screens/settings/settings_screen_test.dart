@@ -93,6 +93,9 @@ class _MockLlmRepository implements LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {}
   @override
   Future<void> stopGeneration() async {}

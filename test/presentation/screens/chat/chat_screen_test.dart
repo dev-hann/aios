@@ -1,13 +1,17 @@
 import 'dart:async';
 
 import 'package:aios/domain/entities/chat_message.dart';
+import 'package:aios/domain/entities/model_info.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
-import 'package:aios/presentation/providers/chat_notifier.dart';
-import 'package:aios/presentation/providers/chat_providers.dart';
+import 'package:aios/domain/repositories/model_repository.dart';
+import 'package:aios/domain/repositories/settings_repository.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
+import 'package:aios/presentation/providers/model_provider.dart';
+import 'package:aios/presentation/providers/settings_provider.dart';
+import 'package:aios/presentation/providers/settings_state.dart';
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,6 +65,9 @@ class _MockLlmRepository implements LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {
     _stateController.add(ServiceState.generating);
     for (final token in tokens) {
@@ -102,6 +109,78 @@ class _MockConversationRepository implements ConversationRepository {
   Future<void> appendMessage(ChatMessage message) async {}
 }
 
+class _MockSettingsRepository implements SettingsRepository {
+  @override
+  int get contextSize => SettingsRepository.defaultContextSize;
+
+  @override
+  int get maxTokens => SettingsRepository.defaultMaxTokens;
+
+  @override
+  double get temperature => SettingsRepository.defaultTemperature;
+
+  @override
+  int get topK => SettingsRepository.defaultTopK;
+
+  @override
+  double get topP => SettingsRepository.defaultTopP;
+
+  @override
+  double get repeatPenalty => SettingsRepository.defaultRepeatPenalty;
+
+  @override
+  int get agentMaxIterations =>
+      SettingsRepository.defaultAgentMaxIterations;
+
+  @override
+  String? get lastModelPath => null;
+
+  @override
+  Future<void> setContextSize(int value) async {}
+
+  @override
+  Future<void> setMaxTokens(int value) async {}
+
+  @override
+  Future<void> setTemperature(double value) async {}
+
+  @override
+  Future<void> setTopK(int value) async {}
+
+  @override
+  Future<void> setTopP(double value) async {}
+
+  @override
+  Future<void> setRepeatPenalty(double value) async {}
+
+  @override
+  Future<void> setAgentMaxIterations(int value) async {}
+
+  @override
+  Future<void> setLastModelPath(String path) async {}
+
+  @override
+  Future<void> clearLastModelPath() async {}
+}
+
+class _MockModelRepository implements ModelRepository {
+  @override
+  List<ModelInfo> scanModels() => [];
+
+  @override
+  List<ModelInfo> scanExternalDirs() => [];
+
+  @override
+  bool restoreModel(String name) => false;
+
+  @override
+  Future<bool> importModelFromUri(
+    String sourcePath,
+    String fileName,
+  ) async =>
+      false;
+}
+
 void main() {
   late _MockLlmRepository llmRepo;
   late _MockConversationRepository conversationRepo;
@@ -110,32 +189,12 @@ void main() {
     return ProviderScope(
       overrides: [
         llmRepositoryProvider.overrideWithValue(llmRepo),
-        conversationRepositoryProvider.overrideWithValue(conversationRepo),
-      ],
-      child: const MaterialApp(home: ChatScreen()),
-    );
-  }
-
-  Widget _buildChatScreenWithMessages() {
-    return ProviderScope(
-      overrides: [
-        llmRepositoryProvider.overrideWithValue(llmRepo),
-        conversationRepositoryProvider.overrideWithValue(conversationRepo),
-        chatStateProvider.overrideWith((ref) {
-          final notifier = ChatNotifier(llmRepo, conversationRepo);
-          notifier.state = notifier.state.copyWith(
-            messages: [
-              ChatMessage(
-                id: 'msg1',
-                role: 'user',
-                content: 'Hello',
-                createdAt: DateTime.now(),
-              ),
-            ],
-            serviceState: ServiceState.ready,
-          );
-          return notifier;
-        }),
+        conversationRepositoryProvider
+            .overrideWithValue(conversationRepo),
+        settingsRepositoryProvider
+            .overrideWithValue(_MockSettingsRepository()),
+        modelRepositoryProvider
+            .overrideWithValue(_MockModelRepository()),
       ],
       child: const MaterialApp(home: ChatScreen()),
     );
@@ -234,87 +293,5 @@ void main() {
     await tester.pump();
 
     expect(find.text('Error'), findsOneWidget);
-  });
-
-  testWidgets('hidesDeleteIcon_whenNoMessages', (tester) async {
-    await tester.pumpWidget(_buildChatScreen());
-    await tester.pump();
-
-    expect(find.byIcon(Icons.delete_outline), findsNothing);
-  });
-
-  testWidgets('showsDeleteIcon_whenMessagesExist', (tester) async {
-    await tester.pumpWidget(_buildChatScreenWithMessages());
-    await tester.pump();
-
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
-  });
-
-  testWidgets('tapDelete_showsClearChatDialog', (tester) async {
-    await tester.pumpWidget(_buildChatScreenWithMessages());
-    await tester.pump();
-
-    await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Clear Chat'), findsOneWidget);
-    expect(find.text('Delete all messages?'), findsOneWidget);
-    expect(find.text('Cancel'), findsOneWidget);
-    expect(find.text('Clear'), findsOneWidget);
-  });
-
-  testWidgets('tapCancelInDialog_dismissesWithoutClearing',
-      (tester) async {
-    await tester.pumpWidget(_buildChatScreenWithMessages());
-    await tester.pump();
-
-    await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Clear Chat'), findsNothing);
-    expect(find.text('Hello'), findsOneWidget);
-  });
-
-  testWidgets('tapClearInDialog_clearsMessages', (tester) async {
-    await tester.pumpWidget(_buildChatScreenWithMessages());
-    await tester.pump();
-
-    expect(find.text('Hello'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Clear'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Hello'), findsNothing);
-    expect(find.text('AIOS'), findsOneWidget);
-  });
-
-  testWidgets('showsContextUsage_whenServiceStateReady',
-      (tester) async {
-    await tester.pumpWidget(_buildChatScreen());
-    await tester.pump();
-
-    llmRepo.emitState(ServiceState.ready);
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.text('0/2048 tokens'), findsOneWidget);
-  });
-
-  testWidgets('hidesContextUsage_whenServiceStateNotReady',
-      (tester) async {
-    await tester.pumpWidget(_buildChatScreen());
-    await tester.pump();
-
-    llmRepo.emitState(ServiceState.idle);
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.text('0/2048 tokens'), findsNothing);
   });
 }

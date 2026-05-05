@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 class InputBar extends StatefulWidget {
   const InputBar({
     required this.onSubmitted,
+    required this.onStop,
     required this.isGenerating,
     super.key,
   });
 
   final ValueChanged<String> onSubmitted;
+  final VoidCallback onStop;
   final bool isGenerating;
 
   @override
@@ -77,7 +79,7 @@ class _InputBarState extends State<InputBar> {
             ),
             const SizedBox(width: 8),
             if (widget.isGenerating)
-              _StopButton(onStop: () => widget.onSubmitted(''))
+              _StopButton(onStop: widget.onStop)
             else
               _SendButton(onSend: _handleSubmit),
           ],

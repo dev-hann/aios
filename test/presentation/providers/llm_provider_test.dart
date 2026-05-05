@@ -31,6 +31,9 @@ class MockLlamaEngineProvider implements LlamaEngineProvider {
     String userMessage, {
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) =>
       const Stream.empty();
 

@@ -60,6 +60,9 @@ class _MockLlmRepository implements LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {
     lastHistory = history;
     lastUserMessage = userMessage;

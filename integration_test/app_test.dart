@@ -1,5 +1,9 @@
 import 'package:aios/main.dart' as app;
+import 'package:aios/presentation/providers/chat_providers.dart';
+import 'package:aios/presentation/providers/chat_state.dart';
+import 'package:aios/presentation/screens/chat/chat_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -159,6 +163,46 @@ void main() {
 
         expect(find.byType(TextField), findsOneWidget);
         expect(find.text('AIOS'), findsOneWidget);
+      },
+    );
+  });
+
+  group('ChatScreen UI', () {
+    testWidgets(
+      'shows delete button in app bar',
+      (tester) async {
+        app.main();
+        await tester.pumpAndSettle(const Duration(seconds: 5));
+
+        expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'does not show error bar initially',
+      (tester) async {
+        app.main();
+        await tester.pumpAndSettle(const Duration(seconds: 5));
+
+        expect(find.byIcon(Icons.error_outline), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'shows error bar when errorMessage is set via provider',
+      (tester) async {
+        app.main();
+        await tester.pumpAndSettle(const Duration(seconds: 5));
+
+        final element = tester.element(find.byType(ChatScreen));
+        final container = ProviderScope.containerOf(element);
+        container.read(chatStateProvider.notifier).state = container
+            .read(chatStateProvider)
+            .copyWith(errorMessage: 'Test error message');
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.error_outline), findsOneWidget);
+        expect(find.text('Test error message'), findsOneWidget);
       },
     );
   });

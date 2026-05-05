@@ -89,6 +89,8 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
   @override
   bool get isModelLoaded => _engine != null && _chat != null;
 
+  String? get detectedTemplate => _detectedTemplate;
+
   @override
   String getModelInfo() {
     if (_engine == null) return 'No model loaded';

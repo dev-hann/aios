@@ -20,7 +20,11 @@ void main() {
     testWidgets('showsTextFieldAndSendButton', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(onSubmitted: (_) {}, isGenerating: false),
+          InputBar(
+            onSubmitted: (_) {},
+            onStop: () {},
+            isGenerating: false,
+          ),
         ),
       );
 
@@ -35,6 +39,7 @@ void main() {
         _wrapWithMaterial(
           InputBar(
             onSubmitted: (text) => submittedText = text,
+            onStop: () {},
             isGenerating: false,
           ),
         ),
@@ -50,7 +55,11 @@ void main() {
     testWidgets('showsStopButton_whenGenerating', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(onSubmitted: (_) {}, isGenerating: true),
+          InputBar(
+            onSubmitted: (_) {},
+            onStop: () {},
+            isGenerating: true,
+          ),
         ),
       );
 
@@ -61,7 +70,11 @@ void main() {
     testWidgets('disablesInput_whenGenerating', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(onSubmitted: (_) {}, isGenerating: true),
+          InputBar(
+            onSubmitted: (_) {},
+            onStop: () {},
+            isGenerating: true,
+          ),
         ),
       );
 
