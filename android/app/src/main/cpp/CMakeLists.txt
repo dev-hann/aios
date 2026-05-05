@@ -19,6 +19,10 @@ set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
 set(GGML_BLAS OFF CACHE BOOL "" FORCE)
 set(GGML_LLAMAFILE ON CACHE BOOL "" FORCE)
 
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
+endif()
+
 add_subdirectory(${LLAMA_DIR} llama_cpp_build)
 
 add_library(aios-native SHARED native-lib.cpp)
