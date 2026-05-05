@@ -121,6 +121,9 @@ class LlmRepositoryImpl implements LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {
     if (!_provider.isModelLoaded) {
       developer.log(
@@ -140,6 +143,9 @@ class LlmRepositoryImpl implements LlmRepository {
         userMessage,
         temperature: temperature,
         maxTokens: maxTokens,
+        topK: topK,
+        topP: topP,
+        repeatPenalty: repeatPenalty,
       );
 
       _generationCompleter = Completer<void>();
@@ -159,7 +165,7 @@ class LlmRepositoryImpl implements LlmRepository {
         onError: (Object e) {
           _generationSubscription?.cancel();
           _generationSubscription = null;
-          _emitState(ServiceState.ready);
+          _emitState(ServiceState.error);
           developer.log(
             'Generation error',
             name: _tag,
@@ -167,7 +173,7 @@ class LlmRepositoryImpl implements LlmRepository {
             level: 1000,
           );
           if (!_generationCompleter!.isCompleted) {
-            _generationCompleter!.complete();
+            _generationCompleter!.completeError(e);
           }
         },
         cancelOnError: true,
@@ -175,13 +181,14 @@ class LlmRepositoryImpl implements LlmRepository {
 
       await _generationCompleter!.future;
     } on Object catch (e) {
-      _emitState(ServiceState.ready);
+      _emitState(ServiceState.error);
       developer.log(
         'sendMessage failed',
         name: _tag,
         error: e,
         level: 1000,
       );
+      rethrow;
     }
   }
 

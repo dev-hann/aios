@@ -22,6 +22,9 @@ class MockLlamaEngineProvider implements LlamaEngineProvider {
   String? lastUserMessage;
   double? lastTemperature;
   int? lastMaxTokens;
+  int? lastTopK;
+  double? lastTopP;
+  double? lastRepeatPenalty;
 
   StreamController<String>? _activeController;
 
@@ -77,11 +80,17 @@ class MockLlamaEngineProvider implements LlamaEngineProvider {
     String userMessage, {
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) {
     lastHistory = history;
     lastUserMessage = userMessage;
     lastTemperature = temperature;
     lastMaxTokens = maxTokens;
+    lastTopK = topK;
+    lastTopP = topP;
+    lastRepeatPenalty = repeatPenalty;
     if (_activeController != null) {
       return _activeController!.stream;
     }
@@ -239,12 +248,18 @@ void main() {
         userMessage: 'test',
         temperature: 0.7,
         maxTokens: 512,
+        topK: 50,
+        topP: 0.9,
+        repeatPenalty: 1.2,
       );
 
       expect(mockProvider.lastHistory, history);
       expect(mockProvider.lastUserMessage, 'test');
       expect(mockProvider.lastTemperature, 0.7);
       expect(mockProvider.lastMaxTokens, 512);
+      expect(mockProvider.lastTopK, 50);
+      expect(mockProvider.lastTopP, 0.9);
+      expect(mockProvider.lastRepeatPenalty, 1.2);
     });
 
     test('stopGeneration_cancelsAndReturnsToReady', () async {
@@ -366,7 +381,7 @@ void main() {
       repo.dispose();
     });
 
-    test('sendMessage_streamError_emitsReadyAndCompletes', () async {
+    test('sendMessage_streamError_emitsErrorAndThrows', () async {
       await repository.loadModel('/model.gguf');
 
       final errorController = StreamController<String>();
@@ -384,9 +399,9 @@ void main() {
 
       errorController.addError(Exception('stream error'));
       await errorController.close();
-      await future;
 
-      expect(states.last, ServiceState.ready);
+      await expectLater(future, throwsA(isA<Exception>()));
+      expect(states.last, ServiceState.error);
     });
 
     test('resetContext_notLoaded_doesNotEmitReady', () async {

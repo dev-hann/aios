@@ -90,7 +90,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<bool> loadModel(String path) async {
     state = state.copyWith(isLoadingModel: true);
     try {
-      final success = await _llmRepository.loadModel(path);
+      final success = await _llmRepository.loadModel(
+        path,
+        contextSize: state.contextSize,
+      );
       if (success) {
         await _settingsRepository.setLastModelPath(path);
         state = state.copyWith(

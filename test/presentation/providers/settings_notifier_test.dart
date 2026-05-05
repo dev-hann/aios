@@ -106,6 +106,9 @@ class _MockLlmRepository implements LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {}
 
   @override
@@ -190,6 +193,9 @@ class _FailingLlmRepository implements LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {}
 
   @override
@@ -248,6 +254,9 @@ class _ErrorLlmRepository implements LlmRepository {
     required String userMessage,
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   }) async {}
 
   @override
@@ -364,8 +373,20 @@ void main() {
 
       expect(result, isTrue);
       expect(llmRepo.lastModelPath, '/path/to/model.gguf');
+      expect(
+        llmRepo.lastContextSize,
+        SettingsRepository.defaultContextSize,
+      );
       expect(notifier.state.lastModelPath, '/path/to/model.gguf');
       expect(notifier.state.isLoadingModel, isFalse);
+    });
+
+    test('loadModel_passesContextSizeFromState', () async {
+      await notifier.updateContextSize(8192);
+
+      await notifier.loadModel('/path/to/model.gguf');
+
+      expect(llmRepo.lastContextSize, 8192);
     });
 
     test('loadModel_setsIsLoadingDuringOperation', () async {

@@ -16,6 +16,9 @@ abstract class LlamaEngineProvider {
     String userMessage, {
     double? temperature,
     int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
   });
 
   Future<void> stopGeneration();
