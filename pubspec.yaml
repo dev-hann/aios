@@ -1,7 +1,7 @@
 name: aios
 description: "AIOS - On-device AI Agent"
 publish_to: 'none'
-version: 2.0.1+20001
+version: 2.0.2+20002
 
 environment:
   sdk: ^3.11.5
@@ -24,6 +24,7 @@ dependencies:
   dio: ^5.8.0+1
   url_launcher: ^6.3.1
   package_info_plus: ^8.3.0
+  permission_handler: ^11.3.1
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

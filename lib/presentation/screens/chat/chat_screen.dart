@@ -27,7 +27,7 @@ class ChatScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings, color: AppColors.textPrimary),
-            onPressed: () => context.go('/settings'),
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),

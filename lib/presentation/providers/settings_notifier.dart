@@ -76,7 +76,13 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   List<ModelInfo> scanModels() {
-    final models = _modelRepository.scanModels();
+    final internal = _modelRepository.scanModels();
+    final external = _modelRepository.scanExternalDirs();
+    final all = <String, ModelInfo>{};
+    for (final m in [...internal, ...external]) {
+      all[m.path] = m;
+    }
+    final models = all.values.toList();
     state = state.copyWith(availableModels: models);
     return models;
   }

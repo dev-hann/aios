@@ -245,6 +245,18 @@ void main() {
       expect(notifier.state.messages, isEmpty);
     });
 
+    test('sendMessage_emptyResponse_doesNotAppendAssistantMessage',
+        () async {
+      llmRepo.tokens = [];
+      await notifier.sendMessage('Hello');
+
+      final assistantMessages = notifier.state.messages
+          .where((m) => m.role == 'assistant')
+          .toList();
+      expect(assistantMessages, isEmpty);
+      expect(conversationRepo.lastAppendedMessage, isNull);
+    });
+
     test('sendMessage_savesAssistantMessageToConversationRepo', () async {
       llmRepo.tokens = ['Response'];
       await notifier.sendMessage('Hello');

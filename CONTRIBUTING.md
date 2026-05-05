@@ -1,6 +1,6 @@
 # AIOS 기여 가이드
 
-AIOS 프로젝트에 기여해주셔서 감사합니다! 이 문서는 개발 환경 설정부터 PR 제출까지의 워크플로우를 안내합니다.
+개발 환경 설정부터 PR 제출까지의 워크플로우를 안내합니다.
 
 ---
 
@@ -10,13 +10,13 @@ AIOS 프로젝트에 기여해주셔서 감사합니다! 이 문서는 개발 �
 
 - **Flutter SDK** 3.41+ (`flutter --version` 확인)
 - **Android Studio** (최신 안정 버전) 또는 **VS Code** + Flutter 확장
-- **Android SDK**: compileSdk 35, minSdk 26
+- **Android SDK**: compileSdk 36, minSdk 26
 - **Git**
 
 ### Clone & Setup
 
 ```bash
-git clone https://github.com/hann/aios.git
+git clone https://github.com/dev-hann/aios.git
 cd aios
 flutter pub get
 ```
@@ -25,7 +25,7 @@ flutter pub get
 
 온디바이스 LLM 추론을 위해 네이티브 라이브러리가 필요합니다:
 
-1. [GitHub Releases](https://github.com/hann/aios/releases)에서 최신 `llama-cpp-dart.aar` 다운로드
+1. [GitHub Releases](https://github.com/dev-hann/aios/releases)에서 최신 `llama-cpp-dart.aar` 다운로드
 2. `android/app/libs/llama-cpp-dart.aar` 에 배치
 
 ```bash
@@ -77,36 +77,12 @@ dart run build_runner watch --delete-conflicting-outputs
 
 코드 생성이 필요한 경우:
 - `@freezed` 어노테이션이 있는 모델 클래스
-- `@DriftDatabase`, `@Table` 어노테이션이 있는 DB 클래스
+- `@DriftDatabase` 어노테이션이 있는 DB 클래스
 - `@GenerateNiceMocks` 어노테이션이 있는 테스트 파일
 
 ---
 
-## 4. 프로젝트 구조
-
-```
-lib/
-├── domain/         # 비즈니스 로직 (외부 의존성 없음)
-│   ├── models/     # 도메인 모델 (freezed)
-│   ├── repositories/  # Repository 인터페이스
-│   └── agent/      # 에이전트 전략, ResponseParser, RiskClassifier
-├── data/           # Repository 구현체, 외부 API
-│   ├── repositories/
-│   ├── database/   # Drift DB
-│   └── local/
-├── presentation/   # UI 계층
-│   ├── screens/    # 화면 단위 위젯
-│   ├── widgets/    # 재사용 위젯
-│   └── providers/  # Riverpod providers
-├── core/           # 공통 유틸, 테마, 상수
-└── main.dart
-```
-
-자세한 아키텍처 설명은 [AGENTS.md](AGENTS.md)를 참고하세요.
-
----
-
-## 5. 개발 워크플로우
+## 4. 개발 워크플로우
 
 ### 브랜치 생성
 
@@ -118,7 +94,7 @@ git checkout -b fix/your-bug-fix
 
 ### 코드 작성
 
-- 기존 코드 스타일과 컨벤션 준수 (AGENTS.md 참고)
+- 기존 코드 스타일과 컨벤션 준수 ([AGENTS.md](AGENTS.md) 참고)
 - 변경사항은 집중적이고 원자적으로 유지
 - 가능하면 실기기에서 테스트
 
@@ -141,7 +117,7 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 
 ---
 
-## 6. PR 규칙
+## 5. PR 규칙
 
 모든 PR은 다음 기준을 충족해야 합니다:
 
@@ -151,12 +127,12 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 | 정적 분석 | `flutter analyze` | 경고 없어야 함 |
 | 포맷팅 | `dart format . --set-exit-if-changed` | 변경 없어야 함 |
 | 코드 생성 | `dart run build_runner build` | 충돌 없이 성공 |
-| 아키텍처 | — | AGENTS.md 패키지 구조 준수 |
-| TDD | — | 테스트 먼저 작성 |
+| 아키텍처 | — | [AGENTS.md](AGENTS.md) 코딩 규약 준수 |
+| TDD | — | 테스트 먼저 작성 → [TESTING.md](TESTING.md) |
 
 ---
 
-## 7. 릴리즈 프로세스
+## 6. 릴리즈 프로세스
 
 ### 버전 업데이트
 
@@ -185,17 +161,19 @@ flutter build appbundle --release
 
 ---
 
-## 8. Agent Tool 개발
-
-새로운 Tool 추가 방법은 [AGENTS.md](AGENTS.md)의 "Tool 개발" 섹션을 참고하세요.
-
----
-
-## 9. 이슈 리포트
+## 7. 이슈 리포트
 
 - 버그: GitHub Issue 템플릿 사용
 - 기능 요청: Feature request 템플릿 사용
 - 기기 정보, Android 버전, 모델 정보 포함 필수
+
+---
+
+## 참고 문서
+
+- **[AGENTS.md](AGENTS.md)** — 코딩 규약, 금지사항, 작업 가이드라인
+- **[docs/architecture.md](docs/architecture.md)** — 시스템 아키텍처, 모듈 구조, 데이터 흐름
+- **[TESTING.md](TESTING.md)** — TDD 워크플로우, 테스트 범위, 커버리지 요구사항
 
 ---
 

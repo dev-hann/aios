@@ -1,12 +1,28 @@
 import 'package:dio/dio.dart';
 
-class GitHubRelease {
-  final String tagName;
-  final String name;
-  final String body;
-  final List<GitHubAsset> assets;
-  final String publishedAt;
+String _asString(dynamic value) {
+  if (value is String) return value;
+  throw FormatException('Expected String, got ${value.runtimeType}');
+}
 
+int _asInt(dynamic value) {
+  if (value is int) return value;
+  throw FormatException('Expected int, got ${value.runtimeType}');
+}
+
+List<dynamic> _asList(dynamic value) {
+  if (value is List) return value;
+  throw FormatException('Expected List, got ${value.runtimeType}');
+}
+
+Map<String, dynamic> _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  throw FormatException(
+    'Expected Map<String, dynamic>, got ${value.runtimeType}',
+  );
+}
+
+class GitHubRelease {
   GitHubRelease({
     required this.tagName,
     required this.name,
@@ -16,21 +32,23 @@ class GitHubRelease {
   });
 
   factory GitHubRelease.fromJson(Map<String, dynamic> json) => GitHubRelease(
-        tagName: json['tag_name'] as String,
-        name: json['name'] as String,
-        body: json['body'] as String,
-        assets: (json['assets'] as List)
-            .map((a) => GitHubAsset.fromJson(a as Map<String, dynamic>))
+        tagName: _asString(json['tag_name']),
+        name: _asString(json['name']),
+        body: _asString(json['body']),
+        assets: _asList(json['assets'])
+            .map((a) => GitHubAsset.fromJson(_asMap(a)))
             .toList(),
-        publishedAt: json['published_at'] as String,
+        publishedAt: _asString(json['published_at']),
       );
+
+  final String tagName;
+  final String name;
+  final String body;
+  final List<GitHubAsset> assets;
+  final String publishedAt;
 }
 
 class GitHubAsset {
-  final String name;
-  final String browserDownloadUrl;
-  final int size;
-
   GitHubAsset({
     required this.name,
     required this.browserDownloadUrl,
@@ -38,16 +56,17 @@ class GitHubAsset {
   });
 
   factory GitHubAsset.fromJson(Map<String, dynamic> json) => GitHubAsset(
-        name: json['name'] as String,
-        browserDownloadUrl: json['browser_download_url'] as String,
-        size: json['size'] as int,
+        name: _asString(json['name']),
+        browserDownloadUrl: _asString(json['browser_download_url']),
+        size: _asInt(json['size']),
       );
+
+  final String name;
+  final String browserDownloadUrl;
+  final int size;
 }
 
 class GitHubApi {
-  final Dio _dio;
-  final String _repo;
-
   GitHubApi({required String repo, Dio? dio})
       : _repo = repo,
         _dio = dio ??
@@ -56,9 +75,12 @@ class GitHubApi {
               headers: {'Accept': 'application/vnd.github.v3+json'},
             ));
 
+  final Dio _dio;
+  final String _repo;
+
   Future<GitHubRelease> getLatestRelease() async {
     final response =
         await _dio.get<dynamic>('/repos/$_repo/releases/latest');
-    return GitHubRelease.fromJson(response.data as Map<String, dynamic>);
+    return GitHubRelease.fromJson(_asMap(response.data));
   }
 }

@@ -120,11 +120,17 @@ class _MockLlmRepository implements LlmRepository {
 
 class _MockModelRepository implements ModelRepository {
   final List<ModelInfo> _models = [];
+  Object? _scanError;
 
   void addTestModel(ModelInfo model) => _models.add(model);
 
+  void setScanError(Object error) => _scanError = error;
+
   @override
-  List<ModelInfo> scanModels() => List.unmodifiable(_models);
+  List<ModelInfo> scanModels() {
+    if (_scanError != null) throw _scanError!;
+    return List.unmodifiable(_models);
+  }
 
   @override
   bool restoreModel(String name) => _models.any((m) => m.name == name);
@@ -133,6 +139,130 @@ class _MockModelRepository implements ModelRepository {
   Future<bool> importModelFromUri(String sourcePath, String fileName) async {
     _models.add(ModelInfo(name: fileName, size: 1024, path: sourcePath));
     return true;
+  }
+
+  @override
+  List<ModelInfo> scanExternalDirs() => [];
+}
+
+class _FailingLlmRepository implements LlmRepository {
+  bool _shouldFail = true;
+  final _stateController = StreamController<ServiceState>.broadcast();
+  final _tokenController = StreamController<String>.broadcast();
+  final _progressController = StreamController<double>.broadcast();
+
+  void setSucceed() => _shouldFail = false;
+
+  @override
+  Stream<ServiceState> get state => _stateController.stream;
+
+  @override
+  Stream<String> get tokenStream => _tokenController.stream;
+
+  @override
+  Stream<double> get loadProgress => _progressController.stream;
+
+  @override
+  Future<bool> loadModel(String path, {int? contextSize}) async {
+    if (_shouldFail) return false;
+    _stateController.add(ServiceState.ready);
+    return true;
+  }
+
+  @override
+  Future<void> releaseModel() async {}
+
+  @override
+  bool get isModelLoaded => !_shouldFail;
+
+  @override
+  String getModelInfo() => 'Mock';
+
+  @override
+  String getContextUsage() => '0/2048';
+
+  @override
+  Future<void> resetContext() async {}
+
+  @override
+  Future<void> sendMessage(
+    List<ChatMessage> history, {
+    required String userMessage,
+    double? temperature,
+    int? maxTokens,
+  }) async {}
+
+  @override
+  Future<void> stopGeneration() async {}
+
+  @override
+  Future<void> saveSession(String path) async {}
+
+  @override
+  Future<void> loadSession(String path) async {}
+
+  void dispose() {
+    _stateController.close();
+    _tokenController.close();
+    _progressController.close();
+  }
+}
+
+class _ErrorLlmRepository implements LlmRepository {
+  final _stateController = StreamController<ServiceState>.broadcast();
+  final _tokenController = StreamController<String>.broadcast();
+  final _progressController = StreamController<double>.broadcast();
+
+  @override
+  Stream<ServiceState> get state => _stateController.stream;
+
+  @override
+  Stream<String> get tokenStream => _tokenController.stream;
+
+  @override
+  Stream<double> get loadProgress => _progressController.stream;
+
+  @override
+  Future<bool> loadModel(String path, {int? contextSize}) async {
+    throw Exception('Load failed');
+  }
+
+  @override
+  Future<void> releaseModel() async {}
+
+  @override
+  bool get isModelLoaded => false;
+
+  @override
+  String getModelInfo() => 'Mock';
+
+  @override
+  String getContextUsage() => '0/2048';
+
+  @override
+  Future<void> resetContext() async {}
+
+  @override
+  Future<void> sendMessage(
+    List<ChatMessage> history, {
+    required String userMessage,
+    double? temperature,
+    int? maxTokens,
+  }) async {}
+
+  @override
+  Future<void> stopGeneration() async {}
+
+  @override
+  Future<void> saveSession(String path) async {}
+
+  @override
+  Future<void> loadSession(String path) async {}
+
+  void dispose() {
+    _stateController.close();
+    _tokenController.close();
+    _progressController.close();
   }
 }
 
@@ -260,6 +390,47 @@ void main() {
       expect(notifier.state.temperature, 0.3);
       expect(notifier.state.contextSize, 4096);
       expect(notifier.state.availableModels.length, 1);
+    });
+
+    test('loadSettings_exception_doesNotThrow', () async {
+      modelRepo.setScanError(Exception('scan failed'));
+
+      await notifier.loadSettings();
+
+      expect(notifier.state.temperature, SettingsRepository.defaultTemperature);
+    });
+
+    test('loadModel_failure_setsIsLoadingFalse', () async {
+      final failingLlmRepo = _FailingLlmRepository();
+      final failingNotifier = SettingsNotifier(
+        settingsRepo,
+        failingLlmRepo,
+        modelRepo,
+      );
+
+      final result =
+          await failingNotifier.loadModel('/path/to/model.gguf');
+
+      expect(result, isFalse);
+      expect(failingNotifier.state.isLoadingModel, isFalse);
+
+      failingLlmRepo.dispose();
+    });
+
+    test('loadModel_exception_returnsFalse', () async {
+      final errorLlmRepo = _ErrorLlmRepository();
+      final errorNotifier = SettingsNotifier(
+        settingsRepo,
+        errorLlmRepo,
+        modelRepo,
+      );
+
+      final result = await errorNotifier.loadModel('/path/to/model.gguf');
+
+      expect(result, isFalse);
+      expect(errorNotifier.state.isLoadingModel, isFalse);
+
+      errorLlmRepo.dispose();
     });
   });
 }

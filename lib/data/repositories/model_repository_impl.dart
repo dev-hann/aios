@@ -32,6 +32,35 @@ class ModelRepositoryImpl implements ModelRepository {
   }
 
   @override
+  List<ModelInfo> scanExternalDirs() {
+    final externalDirs = [
+      '/sdcard/Download',
+      '/storage/emulated/0/Download',
+    ];
+    final seen = <String>{};
+    final results = <ModelInfo>[];
+
+    for (final dirPath in externalDirs) {
+      final dir = Directory(dirPath);
+      if (!dir.existsSync()) continue;
+      try {
+        for (final f in dir.listSync().whereType<File>()) {
+          if (!f.path.toLowerCase().endsWith('.gguf')) continue;
+          if (seen.contains(f.path)) continue;
+          seen.add(f.path);
+          results.add(ModelInfo(
+            name: f.path.split(Platform.pathSeparator).last,
+            size: f.lengthSync(),
+            path: f.path,
+          ));
+        }
+      } on Object catch (_) {}
+    }
+
+    return results;
+  }
+
+  @override
   bool restoreModel(String name) {
     final source = File('$downloadsDir${Platform.pathSeparator}$name');
     if (!source.existsSync()) {

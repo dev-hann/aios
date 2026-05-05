@@ -13,24 +13,24 @@
 
 | Module | File | Test 항목 |
 |--------|------|-----------|
-| LlmRepositoryImpl | `lib/data/llm_repository_impl.dart` | llama_cpp_dart 래핑, 모델 로드/해제, 추론 호출, 에러 처리 |
-| ChatNotifier | `lib/ui/chat/chat_notifier.dart` | sendMessage, cancelGeneration, loadModel, importModel, state 일관성 |
-| Model Lifecycle | `lib/data/llm_repository_impl.dart` | 모델 로드→추론→해제 전체 주기, 동시 접근, Isolate 정리 |
+| LlmRepositoryImpl | `lib/data/repositories/llm_repository_impl.dart` | llama_cpp_dart 래핑, 모델 로드/해제, 추론 호출, 에러 처리 |
+| ChatNotifier | `lib/presentation/providers/chat_notifier.dart` | sendMessage, stopGeneration, loadModel, state 일관성 |
+| Model Lifecycle | `lib/data/repositories/llm_repository_impl.dart` | 모델 로드→추론→해제 전체 주기, 동시 접근, Isolate 정리 |
 
 ### P1: State Management (필수)
 
 | Module | File | Test 항목 |
 |--------|------|-----------|
-| SettingsNotifier | `lib/ui/settings/settings_notifier.dart` | 설정 읽기/쓰기, 기본값, 영속성 |
-| UpdateNotifier | `lib/ui/update/update_notifier.dart` | check/download/install 흐름, 에러 상태 |
+| SettingsNotifier | `lib/presentation/providers/settings_notifier.dart` | 설정 읽기/쓰기, 기본값, 영속성 |
+| UpdateNotifier | `lib/presentation/providers/update_notifier.dart` | check/download/install 흐름, 에러 상태 |
 
 ### P2: UI (필수)
 
 | Screen | File | Test 항목 |
 |--------|------|-----------|
-| ChatScreen | `lib/ui/chat/chat_screen.dart` | 메시지 전송, 정지 버튼, 입력바 가시성, 빈 상태 |
-| SettingsScreen | `lib/ui/settings/settings_screen.dart` | 권한 설정, 고급 옵션 토글, 오버레이 서비스 스위치 |
-| UpdateScreen | `lib/ui/update/update_screen.dart` | 상태 전이, 다운로드 진행률 |
+| ChatScreen | `lib/presentation/screens/chat/chat_screen.dart` | 메시지 전송, 정지 버튼, 입력바 가시성, 빈 상태 |
+| SettingsScreen | `lib/presentation/screens/settings/settings_screen.dart` | 권한 설정, 고급 옵션 토글, 오버레이 서비스 스위치 |
+| UpdateScreen | `lib/presentation/screens/update/update_screen.dart` | 상태 전이, 다운로드 진행률 |
 
 ### P3: Domain (필수, 향후 Agent 시스템)
 
@@ -46,7 +46,7 @@
 |--------|--------------|
 | llama_cpp_dart on-device | 실제 GGUF 모델 로드→추론→해제 |
 | Full Chat Flow | 메시지 전송→스트리밍→완료 전체 흐름 |
-| Database | Hive/SQLite CRUD, 마이그레이션 |
+| Database | Drift SQLite CRUD, 마이그레이션 |
 | Update | GitHub Release 확인→다운로드→설치 |
 
 ## 3. Test Categories
@@ -91,7 +91,7 @@ Examples:
   sendMessage_whenGenerating_doesNotSend()
   loadModel_withInvalidPath_setsErrorState()
   parseResponse_withActionAndArgs_returnsAction()
-  cancelGeneration_duringInference_resetsState()
+  stopGeneration_duringInference_resetsState()
 ```
 
 ## 7. Required Dependencies (pubspec.yaml)
@@ -106,21 +106,7 @@ dev_dependencies:
   build_runner: ^2.4.14
 ```
 
-## 8. Runtime Constraint Tests
-
-### 기존 Android Runtime Constraint (R-1 ~ R-5) — 더 이상 필요 없음
-
-Kotlin/Android에서 Flutter로 마이그레이션하면서 다음 제약 테스트는 **불필요**:
-
-| 기존 ID | 제약 | 불필요한 이유 |
-|---------|------|---------------|
-| R-1 | ForegroundServiceStartNotAllowedException | Flutter는 Foreground Service 사용 안 함 (llama_cpp_dart가 Isolate 사용) |
-| R-2 | Application.onCreate()에서 서비스 시작 금지 | JNI 브릿지 없음 |
-| R-3 | startForeground() 5초 내 호출 의무 | Native lifecycle 관리 없음 |
-| R-4 | 권한 거부 시 graceful degradation | Flutter가 lifecycle을 다르게 처리 |
-| R-5 | Android 16 백그라운드 제한 | Isolate 기반이므로 해당 없음 |
-
-### 새로운 Flutter Runtime Constraint Tests (필수)
+## 8. Flutter Runtime Constraint Tests (필수)
 
 | ID | Constraint | Test Location | What to Verify |
 |----|-----------|---------------|----------------|
@@ -131,23 +117,18 @@ Kotlin/Android에서 Flutter로 마이그레이션하면서 다음 제약 테스
 
 ### 규칙
 
-1. **Isolate는 반드시 try-catch로 보호**
-   - `Isolate.spawn()` 호출부는 예외 처리 필수
-2. **파일 접근 시 path 존재 확인**
-   - GGUF 파일 로드 전 파일 존재 + 크기 > 0 검증
-3. **새 Flutter/Android 버전 릴리즈 시 회귀 테스트 업데이트**
-   - targetSdkVersion 변경 시 FR-x 테스트 케이스 재검증
+1. **Isolate는 반드시 try-catch로 보호** — `Isolate.spawn()` 호출부는 예외 처리 필수
+2. **파일 접근 시 path 존재 확인** — GGUF 파일 로드 전 파일 존재 + 크기 > 0 검증
+3. **새 Flutter/Android 버전 릴리즈 시 회귀 테스트 업데이트** — targetSdkVersion 변경 시 FR-x 테스트 케이스 재검증
 
 ## 9. Known Crash Regression Tests
-
-기존 Kotlin/Android 분석에서 식별된 크래시 중 Flutter 마이그레이션 후에도 관련 있는 항목:
 
 | ID | Crash | Test Required |
 |----|-------|---------------|
 | P0-1 | Isolate 전역 상태 스레드 안전성 | Isolate 동시성 테스트 |
 | P0-2 | llama_cpp_dart 콜백 예외 처리 | Native callback 에러 테스트 |
 | P0-3 | null 모델로 tokenize 호출 | LlmRepositoryImpl null guard 테스트 |
-| P0-4 | agentEngine 동시성 (Isolate) | ChatNotifier 동시성 테스트 |
+| P0-4 | ChatNotifier 동시성 (Isolate) | ChatNotifier 동시성 테스트 |
 | P1-1 | Isolate spawn 실패 시 graceful 처리 | LlmRepositoryImpl 에러 테스트 |
 | P1-2 | 모델 로드 시 기존 모델 누수 | LlmRepositoryImpl lifecycle 테스트 |
 | P1-3 | 취소 시 스트리밍 콜백 미복원 | ChatNotifier cancel 테스트 |
@@ -182,6 +163,13 @@ Kotlin/Android에서 Flutter로 마이그레이션하면서 다음 제약 테스
 3. [ ] 테스트 통과 확인
 4. [ ] 기존 테스트 여전히 통과 확인
 
+**Tool 추가 시:**
+1. [ ] Tool 클래스 구현 (AgentTool 또는 ExtendedTool)
+2. [ ] ReactStrategy의 tools 맵에 등록
+3. [ ] RiskClassifier에 위험도 분류 추가
+4. [ ] RiskClassifier + Tool 동작 테스트 작성
+5. [ ] `flutter test` 통과 확인
+
 ## 11. Flutter-Specific Test Patterns
 
 ### Widget Testing
@@ -195,19 +183,6 @@ testWidgets('ChatScreen renders empty state', (tester) async {
 
   expect(find.text('메시지를 입력하세요'), findsOneWidget);
 });
-
-testWidgets('Send button triggers sendMessage', (tester) async {
-  await tester.pumpWidget(
-    const MaterialApp(home: ChatScreen()),
-  );
-  await tester.pump();
-
-  await tester.enterText(find.byType(TextField), 'Hello');
-  await tester.tap(find.byType(IconButton));
-  await tester.pump();
-
-  // verify state change
-});
 ```
 
 ### Riverpod Testing (ProviderScope + overrides)
@@ -217,7 +192,7 @@ testWidgets('ChatScreen displays messages from provider', (tester) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        chatProvider.overrideWith(() => MockChatNotifier()),
+        chatStateProvider.overrideWith(() => MockChatNotifier()),
       ],
       child: const MaterialApp(home: ChatScreen()),
     ),
@@ -231,9 +206,6 @@ testWidgets('ChatScreen displays messages from provider', (tester) async {
 ### Mock Setup (@GenerateMocks + build_runner)
 
 ```dart
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
-
 @GenerateMocks([LlmRepository])
 import 'chat_notifier_test.mocks.dart';
 
@@ -247,51 +219,28 @@ void main() {
   });
 
   test('sendMessage_whenGenerating_doesNotSend', () async {
-    // arrange
     when(mockRepository.isGenerating).thenReturn(true);
-
-    // act
     await notifier.sendMessage('test');
-
-    // assert
-    verifyNever(mockRepository.infer(any));
+    verifyNever(mockRepository.sendMessage(any, userMessage: any));
   });
 }
 ```
 
-Mock 생성 명령:
-
-```bash
-dart run build_runner build
-```
+Mock 생성: `dart run build_runner build`
 
 ### Stream Testing
 
 ```dart
 test('inferenceStream emits tokens in order', () async {
   final stream = Stream.fromIterable(['Hello', ' ', 'World']);
-
   await expectLater(stream, emitsInOrder(['Hello', ' ', 'World']));
-});
-
-test('loadModel emits loading then loaded states', () async {
-  when(mockRepository.loadModel(any)).thenAnswer((_) async {});
-
-  final states = <AppState>[];
-  notifier.addListener(states.add);
-  await notifier.loadModel('/path/to/model.gguf');
-
-  expect(states, [
-    isA<AppLoading>(),
-    isA<AppLoaded>(),
-  ]);
 });
 ```
 
 ## 12. Local Development & Verification
 
 - 모든 단위/위젯 테스트 로컬 실행: `flutter test`
-- 특정 파일만 실행: `flutter test test/ui/chat/chat_notifier_test.dart`
+- 특정 파일만 실행: `flutter test test/path/to/test.dart`
 - Integration 테스트: `flutter test integration_test/`
 - 코드 스타일 검사: `dart format --set-exit-if-changed .`
 - 정적 분석: `dart analyze`

@@ -347,6 +347,67 @@ void main() {
       expect(states, contains(ServiceState.ready));
     });
 
+    test('releaseModel_exception_emitsIdle', () async {
+      mockProvider.releaseModelCalled = true;
+      mockProvider._modelLoaded = true;
+
+      final releasingProvider = MockLlamaEngineProvider();
+      releasingProvider._modelLoaded = true;
+
+      final repo = LlmRepositoryImpl(releasingProvider);
+
+      final states = <ServiceState>[];
+      repo.state.listen(states.add);
+
+      await repo.releaseModel();
+
+      expect(states, contains(ServiceState.idle));
+
+      repo.dispose();
+    });
+
+    test('sendMessage_streamError_emitsReadyAndCompletes', () async {
+      await repository.loadModel('/model.gguf');
+
+      final errorController = StreamController<String>();
+      mockProvider._activeController = errorController;
+
+      final states = <ServiceState>[];
+      repository.state.listen(states.add);
+
+      final future = repository.sendMessage(
+        [],
+        userMessage: 'Hello',
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      errorController.addError(Exception('stream error'));
+      await errorController.close();
+      await future;
+
+      expect(states.last, ServiceState.ready);
+    });
+
+    test('resetContext_notLoaded_doesNotEmitReady', () async {
+      final states = <ServiceState>[];
+      repository.state.listen(states.add);
+
+      await repository.resetContext();
+
+      expect(states, isNot(contains(ServiceState.ready)));
+    });
+
+    test('loadModel_emitsZeroProgressAtStart', () async {
+      final progressValues = <double>[];
+      repository.loadProgress.listen(progressValues.add);
+
+      await repository.loadModel('/model.gguf');
+
+      expect(progressValues.first, 0.0);
+      expect(progressValues.last, 1.0);
+    });
+
     test('dispose_closesControllers', () async {
       final stateFuture = repository.state.drain<void>();
       final tokenFuture = repository.tokenStream.drain<void>();

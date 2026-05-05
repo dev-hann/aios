@@ -28,6 +28,9 @@ class _MockModelRepository implements ModelRepository {
     ));
     return true;
   }
+
+  @override
+  List<ModelInfo> scanExternalDirs() => [];
 }
 
 void main() {

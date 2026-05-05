@@ -50,6 +50,23 @@ class _FakeDownloadAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class _ErrorDownloadAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<List<int>>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    throw DioException(
+      requestOptions: options,
+      type: DioExceptionType.connectionError,
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 GitHubRelease _release({
   String tag = 'v2.1.0',
   String name = 'AIOS v2.1.0',
@@ -190,6 +207,95 @@ void main() {
       expect(result, isNotNull);
       expect(progressCalls, isNotEmpty);
       expect(progressCalls.last, greaterThanOrEqualTo(0.0));
+    });
+
+    test('canInstallApk_returnsTrue', () {
+      final repo = UpdateRepositoryImpl(
+        api: api,
+        currentVersion: '2.0.0',
+        dio: Dio(),
+        getCachePath: () async => tempDir.path,
+      );
+
+      expect(repo.canInstallApk(), isTrue);
+    });
+
+    test('installApk_existingFile_returnsTrue', () async {
+      final file = File('${tempDir.path}/test.apk');
+      await file.writeAsBytes([1, 2, 3]);
+
+      final repo = UpdateRepositoryImpl(
+        api: api,
+        currentVersion: '2.0.0',
+        dio: Dio(),
+        getCachePath: () async => tempDir.path,
+      );
+
+      expect(repo.installApk(file), isTrue);
+    });
+
+    test('installApk_nonExistentFile_returnsFalse', () async {
+      final file = File('${tempDir.path}/nonexistent.apk');
+
+      final repo = UpdateRepositoryImpl(
+        api: api,
+        currentVersion: '2.0.0',
+        dio: Dio(),
+        getCachePath: () async => tempDir.path,
+      );
+
+      expect(repo.installApk(file), isFalse);
+    });
+
+    test('checkForUpdate_noApkAsset_fallsBackToFirstAsset', () async {
+      api._releaseToReturn = GitHubRelease(
+        tagName: 'v2.1.0',
+        name: 'AIOS v2.1.0',
+        body: 'Release',
+        assets: [
+          GitHubAsset(
+            name: 'readme.txt',
+            browserDownloadUrl: 'https://example.com/readme.txt',
+            size: 100,
+          ),
+        ],
+        publishedAt: '2026-05-01T00:00:00Z',
+      );
+      final repo = UpdateRepositoryImpl(
+        api: api,
+        currentVersion: '2.0.0',
+        dio: Dio(),
+        getCachePath: () async => tempDir.path,
+      );
+
+      final result = await repo.checkForUpdate();
+
+      expect(result, isA<UpdateSuccess>());
+      result.when(
+        success: (info) {
+          expect(info.downloadUrl, contains('readme.txt'));
+        },
+        notAvailable: () => fail('Expected UpdateSuccess'),
+        error: (_) => fail('Expected UpdateSuccess'),
+      );
+    });
+
+    test('downloadApk_error_returnsNull', () async {
+      final dio = Dio();
+      dio.httpClientAdapter = _ErrorDownloadAdapter();
+      final repo = UpdateRepositoryImpl(
+        api: api,
+        currentVersion: '2.0.0',
+        dio: dio,
+        getCachePath: () async => tempDir.path,
+      );
+
+      final result = await repo.downloadApk(
+        'https://example.com/bad.apk',
+        'bad.apk',
+      );
+
+      expect(result, isNull);
     });
   });
 }

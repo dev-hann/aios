@@ -108,6 +108,8 @@ class _MockModelRepository implements ModelRepository {
   @override
   List<ModelInfo> scanModels() => List.unmodifiable(_models);
   @override
+  List<ModelInfo> scanExternalDirs() => [];
+  @override
   bool restoreModel(String name) => false;
   @override
   Future<bool> importModelFromUri(String sourcePath, String fileName) async =>

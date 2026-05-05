@@ -1,249 +1,167 @@
 # Architecture
 
-This document describes the internal architecture of AIOS in detail.
+AIOS의 내부 아키텍처를 설명합니다.
 
 ## System Overview
 
-AIOS follows a **2-layer architecture**: Kotlin (UI + services) and C++ (inference). The two layers communicate via JNI (Java Native Interface).
+AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llama_cpp_dart (inference via Isolate).
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                        Kotlin Layer                          │
-│                                                              │
-│  ┌────────────────┐  ┌─────────────┐  ┌──────────────────┐  │
-│  │  Compose UI    │  │ AIOSApp     │  │ AgentEngine      │  │
-│  │  (Screens)     │──│ (App Class) │──│ (ReAct Loop)     │  │
-│  └────────────────┘  └──────┬──────┘  └────────┬─────────┘  │
-│                             │                   │            │
-│  ┌──────────────────────────▼───────────────────▼──────────┐ │
-│  │                    LlmService                           │ │
-│  │              (Foreground Service)                        │ │
-│  └──────────────────────────┬──────────────────────────────┘ │
-│                             │                                │
-│  ┌──────────────────────────▼──────────────────────────────┐ │
-│  │                  LlamaBridge (JNI)                       │ │
-│  └──────────────────────────┬──────────────────────────────┘ │
+│                        Dart Layer                             │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │  Presentation                                          │  │
+│  │  Flutter Widgets + Riverpod StateNotifier + GoRouter   │  │
+│  └──────────────────────────┬─────────────────────────────┘  │
+│                             │                                  │
+│  ┌──────────────────────────▼─────────────────────────────┐  │
+│  │  Domain                                                 │  │
+│  │  Entities (freezed) + Repository Interfaces (abstract)  │  │
+│  └──────────────────────────┬─────────────────────────────┘  │
+│                             │                                  │
+│  ┌──────────────────────────▼─────────────────────────────┐  │
+│  │  Data                                                   │  │
+│  │  Repository Impls + DataSource (Drift, Dio)             │  │
+│  │  LlamaEngineProvider (llama_cpp_dart 추상화)            │  │
+│  └──────────────────────────┬─────────────────────────────┘  │
 └─────────────────────────────┼────────────────────────────────┘
                               │
 ┌─────────────────────────────▼────────────────────────────────┐
-│                        C++ Layer                              │
-│  ┌──────────────────────────────────────────────────────────┐│
-│  │                  native-lib.cpp                           ││
-│  │     llama_model_load / llama_tokenize / llama_decode     ││
-│  └──────────────────────────────────────────────────────────┘│
-│  ┌──────────────────────────────────────────────────────────┐│
-│  │                  llama.cpp (static)                       ││
-│  └──────────────────────────────────────────────────────────┘│
+│                   llama_cpp_dart (Isolate)                    │
+│  LLM 추론: loadModel / generate / stopGeneration             │
+│  KV-cache: saveState / loadState                              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Module Details
+## Layers
 
-### 1. Compose UI Layer
+### Domain Layer (`lib/domain/`)
 
-**Files**: `ui/screen/`, `ui/component/`, `ui/viewmodel/`, `ui/navigation/`
+비즈니스 로직의 핵심. **외부 의존성 없음** (Flutter, DB, 네트워크 모르게).
 
-| Component | File | Role |
-|-----------|------|------|
-| ChatScreen | `ChatScreen.kt` | Main chat UI with dual mode (chat/agent) |
-| DashboardScreen | `DashboardScreen.kt` | Permission management (Accessibility, Notifications, Overlay) |
-| SettingsScreen | `SettingsScreen.kt` | App settings, model management |
-| ChatViewModel | `ChatViewModel.kt` | State management: messages, generation state, model status |
-| AIOSNavGraph | `AIOSNavGraph.kt` | Navigation host with bottom navigation |
-| MessageBubble | `MessageBubble.kt` | Renders chat messages and agent steps |
-| ModelPicker | `ModelPicker.kt` | Bottom sheet for model selection |
-| StatusBar | `StatusBar.kt` | Model loading / generation status display |
+| 하위 디렉토리 | 역할 | 예시 |
+|--------------|------|------|
+| `entities/` | 불변 데이터 모델 (freezed) | `ChatMessage`, `ModelInfo`, `ServiceState`, `UpdateInfo` |
+| `repositories/` | Repository 인터페이스 (abstract class) | `LlmRepository`, `SettingsRepository`, `ConversationRepository` |
+| `agent/` | 에이전트 전략, 파서, 위험 분류 | `ReactStrategy`, `ResponseParser`, `RiskClassifier` |
 
-**State Flow**:
-```
-User Input → ChatViewModel.sendMessage()
-    ├── CHAT mode → AIOSApp.generateStream() → tokenFlow → UI
-    └── AGENT mode → AIOSApp.runAgent() → agentStepFlow → UI
-```
+**규칙**: Domain은 Data, Presentation, 외부 패키지를 import하지 않음.
 
-### 2. AIOSApp (Application Class)
+### Data Layer (`lib/data/`)
 
-**File**: `AIOSApp.kt`
+Domain 인터페이스의 구현체. 외부 API, DB, 파일시스템 접근.
 
-Central coordinator that manages:
-- **Service binding** — Binds to `LlmService` and manages lifecycle
-- **State flows** — `_serviceState`, `_tokenFlow`, `_agentStepFlow` (SharedFlow)
-- **Model lifecycle** — `loadModel()`, `unloadModel()`
-- **Entry points**:
-  - `generateStream(prompt, onToken, onComplete)` — Direct LLM generation
-  - `runAgent(message, onStep, onComplete)` — Agent mode execution
+| 하위 디렉토리 | 역할 | 예시 |
+|--------------|------|------|
+| `repositories/` | Domain Repository 구현체 | `LlmRepositoryImpl`, `UpdateRepositoryImpl` |
+| `datasources/local/` | 로컬 저장소 (Drift/SQLite) | `AppDatabase`, `tables.dart` |
+| `datasources/remote/` | 원격 API | `GitHubApi` (GitHub Releases, Dio) |
+| `providers/` | 외부 엔진 추상화 | `LlamaEngineProvider` (llama_cpp_dart 래핑) |
 
-**Service States**:
-```
-DISCONNECTED → CONNECTING → READY → MODEL_LOADED → GENERATING → AGENT_RUNNING
-```
+**규칙**: Data는 Domain을 참조 가능. Presentation은 참조하지 않음.
 
-### 3. LlmService (Foreground Service)
+### Presentation Layer (`lib/presentation/`)
 
-**File**: `LlmService.kt`
+UI와 상태 관리. Riverpod으로 Domain/Data 계층 사용.
 
-Android foreground service that:
-- Keeps the app alive during inference
-- Shows a persistent notification
-- Wraps `LlamaBridge` JNI calls
-- Provides `generateStream()` and `generate()` methods
+| 하위 디렉토리 | 역할 | 예시 |
+|--------------|------|------|
+| `screens/` | 화면 단위 Widget | `ChatScreen`, `SettingsScreen`, `UpdateScreen` |
+| `widgets/` | 재사용 UI 컴포넌트 | `MessageBubble`, `InputBar`, `StatusBar`, `ModelPicker` |
+| `providers/` | Riverpod Provider + StateNotifier | `ChatNotifier`, `chatStateProvider`, `SettingsNotifier` |
 
-### 4. LlamaBridge (JNI Declarations)
+**규칙**: Presentation은 Domain 인터페이스를 통해서만 Data에 접근. 직접 DataSource 참조 금지.
 
-**File**: `LlamaBridge.kt`
+### Core Layer (`lib/core/`)
 
-Kotlin-side JNI declarations:
-- `nativeLoadModel(path: String): Boolean`
-- `nativeUnloadModel()`
-- `nativeGenerateStream(prompt: String, callback: (String) -> Unit): String`
-- `nativeGenerate(prompt: String): String`
-- `nativeTokenize(text: String): IntArray`
+모든 계층에서 공유하는 유틸리티.
 
-### 5. AgentEngine (ReAct Loop)
+| 하위 디렉토리 | 역할 |
+|--------------|------|
+| `router/` | GoRouter 화면 라우팅 |
+| `theme/` | `AppColors` 색상 상수, `aiosTheme` ThemeData |
 
-**File**: `AgentEngine.kt`
-
-Implements the ReAct (Reason + Act) pattern:
-
-```
-┌─────────────────────────────────┐
-│         ReAct Loop              │
-│                                 │
-│  1. Build Prompt                │
-│     ├─ System prompt (tools)    │
-│     ├─ User message             │
-│     └─ Conversation history     │
-│                                 │
-│  2. LLM Generate                │
-│     └─ Streaming tokens         │
-│                                 │
-│  3. Parse Response              │
-│     ├─ Action: tool → Execute   │
-│     │   └─ Args: JSON params    │
-│     ├─ Answer: text → Return    │
-│     └─ Plain text → Return      │
-│                                 │
-│  4. If Action:                  │
-│     ├─ Execute tool             │
-│     ├─ Get observation          │
-│     └─ Append to history, loop  │
-│                                 │
-│  Max iterations: 5              │
-└─────────────────────────────────┘
-```
-
-**Tool Categories**:
-
-| Category | Registration | Access |
-|----------|-------------|--------|
-| Basic Tools | `basicTools` map in `AgentTools.kt` | Self-contained, no Android context |
-| Extended Tools | `extendedTools` map in `AgentEngine` | Requires `Context`, `AccessibilityService` |
-
-### 6. Agent Tools
-
-#### Basic Tools (`AgentTools.kt`)
-
-| Tool | Input | Output |
-|------|-------|--------|
-| `calculator` | Math expression | Computed result |
-| `timer` | Seconds (1-300) | Confirmation after sleep |
-| `device_info` | None | Device model, OS version, memory |
-| `notepad` | Action + text | Save/get/list/delete notes |
-
-#### Extended Tools (`agent/tools/`)
-
-| Tool | File | Capabilities |
-|------|------|-------------|
-| `screen_reader` | `ScreenReaderTool.kt` | Read all visible text on screen |
-| `screen_find` | `ScreenReaderTool.kt` | Find UI elements by text/description |
-| `screen_action` | `ScreenActionTool.kt` | tap, long_click, type, scroll, swipe, global actions |
-| `app_launcher` | `AppLauncherTool.kt` | Open apps by package, URLs, system settings |
-| `notification_reader` | `NotificationTool.kt` | Read recent system notifications |
-
-### 7. Android Services
-
-| Service | File | Purpose |
-|---------|------|---------|
-| AIOSAccessibilityService | `service/AIOSAccessibilityService.kt` | Screen tree access, element interaction, gesture dispatch |
-| NotificationListener | `service/NotificationListener.kt` | System notification interception and caching |
-| OverlayService | `service/OverlayService.kt` | Floating AI button overlay on top of other apps |
-
-### 8. Native Layer (C++)
-
-**File**: `cpp/native-lib.cpp`
-
-JNI function implementations:
-- `nativeLoadModel` — Loads GGUF model via `llama_model_load()`
-- `nativeGenerateStream` — Streaming generation with `llama_decode()` loop
-- `nativeGenerate` — Synchronous generation
-- `nativeTokenize` — Text to token IDs via `llama_tokenize()`
-
-**Sampling Parameters**:
-- Temperature: 0.7
-- Top-K: 40
-- Top-P: 0.9
-- Repeat penalty: 1.1
-
-**Chat Template**: Applied via `llama_chat_apply_template()` for model-specific formatting.
-
-## Data Flow: Complete Request Lifecycle
+## Data Flow
 
 ### Chat Mode
 
 ```
-1. User types message in ChatScreen
-2. ChatViewModel.sendMessage() called
-3. Mode check: CHAT → AIOSApp.generateStream()
-4. AIOSApp calls LlmService.generateStream()
-5. LlmService calls LlamaBridge.nativeGenerateStream()
-6. JNI → native-lib.cpp → llama.cpp inference
-7. Each token → onTokenCallback → SharedFlow → ChatViewModel → UI update
-8. Generation complete → onComplete callback
+User Input → ChatNotifier.sendMessage()
+  → LlmRepository.sendMessage()
+    → LlamaEngineProvider.generate() (Isolate)
+      → Stream<String> (토큰 단위 스트리밍)
+    → ChatState 업데이트 (currentResponse 누적)
+  → _finalizeResponse() → ChatMessage 저장 (Drift DB)
 ```
 
-### Agent Mode
+### Agent Mode (향후 구현)
 
 ```
-1. User types message in ChatScreen
-2. ChatViewModel.sendMessage() called
-3. Mode check: AGENT → AIOSApp.runAgent()
-4. AgentEngine.run() starts ReAct loop
-5. Each iteration:
-   a. Build prompt (system + user + history)
-   b. LLM generates response
-   c. Parse response:
-      - "Action: tool_name\nArgs: {...}" → executeTool()
-      - "Answer: text" → return as final
-   d. Tool execution → observation string
-   e. Append to conversation history
-   f. Emit AgentStep to SharedFlow → UI update
-6. Loop ends (answer found or max iterations)
-7. List<AgentStep> returned → UI renders all steps
+User Input → ChatNotifier → ReactStrategy (ReAct 루프)
+  → LlmRepository.generate()
+    → ResponseParser (Action/Answer 파싱)
+    → RiskClassifier (위험도 분류)
+    → ConfirmationGate (HIGH/CRITICAL 승인)
+    → Tool 실행 → Observation
+  → 루프 반복 (최대 5회) 또는 Answer 반환
 ```
+
+### Update Flow
+
+```
+UpdateScreen → UpdateNotifier.checkForUpdates()
+  → UpdateRepositoryImpl → GitHubApi.getLatestRelease()
+  → 버전 비교 (package_info_plus)
+  → APK 다운로드 (Dio) → 설치 Intent
+```
+
+## State Management
+
+### ServiceState (LlmRepository)
+
+```
+idle → loadingModel → ready ↔ generating → ready
+                          ↘ error ↗
+```
+
+### Riverpod Provider 스코프
+
+- **keepAlive: true**: Repository, DataSource, LlmEngine (싱글톤)
+- **Screen-scoped**: Notifier, UI 상태 (화면 전환 시 재생성)
+
+## Agent System (향후 구현)
+
+ReAct (Reason + Act) 에이전트 루프:
+
+1. **Build Prompt** — System prompt (tools) + User message + History
+2. **LLM Generate** — Streaming tokens
+3. **Parse Response** — Action (tool 실행) / Answer (최종 응답)
+4. **Tool Execute** → Observation → History에 추가 → 루프 반복
+
+### Tool Categories
+
+| Category | Interface | 특징 |
+|----------|-----------|------|
+| Basic Tool | `AgentTool` | 플랫폼 채널 불필요 (calculator, timer, device_info, notepad) |
+| Extended Tool | `ExtendedTool` | MethodChannel 필요 (screen_reader, screen_action, app_launcher, notification_reader) |
+
+### Agent 실행 흐름
+
+`LlmRepositoryImpl` → `ReactStrategy` → `ResponseParser` → `RiskClassifier` → `ConfirmationGate` → Tool 실행
 
 ## Key Design Decisions
 
-### Why Native Android over Flutter?
+### Why Flutter?
 
-| Factor | Flutter | Native |
-|--------|---------|--------|
-| Accessibility Service | Indirect (MethodChannel) | Direct API access |
-| JNI hops | 3 (Flutter→Kotlin→C++) | 2 (Kotlin→C++) |
-| APK size | Larger (Flutter engine) | Smaller |
-| Platform relevance | Cross-platform (iOS irrelevant for phone control) | Single platform focus |
-| Development complexity | 3-layer architecture | 2-layer architecture |
+- JNI + C++ ~1500줄 → llama_cpp_dart ~20줄
+- 단일 언어 (Dart)로 유지보수 간소화
+- Isolate 기반으로 Foreground Service 불필요
+- KV-cache, Context shift 등 고급 기능 패키지에서 지원
 
-### Why ReAct over other Agent Patterns?
+### Why ReAct?
 
-ReAct (Reason + Act) provides:
-- Transparent reasoning (visible "thought" steps)
-- Tool-use grounded in observation
-- Natural stop condition (Answer output)
-- Simple to implement and debug
-
-### Why llama.cpp Direct (No Wrapper)?
-
-- Minimal dependency overhead
-- Direct control over sampling and KV cache
-- Smaller binary size
-- Easier to update to latest llama.cpp versions
+- 투명한 추론 과정 (visible "thought" steps)
+- 관찰 기반 Tool 사용
+- 자연스러운 종료 조건 (Answer output)
+- 구현/디버그 단순

@@ -5,6 +5,7 @@ import 'package:aios/presentation/providers/settings_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -76,10 +77,13 @@ class _ModelSection extends ConsumerWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    ref
-                        .read(settingsProvider.notifier)
-                        .scanModels();
+                  onPressed: () async {
+                    await _requestStoragePermission(context);
+                    if (context.mounted) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .scanModels();
+                    }
                   },
                   icon: const Icon(Icons.refresh, size: 18),
                   label: const Text('Scan'),
@@ -489,5 +493,23 @@ class _SectionDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox(height: 8);
+  }
+}
+
+Future<void> _requestStoragePermission(BuildContext context) async {
+  final status = await Permission.manageExternalStorage.status;
+  if (status.isGranted) return;
+
+  final result = await Permission.manageExternalStorage.request();
+  if (result.isPermanentlyDenied && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Storage permission denied. '
+          'Enable in Settings > Apps > AIOS > Permissions.',
+        ),
+      ),
+    );
+    await openAppSettings();
   }
 }
