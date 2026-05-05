@@ -71,7 +71,12 @@ else
     NOTES=$(git log --pretty=format:"- %s" HEAD~5..HEAD 2>/dev/null || echo "")
 fi
 
-gh release create "$TAG" "/tmp/$APK_NAME" \
+git push origin "$TAG" 2>&1 || {
+    echo "[pre-push] ERROR: Failed to push tag $TAG"
+    exit 1
+}
+
+if ! gh release create "$TAG" "/tmp/$APK_NAME" \
     --title "AIOS ${TAG}" \
     --notes "## AIOS ${TAG}
 
@@ -80,6 +85,17 @@ ${NOTES}
 ### Install
 1. Download \`${APK_NAME}\`
 2. Open on your Android device
-3. Allow installation when prompted" 2>&1 || true
+3. Allow installation when prompted" 2>&1; then
+    echo "[pre-push] ERROR: Failed to create GitHub release with APK"
+    echo "[pre-push] APK available at: /tmp/$APK_NAME"
+    echo "[pre-push] Manual fix: gh release upload $TAG /tmp/$APK_NAME"
+    exit 1
+fi
 
-echo "[pre-push] ${TAG} deployed! (GitHub)"
+APK_CHECK=$(gh release view "$TAG" --json assets --jq '.assets | length' 2>/dev/null || echo "0")
+if [ "$APK_CHECK" = "0" ]; then
+    echo "[pre-push] ERROR: Release created but has no assets!"
+    exit 1
+fi
+
+echo "[pre-push] ${TAG} deployed! (${APK_CHECK} asset(s))"
