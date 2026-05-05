@@ -35,6 +35,8 @@ class ReactStrategy(private val llmProvider: LlmProvider) : AgentStrategy {
     @Volatile
     private var agentThread: Thread? = null
 
+    private var kvCacheValid = false
+
     private val notes = mutableMapOf<String, String>()
     private val riskClassifier = RiskClassifier()
     private val loopDetector = LoopDetector()
@@ -118,22 +120,44 @@ class ReactStrategy(private val llmProvider: LlmProvider) : AgentStrategy {
                 }
 
                 val didTrim = promptBuilder.trimIfNeeded()
+                if (didTrim) {
+                    kvCacheValid = false
+                    promptBuilder.resetProcessedIndex()
+                }
 
                 steps.add(AgentStep("thought", "Thinking (step ${i + 1})..."))
                 onStep(steps.last())
 
                 onStep(AgentStep("thinking_start", ""))
 
-                val formattedPrompt = promptBuilder.buildPromptForInfer(systemPrompt)
-                val promptResult = llmProvider.processPromptIncremental(formattedPrompt)
-                if (promptResult != 0) {
-                    Log.e(TAG, "processPromptIncremental failed ($promptResult)")
-                    onStep(AgentStep("thinking_end", ""))
-                    break
-                }
-
-                if (i == 0 || didTrim) {
+                if (i == 0 || !kvCacheValid) {
+                    val formattedPrompt = promptBuilder.buildPromptForInfer(systemPrompt)
+                    val promptResult = llmProvider.processPromptIncremental(formattedPrompt)
+                    if (promptResult != 0) {
+                        Log.e(TAG, "processPromptIncremental failed ($promptResult)")
+                        onStep(AgentStep("thinking_end", ""))
+                        break
+                    }
                     llmProvider.setSystemPromptPosition()
+                    promptBuilder.markAllProcessed()
+                    kvCacheValid = true
+                } else {
+                    val deltaPrompt = promptBuilder.buildDeltaPrompt()
+                    if (deltaPrompt != null) {
+                        val promptResult = llmProvider.processPrompt(deltaPrompt)
+                        if (promptResult != 0) {
+                            Log.e(TAG, "processPrompt (delta) failed ($promptResult), falling back")
+                            kvCacheValid = false
+                            val formattedPrompt = promptBuilder.buildPromptForInfer(systemPrompt)
+                            val fallbackResult = llmProvider.processPromptIncremental(formattedPrompt)
+                            if (fallbackResult != 0) {
+                                onStep(AgentStep("thinking_end", ""))
+                                break
+                            }
+                            llmProvider.setSystemPromptPosition()
+                        }
+                    }
+                    promptBuilder.markAllProcessed()
                 }
 
                 val response = generateTokens(maxTokens)
@@ -247,6 +271,11 @@ class ReactStrategy(private val llmProvider: LlmProvider) : AgentStrategy {
     }
 
     private fun generateTokens(maxTokens: Int): String {
+        val result = llmProvider.generateTokensBatch(maxTokens)
+        if (result != null) {
+            Log.i(TAG, "generateTokens: batch ${result.length} chars")
+            return result
+        }
         val buffer = StringBuffer()
         var generated = 0
         while (generated < maxTokens) {
@@ -257,7 +286,7 @@ class ReactStrategy(private val llmProvider: LlmProvider) : AgentStrategy {
             }
             generated++
         }
-        Log.i(TAG, "generateTokens: ${buffer.length} chars, $generated tokens")
+        Log.i(TAG, "generateTokens: single ${buffer.length} chars, $generated tokens")
         return buffer.toString()
     }
 
@@ -296,6 +325,7 @@ class ReactStrategy(private val llmProvider: LlmProvider) : AgentStrategy {
 
     override fun cancel() {
         onCancelled = true
+        llmProvider.cancelGeneration()
         confirmationGate.cancel()
         agentThread?.interrupt()
     }
@@ -329,6 +359,7 @@ class ReactStrategy(private val llmProvider: LlmProvider) : AgentStrategy {
 
     override fun clearHistory() {
         promptBuilder.clearHistory()
+        kvCacheValid = false
     }
 
     fun getAuditLog(): List<com.agent.aios.domain.model.ToolAuditEntry> = auditLog.getAll()

@@ -7,27 +7,22 @@ class PromptBuilder(private val llmProvider: LlmProvider) {
     private val TAG = "AIOS-Prompt"
 
     private val history: MutableList<Pair<String, String>> = mutableListOf()
+    private var processedHistoryIndex: Int = 0
 
     fun buildSystemPrompt(toolManifest: String): String {
         return """You are AIOS, an AI assistant on an Android phone. You can use tools or answer directly.
 
-AVAILABLE TOOLS:
+TOOLS:
 $toolManifest
 
-OUTPUT FORMAT:
-- To use a tool, output exactly:
-  Action: tool_name
-  Args: {"param": "value"}
-- To give your final answer, output exactly:
-  Answer: your response here
-- For simple questions you can answer without tools, just use Answer: directly.
+FORMAT:
+- Tool: Action: tool_name\nArgs: {"param": "value"}
+- Answer: Answer: your response
 
-IMPORTANT RULES:
-1. You have at most 3 tool uses per request. After receiving tool results, you MUST give a final Answer.
-2. Only use tools when you need information from the device or need to perform an action.
-3. For questions you can answer from your own knowledge (math, general knowledge, conversation), use Answer: directly without tools.
-4. After you receive a tool result (Observation), decide: do I have enough information to answer? If yes, output Answer:. If no, use one more tool.
-5. Be concise. Answer in the same language the user writes in."""
+RULES:
+1. Max 3 tool calls per request, then Answer.
+2. Use tools only for device actions/info. Answer directly from knowledge otherwise.
+3. Be concise. Match user's language."""
     }
 
     fun formatChat(messages: List<Pair<String, String>>): String {
@@ -59,7 +54,22 @@ IMPORTANT RULES:
 
     fun clearHistory() {
         history.clear()
+        processedHistoryIndex = 0
         llmProvider.resetContext()
+    }
+
+    fun buildDeltaPrompt(): String? {
+        val unprocessed = history.drop(processedHistoryIndex)
+        if (unprocessed.isEmpty()) return null
+        return formatChat(unprocessed)
+    }
+
+    fun markAllProcessed() {
+        processedHistoryIndex = history.size
+    }
+
+    fun resetProcessedIndex() {
+        processedHistoryIndex = 0
     }
 
     fun trimIfNeeded(): Boolean {
