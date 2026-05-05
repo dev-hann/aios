@@ -87,6 +87,22 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     return models;
   }
 
+  Future<bool> importModel(String sourcePath, String fileName) async {
+    try {
+      final success =
+          await _modelRepository.importModelFromUri(sourcePath, fileName);
+      if (success) {
+        scanModels();
+        developer.log('Model imported: $fileName', name: _tag);
+      }
+      return success;
+    } catch (e) {
+      developer.log('importModel failed',
+          name: _tag, error: e, level: 1000);
+      return false;
+    }
+  }
+
   Future<bool> loadModel(String path) async {
     state = state.copyWith(isLoadingModel: true);
     try {

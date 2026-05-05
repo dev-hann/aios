@@ -4,6 +4,8 @@ import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
+import 'package:aios/presentation/providers/chat_notifier.dart';
+import 'package:aios/presentation/providers/chat_providers.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
@@ -114,6 +116,31 @@ void main() {
     );
   }
 
+  Widget _buildChatScreenWithMessages() {
+    return ProviderScope(
+      overrides: [
+        llmRepositoryProvider.overrideWithValue(llmRepo),
+        conversationRepositoryProvider.overrideWithValue(conversationRepo),
+        chatStateProvider.overrideWith((ref) {
+          final notifier = ChatNotifier(llmRepo, conversationRepo);
+          notifier.state = notifier.state.copyWith(
+            messages: [
+              ChatMessage(
+                id: 'msg1',
+                role: 'user',
+                content: 'Hello',
+                createdAt: DateTime.now(),
+              ),
+            ],
+            serviceState: ServiceState.ready,
+          );
+          return notifier;
+        }),
+      ],
+      child: const MaterialApp(home: ChatScreen()),
+    );
+  }
+
   setUp(() {
     llmRepo = _MockLlmRepository();
     conversationRepo = _MockConversationRepository();
@@ -207,5 +234,87 @@ void main() {
     await tester.pump();
 
     expect(find.text('Error'), findsOneWidget);
+  });
+
+  testWidgets('hidesDeleteIcon_whenNoMessages', (tester) async {
+    await tester.pumpWidget(_buildChatScreen());
+    await tester.pump();
+
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+  });
+
+  testWidgets('showsDeleteIcon_whenMessagesExist', (tester) async {
+    await tester.pumpWidget(_buildChatScreenWithMessages());
+    await tester.pump();
+
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+  });
+
+  testWidgets('tapDelete_showsClearChatDialog', (tester) async {
+    await tester.pumpWidget(_buildChatScreenWithMessages());
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Clear Chat'), findsOneWidget);
+    expect(find.text('Delete all messages?'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('Clear'), findsOneWidget);
+  });
+
+  testWidgets('tapCancelInDialog_dismissesWithoutClearing',
+      (tester) async {
+    await tester.pumpWidget(_buildChatScreenWithMessages());
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Clear Chat'), findsNothing);
+    expect(find.text('Hello'), findsOneWidget);
+  });
+
+  testWidgets('tapClearInDialog_clearsMessages', (tester) async {
+    await tester.pumpWidget(_buildChatScreenWithMessages());
+    await tester.pump();
+
+    expect(find.text('Hello'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hello'), findsNothing);
+    expect(find.text('AIOS'), findsOneWidget);
+  });
+
+  testWidgets('showsContextUsage_whenServiceStateReady',
+      (tester) async {
+    await tester.pumpWidget(_buildChatScreen());
+    await tester.pump();
+
+    llmRepo.emitState(ServiceState.ready);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('0/2048 tokens'), findsOneWidget);
+  });
+
+  testWidgets('hidesContextUsage_whenServiceStateNotReady',
+      (tester) async {
+    await tester.pumpWidget(_buildChatScreen());
+    await tester.pump();
+
+    llmRepo.emitState(ServiceState.idle);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('0/2048 tokens'), findsNothing);
   });
 }

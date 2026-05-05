@@ -3,6 +3,7 @@ import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/presentation/providers/chat_providers.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
+import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/widgets/input_bar.dart';
 import 'package:aios/presentation/widgets/message_bubble.dart';
 import 'package:aios/presentation/widgets/status_bar.dart';
@@ -13,9 +14,44 @@ import 'package:go_router/go_router.dart';
 class ChatScreen extends ConsumerWidget {
   const ChatScreen({super.key});
 
+  void _showClearChatDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Clear Chat',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: const Text(
+          'Delete all messages?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(chatStateProvider.notifier).clearChat();
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Clear',
+                style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chatState = ref.watch(chatStateProvider);
+    final llmRepo = ref.watch(llmRepositoryProvider);
+    final contextUsage = chatState.serviceState == ServiceState.ready
+        ? llmRepo.getContextUsage()
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -23,8 +59,15 @@ class ChatScreen extends ConsumerWidget {
         backgroundColor: AppColors.surface,
         title: StatusBar(
           serviceState: chatState.serviceState,
+          contextUsage: contextUsage,
         ),
         actions: [
+          if (chatState.messages.isNotEmpty && !chatState.isGenerating)
+            IconButton(
+              icon: const Icon(Icons.delete_outline,
+                  color: AppColors.textPrimary),
+              onPressed: () => _showClearChatDialog(context, ref),
+            ),
           IconButton(
             icon: const Icon(Icons.settings, color: AppColors.textPrimary),
             onPressed: () => context.push('/settings'),

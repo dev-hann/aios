@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:aios/data/datasources/remote/github_api.dart';
@@ -13,6 +14,8 @@ class UpdateRepositoryImpl implements UpdateRepository {
   final String _currentVersion;
   final Dio _dio;
   final Future<String> Function() _getCachePath;
+
+  static const _channel = MethodChannel('com.agent.aios/apk_installer');
 
   UpdateRepositoryImpl({
     required GitHubApi api,
@@ -99,13 +102,36 @@ class UpdateRepositoryImpl implements UpdateRepository {
   }
 
   @override
-  bool canInstallApk() {
-    return true;
+  Future<bool> canInstallApk() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('canInstallApk');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      developer.log(
+        'canInstallApk failed: $e',
+        name: 'AIOS-UpdateRepo',
+        level: 900,
+      );
+      return false;
+    }
   }
 
   @override
-  bool installApk(File apkFile) {
-    return apkFile.existsSync();
+  Future<bool> installApk(File apkFile) async {
+    if (!apkFile.existsSync()) return false;
+    try {
+      final result = await _channel.invokeMethod<bool>('installApk', {
+        'path': apkFile.path,
+      });
+      return result ?? false;
+    } on PlatformException catch (e) {
+      developer.log(
+        'installApk failed: $e',
+        name: 'AIOS-UpdateRepo',
+        level: 1000,
+      );
+      return false;
+    }
   }
 
   String _stripVersionPrefix(String version) {

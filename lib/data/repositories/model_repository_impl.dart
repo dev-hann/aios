@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:aios/domain/entities/model_info.dart';
@@ -54,7 +55,13 @@ class ModelRepositoryImpl implements ModelRepository {
             path: f.path,
           ));
         }
-      } on Object catch (_) {}
+      } on Object catch (e) {
+        developer.log(
+          'scanExternalDirs failed for $dirPath: $e',
+          name: 'AIOS-ModelRepo',
+          level: 900,
+        );
+      }
     }
 
     return results;

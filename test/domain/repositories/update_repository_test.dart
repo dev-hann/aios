@@ -26,10 +26,10 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  bool canInstallApk() => _canInstall;
+  Future<bool> canInstallApk() async => _canInstall;
 
   @override
-  bool installApk(File apkFile) => _canInstall;
+  Future<bool> installApk(File apkFile) async => _canInstall;
 }
 
 void main() {
@@ -107,26 +107,26 @@ void main() {
       expect(result, isNull);
     });
 
-    test('canInstallApk_returnsTrue_byDefault', () {
-      expect(repository.canInstallApk(), isTrue);
+    test('canInstallApk_returnsTrue_byDefault', () async {
+      expect(await repository.canInstallApk(), isTrue);
     });
 
-    test('canInstallApk_returnsFalse_whenSet', () {
+    test('canInstallApk_returnsFalse_whenSet', () async {
       repository._canInstall = false;
 
-      expect(repository.canInstallApk(), isFalse);
+      expect(await repository.canInstallApk(), isFalse);
     });
 
-    test('installApk_returnsTrue_whenCanInstall', () {
-      final result = repository.installApk(File('/tmp/test.apk'));
+    test('installApk_returnsTrue_whenCanInstall', () async {
+      final result = await repository.installApk(File('/tmp/test.apk'));
 
       expect(result, isTrue);
     });
 
-    test('installApk_returnsFalse_whenCannotInstall', () {
+    test('installApk_returnsFalse_whenCannotInstall', () async {
       repository._canInstall = false;
 
-      final result = repository.installApk(File('/tmp/test.apk'));
+      final result = await repository.installApk(File('/tmp/test.apk'));
 
       expect(result, isFalse);
     });

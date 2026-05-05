@@ -2,10 +2,13 @@ import 'package:aios/core/theme/app_colors.dart';
 import 'package:aios/domain/entities/model_info.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/providers/settings_state.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -114,12 +117,46 @@ class _ModelSection extends ConsumerWidget {
     );
   }
 
-  void _showImportDialog(BuildContext context, WidgetRef ref) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Model import not yet implemented'),
-      ),
-    );
+  void _showImportDialog(BuildContext context, WidgetRef ref) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.path == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cannot access file path')),
+          );
+        }
+        return;
+      }
+
+      final success = await ref
+          .read(settingsProvider.notifier)
+          .importModel(file.path!, file.name);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Model imported: ${file.name}'
+                  : 'Failed to import model',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import failed: $e')),
+        );
+      }
+    }
   }
 }
 
@@ -321,11 +358,7 @@ class _AppInfoSectionState extends State<_AppInfoSection> {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Update check not yet implemented'),
-                  ),
-                );
+                context.push('/update');
               },
               icon: const Icon(Icons.system_update, size: 18),
               label: const Text('Check for Updates'),
@@ -359,10 +392,11 @@ class _AboutSection extends StatelessWidget {
           color: AppColors.primary,
           size: 20,
         ),
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('GitHub link not yet implemented')),
-          );
+        onTap: () async {
+          final uri = Uri.parse('https://github.com/dev-hann/aios');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
         },
       ),
     );

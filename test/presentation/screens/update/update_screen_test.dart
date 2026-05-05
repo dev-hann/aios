@@ -65,10 +65,10 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  bool canInstallApk() => true;
+  Future<bool> canInstallApk() async => true;
 
   @override
-  bool installApk(File apkFile) => _installResult;
+  Future<bool> installApk(File apkFile) async => _installResult;
 }
 
 Widget _createTestWidget({

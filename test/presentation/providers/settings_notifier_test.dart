@@ -121,10 +121,16 @@ class _MockLlmRepository implements LlmRepository {
 class _MockModelRepository implements ModelRepository {
   final List<ModelInfo> _models = [];
   Object? _scanError;
+  bool _importShouldFail = false;
+  Object? _importError;
 
   void addTestModel(ModelInfo model) => _models.add(model);
 
   void setScanError(Object error) => _scanError = error;
+
+  void setImportFail() => _importShouldFail = true;
+
+  void setImportError(Object error) => _importError = error;
 
   @override
   List<ModelInfo> scanModels() {
@@ -137,6 +143,8 @@ class _MockModelRepository implements ModelRepository {
 
   @override
   Future<bool> importModelFromUri(String sourcePath, String fileName) async {
+    if (_importError != null) throw _importError!;
+    if (_importShouldFail) return false;
     _models.add(ModelInfo(name: fileName, size: 1024, path: sourcePath));
     return true;
   }
@@ -431,6 +439,48 @@ void main() {
       expect(errorNotifier.state.isLoadingModel, isFalse);
 
       errorLlmRepo.dispose();
+    });
+
+    group('importModel', () {
+      test('importModel_success_returnsTrueAndRefreshesModels', () async {
+        final result = await notifier.importModel(
+          '/sdcard/Download/model.gguf',
+          'model.gguf',
+        );
+
+        expect(result, isTrue);
+        expect(notifier.state.availableModels, isNotEmpty);
+        expect(
+          notifier.state.availableModels.any(
+            (m) => m.name == 'model.gguf',
+          ),
+          isTrue,
+        );
+      });
+
+      test('importModel_failure_returnsFalse', () async {
+        modelRepo.setImportFail();
+
+        final result = await notifier.importModel(
+          '/sdcard/Download/model.gguf',
+          'model.gguf',
+        );
+
+        expect(result, isFalse);
+        expect(notifier.state.availableModels, isEmpty);
+      });
+
+      test('importModel_exception_returnsFalse', () async {
+        modelRepo.setImportError(Exception('copy failed'));
+
+        final result = await notifier.importModel(
+          '/sdcard/Download/model.gguf',
+          'model.gguf',
+        );
+
+        expect(result, isFalse);
+        expect(notifier.state.availableModels, isEmpty);
+      });
     });
   });
 }

@@ -249,4 +249,61 @@ void main() {
       expect(find.text('Import'), findsOneWidget);
     });
   });
+
+  group('SettingsScreen Check for Updates button', () {
+    testWidgets('updateButton_hasOnPressedCallback', (tester) async {
+      await tester.pumpWidget(_createTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Check for Updates'),
+        500,
+        scrollable: find.byType(Scrollable),
+      );
+
+      final updateButton = find.widgetWithText(
+        ElevatedButton,
+        'Check for Updates',
+      );
+      expect(updateButton, findsOneWidget);
+
+      final button = tester.widget<ElevatedButton>(updateButton);
+      expect(button.onPressed, isNotNull);
+    });
+  });
+
+  group('SettingsScreen GitHub button', () {
+    testWidgets('githubTile_hasOnTapCallback', (tester) async {
+      await tester.pumpWidget(_createTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('GitHub'),
+        500,
+        scrollable: find.byType(Scrollable),
+      );
+
+      final githubTile = find.ancestor(
+        of: find.text('GitHub'),
+        matching: find.byType(ListTile),
+      );
+      expect(githubTile, findsOneWidget);
+
+      final tile = tester.widget<ListTile>(githubTile);
+      expect(tile.onTap, isNotNull);
+    });
+  });
+
+  group('SettingsScreen Import button', () {
+    testWidgets('importButton_isTappable', (tester) async {
+      await tester.pumpWidget(_createTestWidget());
+      await tester.pumpAndSettle();
+
+      final importButton = find.widgetWithText(ElevatedButton, 'Import');
+      expect(importButton, findsOneWidget);
+
+      final button = tester.widget<ElevatedButton>(importButton);
+      expect(button.onPressed, isNotNull);
+    });
+  });
 }

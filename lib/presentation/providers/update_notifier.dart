@@ -85,7 +85,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     state = state.copyWith(status: UpdateStatus.installing);
     developer.log('Installing APK...', name: _tag);
 
-    final success = _updateRepository.installApk(state.downloadedFile!);
+    final success = await _updateRepository.installApk(state.downloadedFile!);
     if (!success) {
       developer.log('Install failed', name: _tag, level: 1000);
       state = state.copyWith(

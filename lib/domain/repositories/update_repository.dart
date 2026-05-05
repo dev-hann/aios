@@ -9,6 +9,6 @@ abstract class UpdateRepository {
     String fileName, {
     void Function(double progress)? onProgress,
   });
-  bool canInstallApk();
-  bool installApk(File apkFile);
+  Future<bool> canInstallApk();
+  Future<bool> installApk(File apkFile);
 }
