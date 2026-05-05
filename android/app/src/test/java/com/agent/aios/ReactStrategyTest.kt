@@ -10,6 +10,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -64,6 +65,8 @@ class ReactStrategyTest {
         every { mockService.setSystemPromptPosition() } answers { nothing }
 
         every { mockService.processSystemPrompt(any()) } returns 0
+
+        every { mockService.generateTokensBatch(any()) } returns null
 
         every { mockService.generateOneToken() } answers {
             if (returnedThisSession) {
@@ -437,6 +440,7 @@ class ReactStrategyTest {
         val inferEntered = CountDownLatch(1)
 
         every { mockService.processPrompt(any()) } returns 0
+        every { mockService.generateTokensBatch(any()) } returns null
 
         every { mockService.generateOneToken() } answers {
             inferEntered.countDown()
@@ -676,5 +680,115 @@ class ReactStrategyTest {
 
         strategy.clearHistory()
         assertTrue(strategy.getConversationHistory().isEmpty())
+    }
+
+    // ==================== Batch Token Generation ====================
+
+    @Test
+    fun generateTokensBatch_available_usesBatchInsteadOfSingleToken() {
+        setupRunMock()
+        every { mockService.generateTokensBatch(any()) } returns "Answer: batch result"
+
+        val result = runBlocking { strategy.execute("Hello") {} }
+
+        assertTrue(result.steps.any { it.type == "answer" && it.content == "batch result" })
+        verify { mockService.generateTokensBatch(any()) }
+        verify(exactly = 0) { mockService.generateOneToken() }
+    }
+
+    @Test
+    fun generateTokensBatch_returnsNull_fallsBackToSingleToken() {
+        setupRunMock()
+        every { mockService.generateTokensBatch(any()) } returns null
+        responseQueue.add("Answer: fallback result")
+
+        val result = runBlocking { strategy.execute("Hello") {} }
+
+        assertTrue(result.steps.any { it.type == "answer" })
+        verify { mockService.generateTokensBatch(any()) }
+        verify { mockService.generateOneToken() }
+    }
+
+    @Test
+    fun cancelGeneration_calledOnCancel() {
+        setupRunMock()
+        every { mockService.generateTokensBatch(any()) } returns null
+
+        val inferEntered = CountDownLatch(1)
+        every { mockService.generateOneToken() } answers {
+            inferEntered.countDown()
+            Thread.sleep(30000)
+            null
+        }
+
+        val runLatch = CountDownLatch(1)
+        thread {
+            runBlocking { strategy.execute("Do something") {} }
+            runLatch.countDown()
+        }
+
+        assertTrue(inferEntered.await(5, TimeUnit.SECONDS))
+        Thread.sleep(100)
+        strategy.cancel()
+
+        assertTrue(runLatch.await(5, TimeUnit.SECONDS))
+        verify { mockService.cancelGeneration() }
+    }
+
+    // ==================== KV Cache Reuse ====================
+
+    @Test
+    fun kvCacheReuse_firstIteration_usesProcessPromptIncremental() {
+        setupRunMock()
+        every { mockService.generateTokensBatch(any()) } returns "Answer: done"
+
+        runBlocking { strategy.execute("Hello") {} }
+
+        verify(exactly = 1) { mockService.processPromptIncremental(any()) }
+        verify(exactly = 0) { mockService.processPrompt(any()) }
+    }
+
+    @Test
+    fun kvCacheReuse_secondIteration_usesProcessPrompt() {
+        setupRunMock()
+        responseQueue.add("Action: calculator\nArgs: {\"expression\": \"1+1\"}")
+        responseQueue.add("Answer: 2")
+
+        val result = runBlocking { strategy.execute("Calculate 1+1") {} }
+
+        assertTrue(result.steps.any { it.type == "answer" })
+        verify(exactly = 1) { mockService.processPromptIncremental(any()) }
+        verify(atLeast = 1) { mockService.processPrompt(any()) }
+    }
+
+    @Test
+    fun kvCacheReuse_afterTrim_fallsBackToIncremental() {
+        setupRunMock()
+        every { mockService.getContextUsage() } returns "900/1000"
+
+        repeat(5) {
+            responseQueue.add("Action: calculator\nArgs: {\"expression\": \"1+1\"}")
+        }
+        responseQueue.add("Answer: done")
+
+        val result = runBlocking { strategy.execute("Calculate") {} }
+
+        assertTrue(result.steps.any { it.type == "answer" })
+        verify(atLeast = 2) { mockService.processPromptIncremental(any()) }
+    }
+
+    @Test
+    fun kvCacheReuse_newSession_alwaysStartsWithIncremental() {
+        setupRunMock()
+        responseQueue.add("Answer: hi")
+        runBlocking { strategy.execute("Hello") {} }
+
+        strategy.clearHistory()
+
+        setupRunMock()
+        responseQueue.add("Answer: hello again")
+        runBlocking { strategy.execute("Hi again") {} }
+
+        verify(exactly = 2) { mockService.processPromptIncremental(any()) }
     }
 }

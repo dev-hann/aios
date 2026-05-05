@@ -50,6 +50,7 @@ class CrashRegressionTest {
         val strategy = ReactStrategy(mockService)
 
         every { mockService.processPrompt(any()) } returns 0
+        every { mockService.generateTokensBatch(any()) } returns null
         every { mockService.generateOneToken() } throws InterruptedException("cancelled")
         every { mockService.formatChat(any(), any()) } returns "formatted"
         every { mockService.getContextUsage() } returns "100/1000"
