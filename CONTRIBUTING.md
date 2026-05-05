@@ -82,8 +82,15 @@ git config core.hooksPath .githooks
 **에뮬레이터 또는 실기기에서 instrumented 테스트를 실행하여 자동 검증한다:**
 
 ```bash
-# 에뮬레이터 실행 (AVD 없으면 생성)
-$ANDROID_HOME/emulator/emulator -avd aios_test -no-snapshot-load &
+# 에뮬레이터 실행 (KVM 가속 필수, 없으면 추론이 수십 분 소요)
+xvfb-run -a $ANDROID_HOME/emulator/emulator \
+  -avd aios_test -accel on -memory 4096 \
+  -no-snapshot-load -no-audio -no-boot-anim -gpu off -no-window &
+
+# 또는 GUI 환경에서 Android Studio > Device Manager > AVD 설정:
+#   - RAM: 4096 MB 이상 (모델 415MB + 시스템)
+#   - CPU: x86_64, 4+ cores
+#   - KVM 가속: BIOS에서 Intel VT-x / AMD-V 활성화 필수
 
 # Instrumented 테스트 실행 (단위 + UI + 네이티브 + 모델 로드 진행률)
 cd android && ./gradlew connectedAndroidTest
@@ -93,6 +100,17 @@ adb install -r android/app/build/outputs/apk/release/app-release.apk
 adb logcat -s "AIOS-*" "AndroidRuntime" "ActivityManager"
 adb shell am start -n com.agent.aios/.MainActivity
 ```
+
+**실기기에서 채팅 응답 속도 테스트 (v1.9.11+ 필수):**
+
+에뮬레이터에서는 LLM 추론이 너무 느려 실제 채팅 응답 테스트가 불가능합니다.
+반드시 **실제 Android 기기**에서 아래 항목을 확인하세요:
+
+1. 모델 로드 → Settings에서 "Active" 확인
+2. 채팅에서 "hello" 전송 → 응답 생성 확인 (10-30초 이내)
+3. "1+1은?" 전송 → calculator 도구 사용 또는 직접 답변 확인
+4. 연속 2번째 메시지 → KV 캐시 재사용으로 첫 번째보다 빠른 응답 확인
+5. `adb logcat -s "AIOS-React"` 로 `processPrompt` (delta) 호출 확인
 
 **`connectedAndroidTest`가 통과하면 아래 항목이 자동 검증된다:**
 
