@@ -65,9 +65,6 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<bool> canInstallApk() async => true;
-
-  @override
   Future<bool> installApk(File apkFile) async => _installResult;
 }
 

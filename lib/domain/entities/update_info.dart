@@ -11,6 +11,7 @@ enum UpdateStatus {
   downloading,
   downloaded,
   installing,
+  installed,
   error,
 }
 

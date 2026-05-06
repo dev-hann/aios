@@ -63,6 +63,7 @@ class _StatusContent extends ConsumerWidget {
       UpdateStatus.downloaded => _DownloadedView(
           onInstall: () => ref.read(updateProvider.notifier).installApk(),
         ),
+      UpdateStatus.installed => const _InstalledView(),
       UpdateStatus.installing => const _InstallingView(),
       UpdateStatus.notAvailable => _NotAvailableView(
           onRetry: () => ref.read(updateProvider.notifier).checkForUpdate(),
@@ -260,6 +261,37 @@ class _DownloadedView extends StatelessWidget {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InstalledView extends StatelessWidget {
+  const _InstalledView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        Icon(
+          Icons.system_update,
+          size: 64,
+          color: AppColors.success,
+        ),
+        SizedBox(height: 16),
+        Text(
+          'Update installed',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          'The app will restart shortly.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
         ),
       ],
     );

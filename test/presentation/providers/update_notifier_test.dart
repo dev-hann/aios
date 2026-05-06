@@ -11,12 +11,10 @@ class _MockUpdateRepository implements UpdateRepository {
   File? _downloadResult;
   bool _installResult = true;
   final List<double> _progressReports = [];
-  bool _canInstall = true;
 
   void setCheckResult(UpdateResult result) => _checkResult = result;
   void setDownloadResult(File? file) => _downloadResult = file;
   void setInstallResult(bool success) => _installResult = success;
-  void setCanInstall(bool value) => _canInstall = value;
   List<double> get progressReports => _progressReports;
 
   @override
@@ -40,9 +38,6 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<bool> canInstallApk() async => _canInstall;
-
-  @override
   Future<bool> installApk(File apkFile) async => _installResult;
 }
 
@@ -60,7 +55,7 @@ void main() {
       expect(notifier.state.status, UpdateStatus.idle);
       expect(notifier.state.updateInfo, isNull);
       expect(notifier.state.downloadProgress, 0.0);
-      expect(notifier.state.downloadedFile, isNull);
+      expect(notifier.state.downloadedFilePath, isNull);
       expect(notifier.state.errorMessage, isNull);
     });
 
@@ -125,7 +120,7 @@ void main() {
       await notifier.downloadApk();
 
       expect(notifier.state.status, UpdateStatus.downloaded);
-      expect(notifier.state.downloadedFile, tempFile);
+      expect(notifier.state.downloadedFilePath, tempFile.path);
       expect(mockRepo.progressReports, [0.25, 0.5, 1.0]);
     });
 
@@ -153,7 +148,7 @@ void main() {
       expect(notifier.state.status, UpdateStatus.idle);
     });
 
-    test('installApk_triggersInstall', () async {
+    test('installApk_transitionsToInstalled', () async {
       final tempFile = File('/tmp/test-apk.apk');
       mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
         currentVersion: '1.0.0',
@@ -169,7 +164,7 @@ void main() {
       await notifier.downloadApk();
       await notifier.installApk();
 
-      expect(notifier.state.status, UpdateStatus.installing);
+      expect(notifier.state.status, UpdateStatus.installed);
     });
 
     test('installApk_transitionsToErrorWhenInstallFails', () async {

@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/services.dart';
+import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:aios/data/datasources/remote/github_api.dart';
@@ -14,22 +14,27 @@ class UpdateRepositoryImpl implements UpdateRepository {
   final String _currentVersion;
   final Dio _dio;
   final Future<String> Function() _getCachePath;
-
-  static const _channel = MethodChannel('com.agent.aios/apk_installer');
+  final Future<OpenResult> Function(String path) _openFile;
 
   UpdateRepositoryImpl({
     required GitHubApi api,
     required String currentVersion,
     required Dio dio,
     Future<String> Function()? getCachePath,
+    Future<OpenResult> Function(String path)? openFile,
   })  : _api = api,
         _currentVersion = currentVersion,
         _dio = dio,
-        _getCachePath = getCachePath ?? _defaultCachePath;
+        _getCachePath = getCachePath ?? _defaultCachePath,
+        _openFile = openFile ?? _defaultOpenFile;
 
   static Future<String> _defaultCachePath() async {
     final dir = await getTemporaryDirectory();
     return dir.path;
+  }
+
+  static Future<OpenResult> _defaultOpenFile(String path) {
+    return OpenFile.open(path);
   }
 
   @override
@@ -43,10 +48,13 @@ class UpdateRepositoryImpl implements UpdateRepository {
         return const UpdateResult.notAvailable();
       }
 
-      final apkAsset = release.assets.firstWhere(
-        (a) => a.name.endsWith('.apk'),
-        orElse: () => release.assets.first,
-      );
+      final apkAsset = release.assets
+          .where((a) => a.name.endsWith('.apk'))
+          .firstOrNull;
+
+      if (apkAsset == null) {
+        return const UpdateResult.error('No APK asset found in release');
+      }
 
       return UpdateResult.success(UpdateInfo(
         currentVersion: _currentVersion,
@@ -102,29 +110,16 @@ class UpdateRepositoryImpl implements UpdateRepository {
   }
 
   @override
-  Future<bool> canInstallApk() async {
-    try {
-      final result = await _channel.invokeMethod<bool>('canInstallApk');
-      return result ?? false;
-    } on PlatformException catch (e) {
-      developer.log(
-        'canInstallApk failed: $e',
-        name: 'AIOS-UpdateRepo',
-        level: 900,
-      );
-      return false;
-    }
-  }
-
-  @override
   Future<bool> installApk(File apkFile) async {
     if (!apkFile.existsSync()) return false;
     try {
-      final result = await _channel.invokeMethod<bool>('installApk', {
-        'path': apkFile.path,
-      });
-      return result ?? false;
-    } on PlatformException catch (e) {
+      final result = await _openFile(apkFile.path);
+      developer.log(
+        'open_file result: ${result.type}',
+        name: 'AIOS-UpdateRepo',
+      );
+      return result.type == ResultType.done;
+    } catch (e) {
       developer.log(
         'installApk failed: $e',
         name: 'AIOS-UpdateRepo',

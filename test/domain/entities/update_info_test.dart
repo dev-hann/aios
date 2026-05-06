@@ -13,8 +13,9 @@ void main() {
       expect(statuses, contains(UpdateStatus.downloading));
       expect(statuses, contains(UpdateStatus.downloaded));
       expect(statuses, contains(UpdateStatus.installing));
+      expect(statuses, contains(UpdateStatus.installed));
       expect(statuses, contains(UpdateStatus.error));
-      expect(statuses.length, 8);
+      expect(statuses.length, 9);
     });
   });
 

@@ -1,4 +1,5 @@
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
@@ -69,7 +70,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       developer.log('Download complete', name: _tag);
       state = state.copyWith(
         status: UpdateStatus.downloaded,
-        downloadedFile: file,
+        downloadedFilePath: file.path,
       );
     } else {
       developer.log('Download failed', name: _tag, level: 1000);
@@ -81,12 +82,16 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
   }
 
   Future<void> installApk() async {
-    if (state.downloadedFile == null) return;
+    if (state.downloadedFilePath == null) return;
     state = state.copyWith(status: UpdateStatus.installing);
     developer.log('Installing APK...', name: _tag);
 
-    final success = await _updateRepository.installApk(state.downloadedFile!);
-    if (!success) {
+    final file = File(state.downloadedFilePath!);
+    final success = await _updateRepository.installApk(file);
+    if (success) {
+      developer.log('Install intent launched', name: _tag);
+      state = state.copyWith(status: UpdateStatus.installed);
+    } else {
       developer.log('Install failed', name: _tag, level: 1000);
       state = state.copyWith(
         status: UpdateStatus.error,

@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:open_file/open_file.dart';
 
 import 'package:aios/data/datasources/remote/github_api.dart';
 import 'package:aios/data/repositories/update_repository_impl.dart';
@@ -90,8 +90,6 @@ GitHubRelease _release({
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   group('UpdateRepositoryImpl', () {
     late _FakeGitHubApi api;
     late Directory tempDir;
@@ -99,21 +97,6 @@ void main() {
     setUp(() async {
       api = _FakeGitHubApi();
       tempDir = await Directory.systemTemp.createTemp('aios_test_');
-
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('com.agent.aios/apk_installer'),
-        (MethodCall methodCall) async {
-          switch (methodCall.method) {
-            case 'canInstallApk':
-              return true;
-            case 'installApk':
-              return true;
-            default:
-              return null;
-          }
-        },
-      );
     });
 
     tearDown(() async {
@@ -122,14 +105,21 @@ void main() {
       }
     });
 
-    test('checkForUpdate_returnsSuccess_whenNewerVersion', () async {
-      api._releaseToReturn = _release(tag: 'v2.1.0');
-      final repo = UpdateRepositoryImpl(
+    UpdateRepositoryImpl _repo({
+      Future<OpenResult> Function(String)? openFile,
+    }) {
+      return UpdateRepositoryImpl(
         api: api,
         currentVersion: '2.0.0',
         dio: Dio(),
         getCachePath: () async => tempDir.path,
+        openFile: openFile,
       );
+    }
+
+    test('checkForUpdate_returnsSuccess_whenNewerVersion', () async {
+      api._releaseToReturn = _release(tag: 'v2.1.0');
+      final repo = _repo();
 
       final result = await repo.checkForUpdate();
 
@@ -149,12 +139,7 @@ void main() {
 
     test('checkForUpdate_returnsNotAvailable_whenSameVersion', () async {
       api._releaseToReturn = _release(tag: 'v2.0.0');
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
+      final repo = _repo();
 
       final result = await repo.checkForUpdate();
 
@@ -166,12 +151,7 @@ void main() {
         requestOptions: RequestOptions(),
         type: DioExceptionType.connectionError,
       );
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
+      final repo = _repo();
 
       final result = await repo.checkForUpdate();
 
@@ -227,26 +207,12 @@ void main() {
       expect(progressCalls.last, greaterThanOrEqualTo(0.0));
     });
 
-    test('canInstallApk_returnsTrue', () async {
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
-
-      expect(await repo.canInstallApk(), isTrue);
-    });
-
     test('installApk_existingFile_returnsTrue', () async {
       final file = File('${tempDir.path}/test.apk');
       await file.writeAsBytes([1, 2, 3]);
 
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
+      final repo = _repo(
+        openFile: (path) async => OpenResult(type: ResultType.done),
       );
 
       expect(await repo.installApk(file), isTrue);
@@ -254,18 +220,35 @@ void main() {
 
     test('installApk_nonExistentFile_returnsFalse', () async {
       final file = File('${tempDir.path}/nonexistent.apk');
+      final repo = _repo();
 
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
+      expect(await repo.installApk(file), isFalse);
+    });
+
+    test('installApk_returnsFalse_whenOpenFileFails', () async {
+      final file = File('${tempDir.path}/test.apk');
+      await file.writeAsBytes([1, 2, 3]);
+
+      final repo = _repo(
+        openFile: (path) async =>
+            OpenResult(type: ResultType.error, message: 'denied'),
       );
 
       expect(await repo.installApk(file), isFalse);
     });
 
-    test('checkForUpdate_noApkAsset_fallsBackToFirstAsset', () async {
+    test('installApk_returnsFalse_onException', () async {
+      final file = File('${tempDir.path}/test.apk');
+      await file.writeAsBytes([1, 2, 3]);
+
+      final repo = _repo(
+        openFile: (path) async => throw Exception('boom'),
+      );
+
+      expect(await repo.installApk(file), isFalse);
+    });
+
+    test('checkForUpdate_noApkAsset_returnsError', () async {
       api._releaseToReturn = GitHubRelease(
         tagName: 'v2.1.0',
         name: 'AIOS v2.1.0',
@@ -279,22 +262,15 @@ void main() {
         ],
         publishedAt: '2026-05-01T00:00:00Z',
       );
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
+      final repo = _repo();
 
       final result = await repo.checkForUpdate();
 
-      expect(result, isA<UpdateSuccess>());
+      expect(result, isA<UpdateError>());
       result.when(
-        success: (info) {
-          expect(info.downloadUrl, contains('readme.txt'));
-        },
-        notAvailable: () => fail('Expected UpdateSuccess'),
-        error: (_) => fail('Expected UpdateSuccess'),
+        success: (_) => fail('Expected UpdateError'),
+        notAvailable: () => fail('Expected UpdateError'),
+        error: (msg) => expect(msg, contains('No APK')),
       );
     });
 
@@ -314,111 +290,6 @@ void main() {
       );
 
       expect(result, isNull);
-    });
-
-    test('canInstallApk_returnsFalse_whenPlatformReturnsFalse',
-        () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('com.agent.aios/apk_installer'),
-        (MethodCall methodCall) async => false,
-      );
-
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
-
-      expect(await repo.canInstallApk(), isFalse);
-    });
-
-    test('canInstallApk_returnsFalse_onPlatformException', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('com.agent.aios/apk_installer'),
-        (MethodCall methodCall) async =>
-            throw PlatformException(code: 'ERROR'),
-      );
-
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
-
-      expect(await repo.canInstallApk(), isFalse);
-    });
-
-    test('installApk_returnsFalse_whenPlatformReturnsFalse', () async {
-      final file = File('${tempDir.path}/test.apk');
-      await file.writeAsBytes([1, 2, 3]);
-
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('com.agent.aios/apk_installer'),
-        (MethodCall methodCall) async => false,
-      );
-
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
-
-      expect(await repo.installApk(file), isFalse);
-    });
-
-    test('installApk_returnsFalse_onPlatformException', () async {
-      final file = File('${tempDir.path}/test.apk');
-      await file.writeAsBytes([1, 2, 3]);
-
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('com.agent.aios/apk_installer'),
-        (MethodCall methodCall) async =>
-            throw PlatformException(code: 'INSTALL_FAILED'),
-      );
-
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
-
-      expect(await repo.installApk(file), isFalse);
-    });
-
-    test('installApk_passesCorrectPathToChannel', () async {
-      final file = File('${tempDir.path}/verify-path.apk');
-      await file.writeAsBytes([1, 2, 3]);
-
-      String? receivedPath;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('com.agent.aios/apk_installer'),
-        (MethodCall methodCall) async {
-          if (methodCall.method == 'installApk') {
-            receivedPath = methodCall.arguments['path'] as String?;
-          }
-          return true;
-        },
-      );
-
-      final repo = UpdateRepositoryImpl(
-        api: api,
-        currentVersion: '2.0.0',
-        dio: Dio(),
-        getCachePath: () async => tempDir.path,
-      );
-
-      await repo.installApk(file);
-
-      expect(receivedPath, file.path);
     });
   });
 }

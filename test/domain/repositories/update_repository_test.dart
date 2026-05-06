@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _MockUpdateRepository implements UpdateRepository {
   UpdateResult _nextResult = const UpdateResult.notAvailable();
   File? _downloadedFile;
-  bool _canInstall = true;
+  bool _installResult = true;
 
   @override
   Future<UpdateResult> checkForUpdate() async {
@@ -26,10 +26,7 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<bool> canInstallApk() async => _canInstall;
-
-  @override
-  Future<bool> installApk(File apkFile) async => _canInstall;
+  Future<bool> installApk(File apkFile) async => _installResult;
 }
 
 void main() {
@@ -107,24 +104,14 @@ void main() {
       expect(result, isNull);
     });
 
-    test('canInstallApk_returnsTrue_byDefault', () async {
-      expect(await repository.canInstallApk(), isTrue);
-    });
-
-    test('canInstallApk_returnsFalse_whenSet', () async {
-      repository._canInstall = false;
-
-      expect(await repository.canInstallApk(), isFalse);
-    });
-
-    test('installApk_returnsTrue_whenCanInstall', () async {
+    test('installApk_returnsTrue_byDefault', () async {
       final result = await repository.installApk(File('/tmp/test.apk'));
 
       expect(result, isTrue);
     });
 
-    test('installApk_returnsFalse_whenCannotInstall', () async {
-      repository._canInstall = false;
+    test('installApk_returnsFalse_whenSet', () async {
+      repository._installResult = false;
 
       final result = await repository.installApk(File('/tmp/test.apk'));
 
