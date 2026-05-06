@@ -32,15 +32,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'Clear Chat',
-          style: TextStyle(color: AppColors.textPrimary),
+        backgroundColor: AppColors.surfaceModal,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        content: const Text(
-          'Delete all messages?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
+        title: const Text('Clear Chat'),
+        content: const Text('Delete all messages?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -137,7 +134,12 @@ class _ErrorBar extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: AppColors.error.withValues(alpha: 0.15),
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceModal,
+        border: Border(
+          left: BorderSide(color: AppColors.error, width: 4),
+        ),
+      ),
       child: Row(
         children: [
           const Icon(Icons.error_outline, size: 16, color: AppColors.error),
@@ -161,26 +163,43 @@ class _WelcomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.auto_awesome, size: 64, color: AppColors.primary),
-          SizedBox(height: 16),
-          Text(
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.primary, AppColors.secondary],
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              size: 40,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
             'AIOS',
             style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 28,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.02,
             ),
           ),
-          SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 8),
+          const Text(
             'Your on-device AI assistant',
             style: TextStyle(
               color: AppColors.textSecondary,
-              fontSize: 16,
+              fontSize: 14,
             ),
           ),
         ],
@@ -212,7 +231,7 @@ class _MessageListState extends State<_MessageList> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 100),
           curve: Curves.easeOut,
         );
       }
@@ -230,8 +249,7 @@ class _MessageListState extends State<_MessageList> {
     final messages = widget.chatState.messages;
     final isGenerating = widget.chatState.isGenerating;
     final currentResponse = widget.chatState.currentResponse;
-    final showStreaming =
-        isGenerating && currentResponse.isNotEmpty;
+    final showStreaming = isGenerating && currentResponse.isNotEmpty;
 
     return ListView.builder(
       controller: _scrollController,
@@ -270,7 +288,7 @@ class _ModelLoadingView extends StatelessWidget {
             'Loading Model...',
             style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 16,
+              fontSize: 14,
             ),
           ),
         ],

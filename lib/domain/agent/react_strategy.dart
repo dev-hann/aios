@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:aios/agent/tools/app_launcher_tool.dart';
 import 'package:aios/agent/tools/calculator_tool.dart';
 import 'package:aios/agent/tools/contact_search_tool.dart';
+import 'package:aios/agent/tools/device_info_tool.dart';
 import 'package:aios/agent/tools/notepad_tool.dart';
 import 'package:aios/agent/tools/notification_tool.dart';
 import 'package:aios/agent/tools/phone_caller_tool.dart';
@@ -53,6 +54,7 @@ class ReactStrategy implements AgentStrategy {
 
   late final Map<String, ExtendedTool> _extendedTools = {
     for (final tool in [
+      DeviceInfoTool(),
       ScreenReaderTool(),
       ScreenFindTool(),
       ScreenActionTool(),
@@ -251,14 +253,22 @@ class ReactStrategy implements AgentStrategy {
     int maxTokens,
   ) async {
     final history = _promptBuilder.getHistory();
-    final chatHistory = history
-        .map((m) => ChatMessage(
-              id: '${m.role}_${DateTime.now().millisecondsSinceEpoch}',
-              role: m.role,
-              content: m.content,
-              createdAt: DateTime.now(),
-            ))
-        .toList();
+    final chatHistory = <ChatMessage>[
+      ChatMessage(
+        id: 'system_${DateTime.now().millisecondsSinceEpoch}',
+        role: 'system',
+        content: systemPrompt,
+        createdAt: DateTime.now(),
+      ),
+      ...history.map(
+        (m) => ChatMessage(
+          id: '${m.role}_${DateTime.now().millisecondsSinceEpoch}',
+          role: m.role,
+          content: m.content,
+          createdAt: DateTime.now(),
+        ),
+      ),
+    ];
 
     final responseBuffer = StringBuffer();
     final completer = Completer<void>();
@@ -364,10 +374,16 @@ class ReactStrategy implements AgentStrategy {
   String getToolManifest() {
     final lines = <String>[];
     for (final tool in _basicTools.values) {
-      lines.add('- ${tool.name}: ${tool.description}');
+      lines.add(
+        '- ${tool.name}: ${tool.description}\n'
+        '  Parameters: ${tool.parameters}',
+      );
     }
     for (final tool in _extendedTools.values) {
-      lines.add('- ${tool.name}: ${tool.description}');
+      lines.add(
+        '- ${tool.name}: ${tool.description}\n'
+        '  Parameters: ${tool.parameters}',
+      );
     }
     return lines.join('\n');
   }

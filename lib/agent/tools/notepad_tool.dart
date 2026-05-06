@@ -30,7 +30,7 @@ class NotePadTool implements AgentTool {
         'list' => _list(),
         'delete' => _delete(json),
         _ => "Error: Unknown action '$action'. "
-            "Use save, get, list, or delete.",
+            'Use save, get, list, or delete.',
       };
     } on Object catch (e) {
       return 'Error: $e';

@@ -50,7 +50,7 @@ class ModelPicker extends StatelessWidget {
               );
             },
           ),
-        const Divider(color: Colors.white10),
+        const Divider(color: AppColors.divider),
         ListTile(
           leading: const Icon(Icons.add, color: AppColors.primary),
           title: const Text(

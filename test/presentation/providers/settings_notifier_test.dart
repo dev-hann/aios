@@ -123,11 +123,14 @@ class _MockLlmRepository implements LlmRepository {
 
 class _MockModelRepository implements ModelRepository {
   final List<ModelInfo> _models = [];
+  final List<ModelInfo> _externalModels = [];
   Object? _scanError;
   bool _importShouldFail = false;
   Object? _importError;
 
   void addTestModel(ModelInfo model) => _models.add(model);
+
+  void addExternalModel(ModelInfo model) => _externalModels.add(model);
 
   void setScanError(Object error) => _scanError = error;
 
@@ -142,6 +145,9 @@ class _MockModelRepository implements ModelRepository {
   }
 
   @override
+  List<ModelInfo> scanExternalDirs() => List.unmodifiable(_externalModels);
+
+  @override
   bool restoreModel(String name) => _models.any((m) => m.name == name);
 
   @override
@@ -151,9 +157,6 @@ class _MockModelRepository implements ModelRepository {
     _models.add(ModelInfo(name: fileName, size: 1024, path: sourcePath));
     return true;
   }
-
-  @override
-  List<ModelInfo> scanExternalDirs() => [];
 }
 
 class _FailingLlmRepository implements LlmRepository {
@@ -374,6 +377,41 @@ void main() {
       expect(models.length, 1);
       expect(models.first.name, 'test.gguf');
       expect(notifier.state.availableModels.length, 1);
+    });
+
+    test('scanModels_returnsOnlyInternalModels', () {
+      modelRepo.addTestModel(
+        const ModelInfo(name: 'internal.gguf', size: 1024, path: '/models/internal.gguf'),
+      );
+      modelRepo.addExternalModel(
+        const ModelInfo(name: 'external.gguf', size: 2048, path: '/sdcard/Download/external.gguf'),
+      );
+
+      final models = notifier.scanModels();
+
+      expect(models.length, 1);
+      expect(models.first.name, 'internal.gguf');
+    });
+
+    test('scanImportableModels_returnsExternalModels', () {
+      modelRepo.addExternalModel(
+        const ModelInfo(
+          name: 'download.gguf',
+          size: 2048,
+          path: '/sdcard/Download/download.gguf',
+        ),
+      );
+
+      final models = notifier.scanImportableModels();
+
+      expect(models.length, 1);
+      expect(models.first.name, 'download.gguf');
+    });
+
+    test('scanImportableModels_returnsEmptyWhenNoExternal', () {
+      final models = notifier.scanImportableModels();
+
+      expect(models, isEmpty);
     });
 
     test('loadModel_delegatesToLlmRepository', () async {

@@ -25,10 +25,10 @@ Widget _wrapWithMaterial(Widget child) {
   return MaterialApp(
     theme: ThemeData(
       colorScheme: ColorScheme.dark(
-        primary: const Color(0xFF6C63FF),
-        surface: const Color(0xFF1A1A2E),
+        primary: const Color(0xFF9146FF),
+        surface: const Color(0xFF18181B),
       ),
-      scaffoldBackgroundColor: const Color(0xFF0D0D1A),
+      scaffoldBackgroundColor: const Color(0xFF0E0E10),
     ),
     home: Scaffold(body: child),
   );
@@ -49,7 +49,7 @@ void main() {
         ),
       );
       final decoration = container.decoration as BoxDecoration?;
-      expect(decoration?.color, const Color(0xFF6C63FF));
+      expect(decoration?.color, const Color(0xFF9146FF));
     });
 
     testWidgets('assistant_message_showsWithSurfaceColor', (tester) async {
@@ -65,7 +65,7 @@ void main() {
         ),
       );
       final decoration = container.decoration as BoxDecoration?;
-      expect(decoration?.color, const Color(0xFF1E1E36));
+      expect(decoration?.color, const Color(0xFF1F1F23));
     });
 
     testWidgets('messageWithToolInfo_showsToolDetails', (tester) async {

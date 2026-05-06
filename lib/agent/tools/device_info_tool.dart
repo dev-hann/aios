@@ -1,6 +1,7 @@
-import 'package:aios/domain/agent/agent_tool.dart';
+import 'package:aios/domain/agent/extended_tool.dart';
+import 'package:aios/domain/agent/tool_context.dart';
 
-class DeviceInfoTool implements AgentTool {
+class DeviceInfoTool implements ExtendedTool {
   @override
   String get name => 'device_info';
 
@@ -12,8 +13,12 @@ class DeviceInfoTool implements AgentTool {
   String get parameters => '{}';
 
   @override
-  String execute(String args) {
-    return 'Error: device_info requires platform channel. '
-        'Use ExtendedTool version.';
+  Future<String> execute(String args, ToolContext toolContext) async {
+    try {
+      return await toolContext.invokeMethod('getDeviceInfo') ??
+          'Error: No result';
+    } on Object catch (e) {
+      return 'Error: $e';
+    }
   }
 }

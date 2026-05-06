@@ -56,10 +56,10 @@ class CalculatorTool implements AgentTool {
           applyOp();
         }
         ops.removeLast();
-      } else if (RegExp(r'[0-9.]').hasMatch(c)) {
+      } else if (RegExp('[0-9.]').hasMatch(c)) {
         final sb = StringBuffer();
         while (i < tokens.length &&
-            RegExp(r'[0-9.]').hasMatch(tokens[i])) {
+            RegExp('[0-9.]').hasMatch(tokens[i])) {
           sb.write(tokens[i]);
           i++;
         }

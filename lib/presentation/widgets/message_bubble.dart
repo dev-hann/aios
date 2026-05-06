@@ -23,15 +23,17 @@ class MessageBubble extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.8,
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isUser ? AppColors.userBubble : AppColors.assistantBubble,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: isUser ? const Radius.circular(16) : Radius.zero,
-            bottomRight: isUser ? Radius.zero : const Radius.circular(16),
+            topLeft: const Radius.circular(AppRadius.md),
+            topRight: const Radius.circular(AppRadius.md),
+            bottomLeft:
+                isUser ? const Radius.circular(AppRadius.md) : Radius.zero,
+            bottomRight:
+                isUser ? Radius.zero : const Radius.circular(AppRadius.md),
           ),
         ),
         child: Column(
@@ -45,8 +47,7 @@ class MessageBubble extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-            if (isStreaming)
-              _StreamingCursor(),
+            if (isStreaming) _StreamingCursor(),
             if (message.toolName != null) ...[
               const SizedBox(height: 6),
               _ToolInfo(message: message),
@@ -88,7 +89,7 @@ class _StreamingCursorState extends State<_StreamingCursor>
       opacity: _controller,
       child: const Text(
         '▎',
-        style: TextStyle(color: AppColors.primary),
+        style: TextStyle(color: AppColors.primaryHover),
       ),
     );
   }
@@ -104,8 +105,8 @@ class _ToolInfo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.surfaceModal,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +122,7 @@ class _ToolInfo extends StatelessWidget {
                   message.toolName!,
                   style: const TextStyle(
                     color: AppColors.secondary,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
                   overflow: TextOverflow.ellipsis,

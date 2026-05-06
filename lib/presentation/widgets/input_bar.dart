@@ -38,11 +38,11 @@ class _InputBarState extends State<InputBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          top: BorderSide(color: Colors.white10, width: 0.5),
+          top: BorderSide(color: AppColors.divider, width: 1),
         ),
       ),
       child: SafeArea(
@@ -54,27 +54,41 @@ class _InputBarState extends State<InputBar> {
                 controller: _controller,
                 focusNode: _focusNode,
                 enabled: !widget.isGenerating,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                ),
                 decoration: InputDecoration(
                   hintText: widget.isGenerating
                       ? 'Generating...'
                       : 'Type a message...',
-                  hintStyle: const TextStyle(color: AppColors.textSecondary),
+                  hintStyle: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
                   filled: true,
                   fillColor: AppColors.background,
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+                    horizontal: 10,
+                    vertical: 8,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: const BorderSide(color: AppColors.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: const BorderSide(color: AppColors.divider),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide:
+                        const BorderSide(color: AppColors.primary, width: 2),
                   ),
                 ),
                 textInputAction: TextInputAction.send,
-                onSubmitted: widget.isGenerating
-                    ? null
-                    : (_) => _handleSubmit(),
+                onSubmitted:
+                    widget.isGenerating ? null : (_) => _handleSubmit(),
               ),
             ),
             const SizedBox(width: 8),
@@ -96,10 +110,22 @@ class _SendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onSend,
-      icon: const Icon(Icons.send, color: AppColors.primary),
-      tooltip: 'Send',
+    return SizedBox(
+      height: 36,
+      width: 36,
+      child: IconButton(
+        onPressed: onSend,
+        icon: const Icon(Icons.send, size: 18),
+        color: AppColors.primary,
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+        ),
+        tooltip: 'Send',
+        padding: EdgeInsets.zero,
+      ),
     );
   }
 }
@@ -111,10 +137,22 @@ class _StopButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onStop,
-      icon: const Icon(Icons.stop_circle, color: AppColors.generating),
-      tooltip: 'Stop',
+    return SizedBox(
+      height: 36,
+      width: 36,
+      child: IconButton(
+        onPressed: onStop,
+        icon: const Icon(Icons.stop_circle, size: 18),
+        color: AppColors.error,
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.error.withValues(alpha: 0.15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+        ),
+        tooltip: 'Stop',
+        padding: EdgeInsets.zero,
+      ),
     );
   }
 }

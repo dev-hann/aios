@@ -6,59 +6,59 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('AppColors', () {
     test('background_shouldHaveCorrectValue', () {
-      expect(AppColors.background, const Color(0xFF0D0D1A));
+      expect(AppColors.background, const Color(0xFF0E0E10));
     });
 
     test('surface_shouldHaveCorrectValue', () {
-      expect(AppColors.surface, const Color(0xFF1A1A2E));
+      expect(AppColors.surface, const Color(0xFF18181B));
     });
 
-    test('surfaceVariant_shouldHaveCorrectValue', () {
-      expect(AppColors.surfaceVariant, const Color(0xFF252540));
+    test('surfaceElevated_shouldHaveCorrectValue', () {
+      expect(AppColors.surfaceElevated, const Color(0xFF1F1F23));
     });
 
     test('primary_shouldHaveCorrectValue', () {
-      expect(AppColors.primary, const Color(0xFF6C63FF));
+      expect(AppColors.primary, const Color(0xFF9146FF));
     });
 
     test('secondary_shouldHaveCorrectValue', () {
-      expect(AppColors.secondary, const Color(0xFF9D4EDD));
+      expect(AppColors.secondary, const Color(0xFFBF94FF));
     });
 
     test('textPrimary_shouldHaveCorrectValue', () {
-      expect(AppColors.textPrimary, const Color(0xFFE0E0E0));
+      expect(AppColors.textPrimary, const Color(0xFFEFEFF1));
     });
 
     test('textSecondary_shouldHaveCorrectValue', () {
-      expect(AppColors.textSecondary, const Color(0xFF9E9E9E));
+      expect(AppColors.textSecondary, const Color(0xFFADADB8));
     });
 
     test('error_shouldHaveCorrectValue', () {
-      expect(AppColors.error, const Color(0xFFFF6B6B));
+      expect(AppColors.error, const Color(0xFFEB0400));
     });
 
     test('success_shouldHaveCorrectValue', () {
-      expect(AppColors.success, const Color(0xFF4ADE80));
+      expect(AppColors.success, const Color(0xFF00C853));
     });
 
     test('warning_shouldHaveCorrectValue', () {
-      expect(AppColors.warning, const Color(0xFFFBBF24));
+      expect(AppColors.warning, const Color(0xFFFFCA28));
     });
 
     test('divider_shouldHaveCorrectValue', () {
-      expect(AppColors.divider, const Color(0xFF333355));
+      expect(AppColors.divider, const Color(0xFF2F2F35));
     });
 
     test('cardBackground_shouldHaveCorrectValue', () {
-      expect(AppColors.cardBackground, const Color(0xFF1A1A2E));
+      expect(AppColors.cardBackground, const Color(0xFF18181B));
     });
 
     test('sliderActive_shouldHaveCorrectValue', () {
-      expect(AppColors.sliderActive, const Color(0xFF6C63FF));
+      expect(AppColors.sliderActive, const Color(0xFF9146FF));
     });
 
     test('sliderInactive_shouldHaveCorrectValue', () {
-      expect(AppColors.sliderInactive, const Color(0xFF252540));
+      expect(AppColors.sliderInactive, const Color(0xFF2F2F35));
     });
   });
 
@@ -97,6 +97,38 @@ void main() {
 
     test('cardTheme_color_shouldBeSurface', () {
       expect(aiosTheme.cardTheme.color, AppColors.surface);
+    });
+  });
+
+  group('AppRadius', () {
+    test('xs_shouldBe2', () {
+      expect(AppRadius.xs, 2);
+    });
+
+    test('sm_shouldBe4', () {
+      expect(AppRadius.sm, 4);
+    });
+
+    test('md_shouldBe6', () {
+      expect(AppRadius.md, 6);
+    });
+
+    test('lg_shouldBe10', () {
+      expect(AppRadius.lg, 10);
+    });
+  });
+
+  group('AppSpacing', () {
+    test('base_shouldBe4', () {
+      expect(AppSpacing.base, 4);
+    });
+
+    test('s_shouldBe8', () {
+      expect(AppSpacing.s, 8);
+    });
+
+    test('l_shouldBe16', () {
+      expect(AppSpacing.l, 16);
     });
   });
 }

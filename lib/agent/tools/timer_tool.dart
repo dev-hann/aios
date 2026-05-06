@@ -18,8 +18,11 @@ class TimerTool implements AgentTool {
     try {
       final json = jsonDecode(args) as Map<String, dynamic>;
       final secs = json['seconds'] as int? ?? 0;
-      if (secs <= 0 || secs > 300) return 'Error: seconds must be 1-300';
-      return 'Timer requested: ${secs}s. Note: timer execution requires async context.';
+      if (secs <= 0 || secs > 300) {
+        return 'Error: seconds must be 1-300';
+      }
+      return 'Timer requested: ${secs}s. '
+          'Note: timer execution requires async context.';
     } on Object catch (e) {
       return 'Error: $e';
     }

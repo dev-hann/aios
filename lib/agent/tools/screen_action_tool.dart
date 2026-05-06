@@ -10,16 +10,22 @@ class ScreenActionTool implements ExtendedTool {
   @override
   String get description =>
       'Screen actions: tap|long_click|type|scroll|swipe|global. '
-      'Args: {action, text, content, x, y, direction, global_action}';
+      'Args: {action, text, content, target, x, y, direction, '
+      'start_x, start_y, distance, global_action}';
 
   @override
   String get parameters =>
       '{"action": "tap|long_click|type|scroll|swipe|global", '
       '"text": "string (for tap/long_click)", '
       '"content": "string (for type)", '
+      '"target": "string (optional field name for type)", '
       '"x": "float (for tap)", "y": "float (for tap)", '
       '"direction": "up|down|left|right (for scroll/swipe)", '
-      '"global_action": "back|home|recents|notifications|quick_settings"}';
+      '"start_x": "float (for swipe, default 540)", '
+      '"start_y": "float (for swipe, default 1500)", '
+      '"distance": "float (for swipe, default 500)", '
+      '"global_action": '
+      '"back|home|recents|notifications|quick_settings"}';
 
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
@@ -35,7 +41,7 @@ class ScreenActionTool implements ExtendedTool {
         'swipe' => _handleSwipe(json, toolContext),
         'global' => _handleGlobal(json, toolContext),
         _ => "Error: Unknown action '$action'. "
-            "Use tap, long_click, type, scroll, swipe, or global.",
+            'Use tap, long_click, type, scroll, swipe, or global.',
       };
     } on Object catch (e) {
       return 'Error: $e';

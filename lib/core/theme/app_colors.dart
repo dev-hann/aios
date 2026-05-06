@@ -4,26 +4,28 @@ import 'package:flutter/material.dart';
 class AppColors {
   const AppColors._();
 
-  static const background = Color(0xFF0D0D1A);
-  static const surface = Color(0xFF1A1A2E);
-  static const surfaceVariant = Color(0xFF252540);
-  static const cardBackground = Color(0xFF1A1A2E);
-  static const primary = Color(0xFF6C63FF);
-  static const secondary = Color(0xFF9D4EDD);
-  static const textPrimary = Color(0xFFE0E0E0);
-  static const textSecondary = Color(0xFF9E9E9E);
-  static const error = Color(0xFFFF6B6B);
-  static const success = Color(0xFF4ADE80);
-  static const warning = Color(0xFFFBBF24);
-  static const divider = Color(0xFF333355);
-  static const userBubble = Color(0xFF6C63FF);
-  static const assistantBubble = Color(0xFF1E1E36);
-  static const sliderActive = Color(0xFF6C63FF);
-  static const sliderInactive = Color(0xFF252540);
-  static const idle = Color(0xFF9E9E9E);
-  static const ready = Color(0xFF4CAF50);
-  static const generating = Color(0xFFFFC107);
-  static const loadingModel = Color(0xFF2196F3);
+  static const background = Color(0xFF0E0E10);
+  static const surface = Color(0xFF18181B);
+  static const surfaceElevated = Color(0xFF1F1F23);
+  static const surfaceModal = Color(0xFF252528);
+  static const cardBackground = Color(0xFF18181B);
+  static const primary = Color(0xFF9146FF);
+  static const primaryHover = Color(0xFFA970FF);
+  static const secondary = Color(0xFFBF94FF);
+  static const textPrimary = Color(0xFFEFEFF1);
+  static const textSecondary = Color(0xFFADADB8);
+  static const error = Color(0xFFEB0400);
+  static const success = Color(0xFF00C853);
+  static const warning = Color(0xFFFFCA28);
+  static const divider = Color(0xFF2F2F35);
+  static const userBubble = Color(0xFF9146FF);
+  static const assistantBubble = Color(0xFF1F1F23);
+  static const sliderActive = Color(0xFF9146FF);
+  static const sliderInactive = Color(0xFF2F2F35);
+  static const idle = Color(0xFFADADB8);
+  static const ready = Color(0xFF00C853);
+  static const generating = Color(0xFFFFCA28);
+  static const loadingModel = Color(0xFF2F81F7);
 
   static Color stateColor(ServiceState? serviceState) {
     switch (serviceState) {
@@ -58,4 +60,27 @@ class AppColors {
         return 'Unknown';
     }
   }
+}
+
+class AppRadius {
+  const AppRadius._();
+
+  static const double xs = 2;
+  static const double sm = 4;
+  static const double md = 6;
+  static const double lg = 10;
+  static const double xl = 12;
+  static const double full = 9999;
+}
+
+class AppSpacing {
+  const AppSpacing._();
+
+  static const double base = 4;
+  static const double s = 8;
+  static const double m = 10;
+  static const double l = 16;
+  static const double xl = 20;
+  static const double xxl = 24;
+  static const double xxxl = 32;
 }

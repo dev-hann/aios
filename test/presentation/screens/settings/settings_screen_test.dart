@@ -107,30 +107,35 @@ class _MockLlmRepository implements LlmRepository {
 
 class _MockModelRepository implements ModelRepository {
   final List<ModelInfo> _models = [];
+  final List<ModelInfo> _externalModels = [];
+
+  void addExternalModel(ModelInfo model) => _externalModels.add(model);
 
   @override
   List<ModelInfo> scanModels() => List.unmodifiable(_models);
   @override
-  List<ModelInfo> scanExternalDirs() => [];
+  List<ModelInfo> scanExternalDirs() => List.unmodifiable(_externalModels);
   @override
   bool restoreModel(String name) => false;
   @override
-  Future<bool> importModelFromUri(String sourcePath, String fileName) async =>
-      true;
+  Future<bool> importModelFromUri(String sourcePath, String fileName) async {
+    _models.add(ModelInfo(name: fileName, size: 1024, path: sourcePath));
+    return true;
+  }
 }
 
-Widget _createTestWidget() {
+Widget _createTestWidget({_MockModelRepository? modelRepo}) {
   final settingsRepo = _MockSettingsRepository();
   final llmRepo = _MockLlmRepository();
-  final modelRepo = _MockModelRepository();
+  final mRepo = modelRepo ?? _MockModelRepository();
 
   return ProviderScope(
     overrides: [
       settingsRepositoryProvider.overrideWithValue(settingsRepo),
       llmRepositoryProvider.overrideWithValue(llmRepo),
-      modelRepositoryProvider.overrideWithValue(modelRepo),
+      modelRepositoryProvider.overrideWithValue(mRepo),
       settingsProvider.overrideWith(
-        (ref) => SettingsNotifier(settingsRepo, llmRepo, modelRepo),
+        (ref) => SettingsNotifier(settingsRepo, llmRepo, mRepo),
       ),
     ],
     child: const MaterialApp(
@@ -307,6 +312,41 @@ void main() {
 
       final button = tester.widget<ElevatedButton>(importButton);
       expect(button.onPressed, isNotNull);
+    });
+
+    testWidgets('importButton_showsNoFilesSnackBarWhenNoExternal', (tester) async {
+      await tester.pumpWidget(_createTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Import'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('No .gguf files found in Downloads folder'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('importButton_showsDialogWhenExternalModels', (tester) async {
+      final modelRepo = _MockModelRepository();
+      modelRepo.addExternalModel(
+        const ModelInfo(
+          name: 'test.gguf',
+          size: 1024,
+          path: '/sdcard/Download/test.gguf',
+        ),
+      );
+
+      await tester.pumpWidget(_createTestWidget(modelRepo: modelRepo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Import'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Import Model'), findsOneWidget);
+      expect(find.text('test.gguf'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Import'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
     });
   });
 }

@@ -31,7 +31,7 @@ class AppLauncherTool implements ExtendedTool {
         'open_settings' => _openSettings(json, toolContext),
         'list_apps' => _listApps(json, toolContext),
         _ => "Error: Unknown action '$action'. "
-            "Use open_app, open_url, open_settings, or list_apps.",
+            'Use open_app, open_url, open_settings, or list_apps.',
       };
     } on Object catch (e) {
       return 'Error: $e';

@@ -59,7 +59,8 @@ class _StatusContent extends ConsumerWidget {
           info: state.updateInfo!,
           onDownload: () => ref.read(updateProvider.notifier).downloadApk(),
         ),
-      UpdateStatus.downloading => _DownloadingView(progress: state.downloadProgress),
+      UpdateStatus.downloading =>
+        _DownloadingView(progress: state.downloadProgress),
       UpdateStatus.downloaded => _DownloadedView(
           onInstall: () => ref.read(updateProvider.notifier).installApk(),
         ),
@@ -107,11 +108,6 @@ class _IdleView extends StatelessWidget {
           onPressed: onCheck,
           icon: const Icon(Icons.search),
           label: const Text('Check for Update'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
         ),
       ],
     );
@@ -129,7 +125,7 @@ class _CheckingView extends StatelessWidget {
         SizedBox(height: 24),
         Text(
           'Checking for updates...',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
       ],
     );
@@ -159,7 +155,7 @@ class _AvailableView extends StatelessWidget {
           'Update Available',
           style: TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -174,7 +170,7 @@ class _AvailableView extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           info.releaseNotes,
-          style: const TextStyle(color: AppColors.textSecondary),
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           textAlign: TextAlign.center,
           maxLines: 5,
           overflow: TextOverflow.ellipsis,
@@ -184,11 +180,6 @@ class _AvailableView extends StatelessWidget {
           onPressed: onDownload,
           icon: const Icon(Icons.download),
           label: const Text('Download'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
         ),
       ],
     );
@@ -212,7 +203,7 @@ class _DownloadingView extends StatelessWidget {
         const SizedBox(height: 24),
         LinearProgressIndicator(
           value: progress,
-          backgroundColor: AppColors.surfaceVariant,
+          backgroundColor: AppColors.sliderInactive,
           color: AppColors.primary,
         ),
         const SizedBox(height: 8),
@@ -220,7 +211,7 @@ class _DownloadingView extends StatelessWidget {
           '${(progress * 100).toStringAsFixed(0)}%',
           style: const TextStyle(
             color: AppColors.textSecondary,
-            fontSize: 16,
+            fontSize: 14,
           ),
         ),
       ],
@@ -247,7 +238,7 @@ class _DownloadedView extends StatelessWidget {
           'Download Complete',
           style: TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -259,7 +250,6 @@ class _DownloadedView extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
         ),
       ],
@@ -284,14 +274,14 @@ class _InstalledView extends StatelessWidget {
           'Update installed',
           style: TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
         SizedBox(height: 8),
         Text(
           'The app will restart shortly.',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
       ],
     );
@@ -309,7 +299,7 @@ class _InstallingView extends StatelessWidget {
         SizedBox(height: 24),
         Text(
           'Installing update...',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
       ],
     );
@@ -335,7 +325,7 @@ class _NotAvailableView extends StatelessWidget {
           'Already up to date',
           style: TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -344,11 +334,6 @@ class _NotAvailableView extends StatelessWidget {
           onPressed: onRetry,
           icon: const Icon(Icons.refresh),
           label: const Text('Check Again'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
         ),
       ],
     );
@@ -378,7 +363,7 @@ class _ErrorView extends StatelessWidget {
           message,
           style: const TextStyle(
             color: AppColors.error,
-            fontSize: 16,
+            fontSize: 14,
           ),
           textAlign: TextAlign.center,
         ),
@@ -390,7 +375,6 @@ class _ErrorView extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
         ),
       ],

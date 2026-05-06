@@ -21,8 +21,8 @@ class StatusBar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 8,
-          height: 8,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
@@ -33,8 +33,8 @@ class StatusBar extends StatelessWidget {
           label,
           style: TextStyle(
             color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
         ),
         if (contextUsage != null && serviceState == ServiceState.ready) ...[
