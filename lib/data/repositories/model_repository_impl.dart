@@ -47,8 +47,9 @@ class ModelRepositoryImpl implements ModelRepository {
       try {
         for (final f in dir.listSync().whereType<File>()) {
           if (!f.path.toLowerCase().endsWith('.gguf')) continue;
-          if (seen.contains(f.path)) continue;
-          seen.add(f.path);
+          final name = f.path.split(Platform.pathSeparator).last;
+          if (seen.contains(name)) continue;
+          seen.add(name);
           results.add(ModelInfo(
             name: f.path.split(Platform.pathSeparator).last,
             size: f.lengthSync(),
