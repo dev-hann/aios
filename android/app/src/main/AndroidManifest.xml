@@ -34,7 +34,7 @@
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.agent.aios.fileprovider"
+            android:authorities="com.agent.aios.fileProvider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

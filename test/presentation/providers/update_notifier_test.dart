@@ -4,6 +4,7 @@ import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
 import 'package:aios/presentation/providers/update_notifier.dart';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _MockUpdateRepository implements UpdateRepository {
@@ -42,6 +43,11 @@ class _MockUpdateRepository implements UpdateRepository {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  const permissionChannel =
+      MethodChannel('flutter.baseflow.com/permissions/methods');
+
   group('UpdateNotifier', () {
     late _MockUpdateRepository mockRepo;
     late UpdateNotifier notifier;
@@ -49,6 +55,25 @@ void main() {
     setUp(() {
       mockRepo = _MockUpdateRepository();
       notifier = UpdateNotifier(mockRepo, '1.0.0');
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        permissionChannel,
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'checkPermissionStatus') {
+            return 1;
+          }
+          if (methodCall.method == 'requestPermissions') {
+            return {13: 1};
+          }
+          return null;
+        },
+      );
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(permissionChannel, null);
     });
 
     test('initial_state_isIdle', () {
@@ -192,6 +217,40 @@ void main() {
       await notifier.installApk();
 
       expect(notifier.state.status, UpdateStatus.idle);
+    });
+
+    test('installApk_transitionsToErrorWhenPermissionDenied', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        permissionChannel,
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'checkPermissionStatus') {
+            return 0;
+          }
+          if (methodCall.method == 'requestPermissions') {
+            return {13: 0};
+          }
+          return null;
+        },
+      );
+
+      final tempFile = File('/tmp/test-apk.apk');
+      mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
+        currentVersion: '1.0.0',
+        latestVersion: '2.0.0',
+        downloadUrl: 'https://example.com/aios.apk',
+        fileSize: 50000000,
+        releaseNotes: 'Bug fixes',
+        publishedAt: DateTime(2025, 1, 1),
+      )));
+      mockRepo.setDownloadResult(tempFile);
+
+      await notifier.checkForUpdate();
+      await notifier.downloadApk();
+      await notifier.installApk();
+
+      expect(notifier.state.status, UpdateStatus.error);
+      expect(notifier.state.errorMessage, contains('설치 권한'));
     });
 
     test('reset_returnsToIdle', () async {
