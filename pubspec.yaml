@@ -1,7 +1,7 @@
 name: aios
 description: "AIOS - On-device AI Agent"
 publish_to: 'none'
-version: 2.1.6+20106
+version: 2.1.7+20107
 
 environment:
   sdk: ^3.11.5
