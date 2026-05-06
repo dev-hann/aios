@@ -9,10 +9,12 @@ import 'package:llama_cpp_dart/llama_cpp_dart.dart'
 class RealLlamaEngineProvider implements LlamaEngineProvider {
   LlamaEngine? _engine;
   EngineChat? _chat;
+  EngineSession? _session;
   StreamSubscription<GenerationEvent>? _activeSub;
   StreamController<String>? _activeController;
   bool _stopRequested = false;
   String? _detectedTemplate;
+  bool _isGemma4 = false;
 
   static const _tag = 'AIOS-RealEngine';
 
@@ -54,10 +56,45 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     return null;
   }
 
+  static bool isGemma4Model(String path) {
+    final name = path.toLowerCase();
+    return name.contains('gemma-4') || name.contains('gemma4');
+  }
+
+  static String renderGemma4Prompt(
+    List<ChatMessage> history,
+    String userMessage,
+  ) {
+    final buf = StringBuffer();
+    final allMessages = <ChatMessage>[
+      ...history,
+      ChatMessage(
+        id: 'user',
+        role: 'user',
+        content: userMessage,
+        createdAt: DateTime.now(),
+      ),
+    ];
+    for (final msg in allMessages) {
+      final role = msg.role == 'assistant' ? 'model' : msg.role;
+      buf
+        ..write('<|turn>')
+        ..writeln(role)
+        ..write(msg.content)
+        ..writeln('<turn|>');
+    }
+    buf
+      ..write('<|turn>')
+      ..writeln('model');
+    return buf.toString();
+  }
+
   @override
   Future<bool> loadModel(String path, {int? contextSize}) async {
     try {
       await releaseModel();
+
+      _isGemma4 = isGemma4Model(path);
 
       _engine = await LlamaEngine.spawn(
         libraryPath: 'libllama.so',
@@ -65,21 +102,30 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
         contextParams: ContextParams(nCtx: contextSize ?? 2048),
       );
 
-      _chat = await _engine!.createChat();
-      _detectedTemplate = _classifyTemplate(_engine!.modelChatTemplate)
-          ?? classifyTemplateByName(path);
+      if (_isGemma4) {
+        _session = await _engine!.createSession();
+        developer.log(
+          'Model loaded: $path (ctx=${contextSize ?? 2048}, '
+          'mode=gemma4-session)',
+          name: _tag,
+        );
+      } else {
+        _chat = await _engine!.createChat();
+        _detectedTemplate = _classifyTemplate(_engine!.modelChatTemplate)
+            ?? classifyTemplateByName(path);
 
-      final rawPresent = _engine!.modelChatTemplate != null;
-      final source = _detectedTemplate != null
-          ? (_classifyTemplate(_engine!.modelChatTemplate) != null
-              ? 'gguf'
-              : 'filename')
-          : 'native';
-      developer.log(
-        'Model loaded: $path (ctx=${contextSize ?? 2048}, '
-        'rawTemplate=$rawPresent, source=$source)',
-        name: _tag,
-      );
+        final rawPresent = _engine!.modelChatTemplate != null;
+        final source = _detectedTemplate != null
+            ? (_classifyTemplate(_engine!.modelChatTemplate) != null
+                ? 'gguf'
+                : 'filename')
+            : 'native';
+        developer.log(
+          'Model loaded: $path (ctx=${contextSize ?? 2048}, '
+          'rawTemplate=$rawPresent, source=$source)',
+          name: _tag,
+        );
+      }
       return true;
     } on Object catch (e, st) {
       developer.log(
@@ -89,7 +135,9 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
       );
       _engine = null;
       _chat = null;
+      _session = null;
       _detectedTemplate = null;
+      _isGemma4 = false;
       return false;
     }
   }
@@ -103,7 +151,9 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     }
     _activeController = null;
     _chat = null;
+    _session = null;
     _detectedTemplate = null;
+    _isGemma4 = false;
     if (_engine != null) {
       await _engine!.dispose();
       _engine = null;
@@ -112,7 +162,8 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
   }
 
   @override
-  bool get isModelLoaded => _engine != null && _chat != null;
+  bool get isModelLoaded =>
+      _engine != null && (_chat != null || _session != null);
 
   String? get detectedTemplate => _detectedTemplate;
 
@@ -125,6 +176,7 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
 
   @override
   String getContextUsage() {
+    if (_isGemma4) return 'session active';
     if (_chat == null) return '0/0 tokens';
     return '${_chat!.messageCount} messages';
   }
@@ -174,6 +226,24 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     double? topP,
     double? repeatPenalty,
   }) async {
+    final sampler = SamplerParams(
+      temperature: temperature ?? 0.8,
+      topK: topK ?? 40,
+      topP: topP ?? 0.95,
+      repeatPenalty: repeatPenalty ?? 1.0,
+    );
+
+    if (_isGemma4 && _session != null) {
+      await _doGenerateGemma4(
+        history,
+        userMessage,
+        sampler: sampler,
+        maxTokens: maxTokens ?? 512,
+        controller: controller,
+      );
+      return;
+    }
+
     if (_chat == null) {
       controller.add('Error: No model loaded');
       await controller.close();
@@ -195,19 +265,44 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     }
     chat.addUser(userMessage);
 
-    final sampler = SamplerParams(
-      temperature: temperature ?? 0.8,
-      topK: topK ?? 40,
-      topP: topP ?? 0.95,
-      repeatPenalty: repeatPenalty ?? 1.0,
-    );
-
     final eventStream = chat.generate(
       sampler: sampler,
       maxTokens: maxTokens ?? 512,
       templateOverride: _detectedTemplate,
     );
 
+    await _processEvents(eventStream, controller);
+  }
+
+  Future<void> _doGenerateGemma4(
+    List<ChatMessage> history,
+    String userMessage, {
+    required SamplerParams sampler,
+    required int maxTokens,
+    required StreamController<String> controller,
+  }) async {
+    final prompt = renderGemma4Prompt(history, userMessage);
+    await _session!.clear();
+
+    final shiftPolicy = _engine!.canShift
+        ? ContextShiftPolicy.auto
+        : ContextShiftPolicy.off;
+
+    final eventStream = _session!.generate(
+      prompt: prompt,
+      addSpecial: true,
+      sampler: sampler,
+      maxTokens: maxTokens,
+      shiftPolicy: shiftPolicy,
+    );
+
+    await _processEvents(eventStream, controller);
+  }
+
+  Future<void> _processEvents(
+    Stream<GenerationEvent> eventStream,
+    StreamController<String> controller,
+  ) async {
     await for (final event in eventStream) {
       if (_stopRequested || controller.isClosed) break;
       switch (event) {
@@ -238,13 +333,21 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
 
   @override
   Future<void> saveState(String path) async {
-    await _chat?.saveState(path);
+    if (_isGemma4 && _session != null) {
+      await _session!.saveState(path);
+    } else {
+      await _chat?.saveState(path);
+    }
     developer.log('Session saved: $path', name: _tag);
   }
 
   @override
   Future<void> loadState(String path) async {
-    await _chat?.loadState(path);
+    if (_isGemma4 && _session != null) {
+      await _session!.loadState(path);
+    } else {
+      await _chat?.loadState(path);
+    }
     developer.log('Session loaded: $path', name: _tag);
   }
 }

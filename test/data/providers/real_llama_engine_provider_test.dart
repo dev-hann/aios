@@ -1,4 +1,5 @@
 import 'package:aios/data/providers/real_llama_engine_provider.dart';
+import 'package:aios/domain/entities/chat_message.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:llama_cpp_dart/llama_cpp_dart.dart' hide ChatMessage;
 
@@ -146,6 +147,139 @@ void main() {
         ),
         KnownChatTemplates.gemma,
       );
+    });
+  });
+
+  group('isGemma4Model', () {
+    test('detects gemma-4 with hyphen', () {
+      expect(
+        RealLlamaEngineProvider.isGemma4Model(
+          '/models/gemma-4-E2B-it-Q8_0.gguf',
+        ),
+        isTrue,
+      );
+    });
+
+    test('detects gemma4 without hyphen', () {
+      expect(
+        RealLlamaEngineProvider.isGemma4Model(
+          '/models/gemma4-9b-it.gguf',
+        ),
+        isTrue,
+      );
+    });
+
+    test('detects case insensitively', () {
+      expect(
+        RealLlamaEngineProvider.isGemma4Model(
+          '/models/Gemma-4-IT.gguf',
+        ),
+        isTrue,
+      );
+    });
+
+    test('returns false for gemma 2', () {
+      expect(
+        RealLlamaEngineProvider.isGemma4Model(
+          '/models/gemma-2b-it.gguf',
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns false for gemma 3', () {
+      expect(
+        RealLlamaEngineProvider.isGemma4Model(
+          '/models/gemma-3-4b-it.gguf',
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns false for non-gemma', () {
+      expect(
+        RealLlamaEngineProvider.isGemma4Model(
+          '/models/llama-3-8b.gguf',
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('renderGemma4Prompt', () {
+    test('renders single user message', () {
+      final result = RealLlamaEngineProvider.renderGemma4Prompt(
+        [],
+        'how are you?',
+      );
+      expect(result, contains('<|turn>user'));
+      expect(result, contains('how are you?<turn|>'));
+      expect(result, contains('<|turn>model'));
+    });
+
+    test('renders history with user and assistant', () {
+      final history = [
+        ChatMessage(
+          id: '1',
+          role: 'user',
+          content: 'hello',
+          createdAt: DateTime.now(),
+        ),
+        ChatMessage(
+          id: '2',
+          role: 'assistant',
+          content: 'hi there',
+          createdAt: DateTime.now(),
+        ),
+      ];
+      final result = RealLlamaEngineProvider.renderGemma4Prompt(
+        history,
+        'how are you?',
+      );
+      expect(result, contains('<|turn>user\nhello<turn|>'));
+      expect(result, contains('<|turn>model\nhi there<turn|>'));
+      expect(result, contains('how are you?<turn|>'));
+    });
+
+    test('ends with assistant start marker', () {
+      final result = RealLlamaEngineProvider.renderGemma4Prompt(
+        [],
+        'test',
+      );
+      expect(result.endsWith('<|turn>model\n'), isTrue);
+    });
+
+    test('renders system message', () {
+      final history = [
+        ChatMessage(
+          id: '1',
+          role: 'system',
+          content: 'You are helpful.',
+          createdAt: DateTime.now(),
+        ),
+      ];
+      final result = RealLlamaEngineProvider.renderGemma4Prompt(
+        history,
+        'hi',
+      );
+      expect(result, contains('<|turn>system\nYou are helpful.<turn|>'));
+    });
+
+    test('maps assistant role to model', () {
+      final history = [
+        ChatMessage(
+          id: '1',
+          role: 'assistant',
+          content: 'response',
+          createdAt: DateTime.now(),
+        ),
+      ];
+      final result = RealLlamaEngineProvider.renderGemma4Prompt(
+        history,
+        'next question',
+      );
+      expect(result, contains('<|turn>model\nresponse<turn|>'));
+      expect(result, isNot(contains('<|turn>assistant')));
     });
   });
 }
