@@ -36,6 +36,24 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     return null;
   }
 
+  static String? classifyTemplateByName(String path) {
+    final name = path.toLowerCase();
+    if (name.contains('gemma')) return KnownChatTemplates.gemma;
+    if (name.contains('llama-3') || name.contains('llama3')) {
+      return KnownChatTemplates.llama3;
+    }
+    if (name.contains('mistral')) return KnownChatTemplates.mistral;
+    if (name.contains('phi-3') || name.contains('phi3')) {
+      return KnownChatTemplates.phi3;
+    }
+    if (name.contains('qwen')) return KnownChatTemplates.chatml;
+    if (name.contains('deepseek')) return KnownChatTemplates.deepseek;
+    if (name.contains('command-r')) return KnownChatTemplates.commandR;
+    if (name.contains('vicuna')) return KnownChatTemplates.vicuna;
+    if (name.contains('falcon')) return KnownChatTemplates.falcon3;
+    return null;
+  }
+
   @override
   Future<bool> loadModel(String path, {int? contextSize}) async {
     try {
@@ -48,11 +66,18 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
       );
 
       _chat = await _engine!.createChat();
-      _detectedTemplate = _classifyTemplate(_engine!.modelChatTemplate);
+      _detectedTemplate = _classifyTemplate(_engine!.modelChatTemplate)
+          ?? classifyTemplateByName(path);
 
+      final rawPresent = _engine!.modelChatTemplate != null;
+      final source = _detectedTemplate != null
+          ? (_classifyTemplate(_engine!.modelChatTemplate) != null
+              ? 'gguf'
+              : 'filename')
+          : 'native';
       developer.log(
         'Model loaded: $path (ctx=${contextSize ?? 2048}, '
-        'template=${_detectedTemplate != null ? "override" : "native"})',
+        'rawTemplate=$rawPresent, source=$source)',
         name: _tag,
       );
       return true;
