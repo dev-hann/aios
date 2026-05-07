@@ -9,7 +9,7 @@
 
 ## 2. Current Status
 
-- **828 테스트** 전체 통과
+- **875 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
 - 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 
@@ -21,7 +21,7 @@
 |--------|------|-----------|
 | LlmRepositoryImpl | `lib/data/repositories/llm_repository_impl.dart` | 모델 로드/해제, 추론 호출, 에러 처리, 세션 저장/로드 |
 | ChatNotifier | `lib/presentation/providers/chat_notifier.dart` | sendMessage, stopGeneration, loadModel, state 일관성 |
-| ReactStrategy | `lib/domain/agent/react_strategy.dart` | Phase 1/2 흐름, tool 실행, ParseEmpty 넛지, 루프 감지, multi-tool chaining, context awareness |
+| ReactStrategy | `lib/domain/agent/react_strategy.dart` | Phase 1/2 흐름, tool 실행, ParseEmpty 넛지, 루프 감지, multi-tool chaining, context awareness, error recovery |
 | ConversationContext | `lib/domain/agent/conversation_context.dart` | 대화 맥락 유지, 턴 기록/조회, maxTurns, toPromptContext |
 | ToolPreferenceTracker | `lib/domain/agent/tool_preference_tracker.dart` | tool 사용 빈도 추적, getMostUsed, toPromptContext |
 
@@ -33,6 +33,7 @@
 | PromptBuilder | `lib/domain/agent/prompt_builder.dart` | routing/tool 프롬프트 생성, 컨텍스트 포함, 대화 맥락/선호도 주입 |
 | RiskClassifier | `lib/domain/agent/risk_classifier.dart` | 위험도 분류 (LOW/MEDIUM/HIGH/CRITICAL) |
 | LoopDetector | `lib/domain/agent/loop_detector.dart` | 반복 감지, 넛지/강제종료 |
+| ErrorRecovery | `lib/domain/agent/error_recovery.dart` | 에러 분류, 복구 힌트, 재시도 추적, 사용자 메시지 |
 | AppLauncherTool | `lib/agent/tools/app_launcher_tool.dart` | open_app/open_url/list_apps, validate, 에러 처리 |
 | ScreenActionTool | `lib/agent/tools/screen_action_tool.dart` | tap/long_click/type/scroll/swipe/global, 에러 처리 |
 | ScreenReaderTool | `lib/agent/tools/screen_reader_tool.dart` | 화면 텍스트 읽기, UI 요소 검색, toolPrompt |

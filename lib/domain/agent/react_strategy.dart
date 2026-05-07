@@ -6,6 +6,7 @@ import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/audit_log.dart';
 import 'package:aios/domain/agent/confirmation_gate.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
+import 'package:aios/domain/agent/error_recovery.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/loop_detector.dart';
 import 'package:aios/domain/agent/prompt_builder.dart';
@@ -41,6 +42,9 @@ class ReactStrategy implements AgentStrategy {
   final _loopDetector = LoopDetector();
   final _confirmationGate = ConfirmationGate();
   final _auditLog = AuditLog();
+  late final ErrorRecovery _errorRecovery = ErrorRecovery(
+    availableTools: _allToolNames,
+  );
 
   late final PromptBuilder _promptBuilder = PromptBuilder();
 
@@ -61,6 +65,7 @@ class ReactStrategy implements AgentStrategy {
   }) async {
     _cancelled = false;
     _loopDetector.reset();
+    _errorRecovery.reset();
     final steps = <AgentStep>[];
 
     print('[$_tag] Agent run: prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", maxIter=$maxIterations');
@@ -164,6 +169,20 @@ class ReactStrategy implements AgentStrategy {
           _promptBuilder.addObservation(
             'Observation from ${parsed.toolName}: $observation',
           );
+
+          final recoveryHint = _errorRecovery.analyze(
+            parsed.toolName,
+            parsed.args,
+            observation,
+          );
+          if (recoveryHint != null &&
+              recoveryHint.promptNudge.isNotEmpty) {
+            print('[$_tag] Recovery: type=${recoveryHint.type}, '
+                'retry=${recoveryHint.shouldRetry}');
+            _promptBuilder.addObservation(
+              recoveryHint.promptNudge,
+            );
+          }
 
           final loopResult = _loopDetector.record(
             parsed.toolName,

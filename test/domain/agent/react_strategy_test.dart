@@ -883,5 +883,196 @@ void main() {
         );
       });
     });
+
+    group('errorRecovery', () {
+      test('toolError_addsRecoveryNudgeToHistory', () async {
+        final tool =
+            _FakeBasicTool('calculator', 'Error: Cannot compute');
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "bad"}'],
+          ['Answer: Failed to calculate.'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': tool},
+        );
+        await strategy.execute('calculate bad expression');
+
+        final history = strategy.getConversationHistory();
+        final recoveryObs = history
+            .where((m) =>
+                m.role == 'user' &&
+                m.content.contains('RECOVERY'))
+            .toList();
+        expect(recoveryObs, isNotEmpty);
+      });
+
+      test('appNotInstalled_suggestsListApps', () async {
+        final extTool =
+            _FakeExtendedTool('app_launcher', 'opened');
+        extTool.setValidationError(
+          'Error: Package "com.fake" is not installed.',
+        );
+
+        llmRepo.responseQueue = [
+          ['Action: app_launcher\nArgs: {"action": "open_app", '
+              '"package_name": "com.fake"}'],
+          ['Answer: App not found.'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          extendedTools: {'app_launcher': extTool},
+        );
+        await strategy.execute('open fake app');
+
+        final history = strategy.getConversationHistory();
+        final recoveryObs = history
+            .where((m) =>
+                m.role == 'user' &&
+                m.content.contains('list_apps'))
+            .toList();
+        expect(recoveryObs, isNotEmpty);
+      });
+
+      test('serviceUnavailable_informsUser', () async {
+        final extTool =
+            _FakeExtendedTool('screen_action', 'done');
+
+        llmRepo.responseQueue = [
+          ['Action: screen_action'],
+          ['Answer: Service not available.'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          extendedTools: {'screen_action': extTool},
+        );
+        await strategy.execute('tap button');
+
+        final history = strategy.getConversationHistory();
+        final recoveryObs = history
+            .where((m) =>
+                m.role == 'user' &&
+                m.content.contains('RECOVERY'))
+            .toList();
+        expect(recoveryObs, isNotEmpty);
+      });
+
+      test('successfulTool_noRecoveryNudge', () async {
+        final tool = _FakeBasicTool('calculator', '42');
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Answer: 42'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': tool},
+        );
+        await strategy.execute('2+2');
+
+        final history = strategy.getConversationHistory();
+        final recoveryObs = history
+            .where((m) =>
+                m.role == 'user' &&
+                m.content.contains('RECOVERY'))
+            .toList();
+        expect(recoveryObs, isEmpty);
+      });
+
+      test('errorRecovery_resetBetweenExecutions', () async {
+        final tool =
+            _FakeBasicTool('calculator', 'Error: fail');
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "1"}'],
+          ['Answer: Error occurred.'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': tool},
+        );
+        await strategy.execute('calc 1');
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "2"}'],
+          ['Answer: Error again.'],
+        ];
+
+        await strategy.execute('calc 2');
+
+        final history = strategy.getConversationHistory();
+        final recoveryObs = history
+            .where((m) =>
+                m.role == 'user' &&
+                m.content.contains('RECOVERY'))
+            .toList();
+        expect(recoveryObs.length, greaterThanOrEqualTo(2));
+      });
+
+      test('genericError_withRetry_addsRetryHint', () async {
+        final tool =
+            _FakeBasicTool('calculator', 'Error: parse error');
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "x"}'],
+          ['Action: calculator\nArgs: {"expression": "1+1"}'],
+          ['Answer: Computed.'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': tool},
+        );
+        await strategy.execute('calculate x then 1+1');
+
+        final history = strategy.getConversationHistory();
+        final retryHints = history
+            .where((m) =>
+                m.role == 'user' &&
+                m.content.contains('RECOVERY') &&
+                m.content.contains('different approach'))
+            .toList();
+        expect(retryHints, isNotEmpty);
+      });
+
+      test('invalidAction_addsActionRecoveryHint', () async {
+        final errTool = _FakeBasicTool(
+          'calculator',
+          "Error: Unknown action 'divide'. Use add, subtract.",
+        );
+
+        llmRepo.responseQueue = [
+          ['Action: calculator'],
+          ['Action: calculator\nArgs: {"expression": "1+1"}'],
+          ['Answer: Done.'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': errTool},
+        );
+        await strategy.execute('divide something');
+
+        final history = strategy.getConversationHistory();
+        final recoveryObs = history
+            .where((m) =>
+                m.role == 'user' &&
+                m.content.contains('Invalid action'))
+            .toList();
+        expect(recoveryObs, isNotEmpty);
+      });
+    });
   });
 }

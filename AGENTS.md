@@ -159,6 +159,11 @@ User Input → ReactStrategy.execute()
   ├─ Phase 2: Tool-specific execution (args가 비어있을 때만)
   │   → toolPrompt + phaseContext(app 리스트 등)로 LLM이 args 포맷팅
   │   → 응답에서 Action + Args 파싱하여 tool 실행
+  ├─ Error Recovery
+  │   → ErrorRecovery.analyze()로 에러 분류 (8가지 타입)
+  │   → 재시도 가능: invalidAction, missingParameter, appNotInstalled, generic
+  │   → 복구 힌트를 프롬프트에 주입 (list_apps 제안 등)
+  │   → 실행 간 초기화, 툴별 최대 1회 재시도
   └─ Tool 실행 → Observation → 루프 반복 (최대 8회) 또는 Answer 반환
 ```
 
@@ -178,7 +183,7 @@ ToolPreferenceTracker (domain/agent/tool_preference_tracker.dart)
 
 ### 테스트
 
-- **828 테스트** 전체 통과
+- **875 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 필요)
 
 ### Tool 추가 시 체크리스트

@@ -46,7 +46,7 @@ AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llama_cpp
 |--------------|------|------|
 | `entities/` | 불변 데이터 모델 (freezed) | `chat_message.dart`, `agent_models.dart`, `model_info.dart` |
 | `repositories/` | Repository 인터페이스 (abstract class) | `llm_repository.dart`, `settings_repository.dart` |
-| `agent/` | 에이전트 전략, 파서, 위험 분류 | `react_strategy.dart`, `response_parser.dart`, `risk_classifier.dart`, `conversation_context.dart`, `tool_preference_tracker.dart` |
+| `agent/` | 에이전트 전략, 파서, 위험 분류 | `react_strategy.dart`, `response_parser.dart`, `risk_classifier.dart`, `conversation_context.dart`, `tool_preference_tracker.dart`, `error_recovery.dart` |
 
 **규칙**: Domain은 Data, Presentation, 외부 패키지를 import하지 않음.
 
@@ -127,6 +127,11 @@ User Input → ChatNotifier.sendMessage()
     │   → Tool.validate() (검증)
     │   → ConfirmationGate (HIGH/CRITICAL 승인)
     │   → Tool.execute() → Observation
+    ├─ Error Recovery
+    │   → ErrorRecovery.analyze()로 에러 분류 (8가지 타입)
+    │   → 재시도 가능 에러: invalidAction, missingParameter, appNotInstalled, generic
+    │   → 복구 힌트를 프롬프트에 주입 (list_apps 제안 등)
+    │   → 실행 간 초기화, 툴별 최대 1회 재시도
     └─ 루프 반복 (최대 8회) 또는 Answer 반환
 ```
 
@@ -183,6 +188,12 @@ ReactStrategy
       → _recordTurn() — execute 완료 후 대화 턴 기록
       → ToolPreferenceTracker.recordToolUse() — tool 사용 빈도 추적
       → ConversationContext — 최근 5턴 대화 맥락 유지
+  └─ Error Recovery
+      → ErrorRecovery.analyze() — 에러 분류 및 복구 전략 결정
+      → 8가지 에러 타입: toolNotFound, appNotInstalled, serviceUnavailable,
+        permissionDenied, invalidAction, missingParameter, cancelled, generic
+      → 복구 힌트(RecoveryHint)를 프롬프트에 주입
+      → 툴별 최대 1회 재시도, 실행 간 초기화
 ```
 
 ### Tool 인터페이스
@@ -200,7 +211,8 @@ ReactStrategy
 2. **Tool.validate()** — args 검증 (package 존재 여부, 필수 파라미터 등)
 3. **ConfirmationGate** — HIGH/CRITICAL 위험도 시 사용자 승인 요청
 4. **LoopDetector** — 동일 tool + 유사 args 반복 감지 → 넛지 또는 강제 종료
-5. **AuditLog** — 모든 tool 실행 기록
+5. **ErrorRecovery** — Tool 실행 실패 시 에러 분류 및 복구 힌트 제공
+6. **AuditLog** — 모든 tool 실행 기록
 
 ## State Management
 
