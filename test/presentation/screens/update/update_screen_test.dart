@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
@@ -13,13 +12,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _MockUpdateRepository implements UpdateRepository {
   UpdateResult _checkResult = const UpdateResult.notAvailable();
-  File? _downloadResult;
+  String? _downloadResult;
   bool _installResult = true;
   Completer<UpdateResult>? _checkCompleter;
-  Completer<File?>? _downloadCompleter;
+  Completer<String?>? _downloadCompleter;
 
   void setCheckResult(UpdateResult result) => _checkResult = result;
-  void setDownloadResult(File? file) => _downloadResult = file;
+  void setDownloadResult(String? path) => _downloadResult = path;
   void setInstallResult(bool success) => _installResult = success;
 
   void useCheckCompleter() {
@@ -31,7 +30,7 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   void useDownloadCompleter() {
-    _downloadCompleter = Completer<File?>();
+    _downloadCompleter = Completer<String?>();
   }
 
   void completeDownload() {
@@ -47,7 +46,7 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<File?> downloadApk(
+  Future<String?> downloadApk(
     String url,
     String fileName, {
     void Function(double progress)? onProgress,
@@ -65,7 +64,7 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<bool> installApk(File apkFile) async => _installResult;
+  Future<bool> installApk(String apkPath) async => _installResult;
 }
 
 Widget _createTestWidget({
@@ -136,7 +135,7 @@ void main() {
       final mockRepo = _MockUpdateRepository();
       mockRepo.setCheckResult(UpdateResult.success(_testUpdateInfo()));
       mockRepo.useDownloadCompleter();
-      mockRepo.setDownloadResult(File('/tmp/test.apk'));
+      mockRepo.setDownloadResult('/tmp/test.apk');
 
       await tester.pumpWidget(_createTestWidget(mockRepo: mockRepo));
 
@@ -155,7 +154,7 @@ void main() {
     testWidgets('shows_installButton_whenDownloaded', (tester) async {
       final mockRepo = _MockUpdateRepository();
       mockRepo.setCheckResult(UpdateResult.success(_testUpdateInfo()));
-      mockRepo.setDownloadResult(File('/tmp/test.apk'));
+      mockRepo.setDownloadResult('/tmp/test.apk');
 
       await tester.pumpWidget(_createTestWidget(mockRepo: mockRepo));
 

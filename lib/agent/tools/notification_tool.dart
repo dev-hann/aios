@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 
-class NotificationTool implements ExtendedTool {
+class NotificationTool extends ExtendedTool {
+  static const _tag = 'AIOS-NotificationTool';
+
   @override
   String get name => 'notification_reader';
 
@@ -18,8 +21,11 @@ class NotificationTool implements ExtendedTool {
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
+      if (!await toolContext.isNotificationListenerEnabled()) {
+        return 'Error: Notification listener not enabled';
+      }
       final json = _tryParseJson(args);
-      final maxCount = json['max_count'] as int? ?? 20;
+      final maxCount = _parseInt(json['max_count']) ?? 20;
       return await toolContext.invokeMethod(
             'getNotifications',
             {'max_count': maxCount},
@@ -30,10 +36,28 @@ class NotificationTool implements ExtendedTool {
     }
   }
 
+  int? _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   Map<String, dynamic> _tryParseJson(String args) {
     try {
-      return json.decode(args) as Map<String, dynamic>;
-    } on Object {
+      final decoded = json.decode(args);
+      if (decoded is Map<String, dynamic>) return decoded;
+      developer.log(
+        'Invalid JSON type: ${decoded.runtimeType}',
+        name: _tag,
+        level: 900,
+      );
+      return {};
+    } on Object catch (e) {
+      developer.log(
+        'JSON parse error: $e',
+        name: _tag,
+        level: 900,
+      );
       return {};
     }
   }

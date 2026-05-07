@@ -9,89 +9,91 @@ void main() {
   });
 
   group('execute_basicArithmetic', () {
-    test('addition returns correct result', () {
-      final result = tool.execute('{"expression": "2+3"}');
+    test('execute_addition_returnsCorrectResult', () async {
+      final result = await tool.execute('{"expression": "2+3"}');
       expect(result, '5.0000');
     });
 
-    test('subtraction returns correct result', () {
-      final result = tool.execute('{"expression": "10-4"}');
+    test('execute_subtraction_returnsCorrectResult', () async {
+      final result = await tool.execute('{"expression": "10-4"}');
       expect(result, '6.0000');
     });
 
-    test('multiplication returns correct result', () {
-      final result = tool.execute('{"expression": "3*7"}');
+    test('execute_multiplication_returnsCorrectResult', () async {
+      final result = await tool.execute('{"expression": "3*7"}');
       expect(result, '21.0000');
     });
 
-    test('division returns correct result', () {
-      final result = tool.execute('{"expression": "10/4"}');
+    test('execute_division_returnsCorrectResult', () async {
+      final result = await tool.execute('{"expression": "10/4"}');
       expect(result, '2.5000');
     });
   });
 
   group('execute_operatorPrecedence', () {
-    test('multiplication before addition', () {
-      final result = tool.execute('{"expression": "2+3*4"}');
+    test('execute_multiplicationBeforeAddition_returnsCorrectResult',
+        () async {
+      final result = await tool.execute('{"expression": "2+3*4"}');
       expect(result, '14.0000');
     });
 
-    test('parentheses override precedence', () {
-      final result = tool.execute('{"expression": "(2+3)*4"}');
+    test('execute_parenthesesOverridePrecedence_returnsCorrectResult',
+        () async {
+      final result = await tool.execute('{"expression": "(2+3)*4"}');
       expect(result, '20.0000');
     });
   });
 
   group('execute_decimalNumbers', () {
-    test('decimal arithmetic works', () {
-      final result = tool.execute('{"expression": "1.5+2.5"}');
+    test('execute_decimalArithmetic_returnsCorrectResult', () async {
+      final result = await tool.execute('{"expression": "1.5+2.5"}');
       expect(result, '4.0000');
     });
 
-    test('decimal division works', () {
-      final result = tool.execute('{"expression": "7/2"}');
+    test('execute_decimalDivision_returnsCorrectResult', () async {
+      final result = await tool.execute('{"expression": "7/2"}');
       expect(result, '3.5000');
     });
   });
 
   group('execute_errorHandling', () {
-    test('empty expression returns error', () {
-      final result = tool.execute('{"expression": ""}');
-      expect(result, 'Error: empty expression');
+    test('execute_emptyExpression_returnsError', () async {
+      final result = await tool.execute('{"expression": ""}');
+      expect(result, "Error: 'expression' required");
     });
 
-    test('missing expression key returns error', () {
-      final result = tool.execute('{}');
-      expect(result, 'Error: empty expression');
+    test('execute_missingExpressionKey_returnsError', () async {
+      final result = await tool.execute('{}');
+      expect(result, "Error: 'expression' required");
     });
 
-    test('malformed JSON returns error', () {
-      final result = tool.execute('not json');
+    test('execute_malformedJson_returnsError', () async {
+      final result = await tool.execute('not json');
       expect(result.startsWith('Error:'), isTrue);
     });
 
-    test('unsafe characters are sanitized', () {
+    test('execute_unsafeCharacters_sanitized', () async {
       final result =
-          tool.execute('{"expression": "2+3;import os"}');
+          await tool.execute('{"expression": "2+3;import os"}');
       expect(result, '5.0000');
     });
 
-    test('division by zero returns infinity', () {
-      final result = tool.execute('{"expression": "1/0"}');
+    test('execute_divisionByZero_returnsInfinity', () async {
+      final result = await tool.execute('{"expression": "1/0"}');
       expect(result, double.infinity.toStringAsFixed(4));
     });
   });
 
   group('name_andMetadata', () {
-    test('name is calculator', () {
+    test('name_returnsCalculator', () async {
       expect(tool.name, 'calculator');
     });
 
-    test('description is not empty', () {
+    test('description_isNotEmpty', () async {
       expect(tool.description.isNotEmpty, isTrue);
     });
 
-    test('parameters is not empty', () {
+    test('parameters_isNotEmpty', () async {
       expect(tool.parameters.isNotEmpty, isTrue);
     });
   });

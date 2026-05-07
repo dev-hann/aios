@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 
-class ContactSearchTool implements ExtendedTool {
+class ContactSearchTool extends ExtendedTool {
+  static const _tag = 'AIOS-ContactSearch';
+
   @override
   String get name => 'contact_search';
 
@@ -20,8 +23,8 @@ class ContactSearchTool implements ExtendedTool {
     try {
       final json = _tryParseJson(args);
       final query = json['query']?.toString().trim() ?? '';
-      if (query.isEmpty) return "Error: 'query' parameter required";
-      final limit = json['limit'] as int? ?? 10;
+      if (query.isEmpty) return "Error: 'query' required";
+      final limit = _parseInt(json['limit']) ?? 10;
       return await toolContext.invokeMethod(
             'searchContacts',
             {'query': query, 'limit': limit},
@@ -32,10 +35,28 @@ class ContactSearchTool implements ExtendedTool {
     }
   }
 
+  int? _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   Map<String, dynamic> _tryParseJson(String args) {
     try {
-      return json.decode(args) as Map<String, dynamic>;
-    } on Object {
+      final decoded = json.decode(args);
+      if (decoded is Map<String, dynamic>) return decoded;
+      developer.log(
+        'Invalid JSON type: ${decoded.runtimeType}',
+        name: _tag,
+        level: 900,
+      );
+      return {};
+    } on Object catch (e) {
+      developer.log(
+        'JSON parse error: $e',
+        name: _tag,
+        level: 900,
+      );
       return {};
     }
   }

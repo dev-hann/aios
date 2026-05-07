@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
 import 'package:aios/presentation/providers/update_notifier.dart';
@@ -9,12 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _MockUpdateRepository implements UpdateRepository {
   UpdateResult? _checkResult;
-  File? _downloadResult;
+  String? _downloadResult;
   bool _installResult = true;
   final List<double> _progressReports = [];
 
   void setCheckResult(UpdateResult result) => _checkResult = result;
-  void setDownloadResult(File? file) => _downloadResult = file;
+  void setDownloadResult(String? path) => _downloadResult = path;
   void setInstallResult(bool success) => _installResult = success;
   List<double> get progressReports => _progressReports;
 
@@ -22,7 +20,7 @@ class _MockUpdateRepository implements UpdateRepository {
   Future<UpdateResult> checkForUpdate() async => _checkResult!;
 
   @override
-  Future<File?> downloadApk(
+  Future<String?> downloadApk(
     String url,
     String fileName, {
     void Function(double progress)? onProgress,
@@ -39,7 +37,7 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<bool> installApk(File apkFile) async => _installResult;
+  Future<bool> installApk(String apkPath) async => _installResult;
 }
 
 void main() {
@@ -130,7 +128,6 @@ void main() {
     });
 
     test('downloadApk_reportsProgressAndCompletes', () async {
-      final tempFile = File('/tmp/test-apk.apk');
       mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
         currentVersion: '1.0.0',
         latestVersion: '2.0.0',
@@ -139,13 +136,13 @@ void main() {
         releaseNotes: 'Bug fixes',
         publishedAt: DateTime(2025, 1, 1),
       )));
-      mockRepo.setDownloadResult(tempFile);
+      mockRepo.setDownloadResult('/tmp/test-apk.apk');
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
 
       expect(notifier.state.status, UpdateStatus.downloaded);
-      expect(notifier.state.downloadedFilePath, tempFile.path);
+      expect(notifier.state.downloadedFilePath, '/tmp/test-apk.apk');
       expect(mockRepo.progressReports, [0.25, 0.5, 1.0]);
     });
 
@@ -174,7 +171,6 @@ void main() {
     });
 
     test('installApk_transitionsToInstalled', () async {
-      final tempFile = File('/tmp/test-apk.apk');
       mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
         currentVersion: '1.0.0',
         latestVersion: '2.0.0',
@@ -183,7 +179,7 @@ void main() {
         releaseNotes: 'Bug fixes',
         publishedAt: DateTime(2025, 1, 1),
       )));
-      mockRepo.setDownloadResult(tempFile);
+      mockRepo.setDownloadResult('/tmp/test-apk.apk');
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -193,7 +189,6 @@ void main() {
     });
 
     test('installApk_transitionsToErrorWhenInstallFails', () async {
-      final tempFile = File('/tmp/test-apk.apk');
       mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
         currentVersion: '1.0.0',
         latestVersion: '2.0.0',
@@ -202,7 +197,7 @@ void main() {
         releaseNotes: 'Bug fixes',
         publishedAt: DateTime(2025, 1, 1),
       )));
-      mockRepo.setDownloadResult(tempFile);
+      mockRepo.setDownloadResult('/tmp/test-apk.apk');
       mockRepo.setInstallResult(false);
 
       await notifier.checkForUpdate();
@@ -234,7 +229,6 @@ void main() {
         },
       );
 
-      final tempFile = File('/tmp/test-apk.apk');
       mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
         currentVersion: '1.0.0',
         latestVersion: '2.0.0',
@@ -243,7 +237,7 @@ void main() {
         releaseNotes: 'Bug fixes',
         publishedAt: DateTime(2025, 1, 1),
       )));
-      mockRepo.setDownloadResult(tempFile);
+      mockRepo.setDownloadResult('/tmp/test-apk.apk');
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();

@@ -2,6 +2,7 @@ package com.agent.aios
 
 import android.Manifest
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -231,14 +232,8 @@ class MainActivity : FlutterActivity() {
                     if (packageName.isBlank()) {
                         result.success("Error: 'package_name' required")
                     } else {
-                        val intent = packageManager.getLaunchIntentForPackage(packageName)
-                        if (intent != null) {
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            startActivity(intent)
-                            result.success("Opened $packageName")
-                        } else {
-                            result.success("Error: App '$packageName' not found")
-                        }
+                        Log.d("AIOS-OpenApp", "Attempting to open: $packageName")
+                        result.success(launchApp(packageName))
                     }
                 }
 
@@ -474,5 +469,61 @@ class MainActivity : FlutterActivity() {
             }
         }
         return null
+    }
+
+    private fun launchApp(packageName: String): String {
+        val pm = packageManager
+
+        // Tier 1: Standard approach
+        val launchIntent = pm.getLaunchIntentForPackage(packageName)
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launchIntent)
+            Log.d("AIOS-OpenApp", "Tier 1 success: $packageName")
+            return "Opened $packageName"
+        }
+        Log.w("AIOS-OpenApp", "Tier 1 failed (getLaunchIntentForPackage=null) for: $packageName")
+
+        // Tier 2: Query MAIN/LAUNCHER activities manually
+        val queryIntent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            setPackage(packageName)
+        }
+        val resolveInfos = pm.queryIntentActivities(queryIntent, 0)
+        if (resolveInfos.isNotEmpty()) {
+            val info = resolveInfos[0].activityInfo
+            val intent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                setComponent(ComponentName(info.packageName, info.name))
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            Log.d("AIOS-OpenApp", "Tier 2 success: $packageName -> ${info.name}")
+            return "Opened $packageName"
+        }
+        Log.w("AIOS-OpenApp", "Tier 2 failed (queryIntentActivities=empty) for: $packageName")
+
+        // Tier 3: Get ANY exported activity from the package
+        try {
+            val packageInfo = pm.getPackageInfo(packageName, PackageManager.GET_ACTIVITIES)
+            val activity = packageInfo.activities?.firstOrNull { it.exported }
+            if (activity != null) {
+                val intent = Intent(Intent.ACTION_MAIN).apply {
+                    setComponent(ComponentName(activity.packageName, activity.name))
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+                Log.d("AIOS-OpenApp", "Tier 3 success: $packageName -> ${activity.name}")
+                return "Opened $packageName"
+            }
+            Log.w("AIOS-OpenApp", "Tier 3 failed (no exported activities) for: $packageName")
+            val activityCount = packageInfo.activities?.size ?: 0
+            Log.w("AIOS-OpenApp", "Package has $activityCount activities, none exported")
+        } catch (e: Exception) {
+            Log.e("AIOS-OpenApp", "Tier 3 exception for $packageName: ${e.message}")
+        }
+
+        Log.e("AIOS-OpenApp", "All tiers failed for: $packageName")
+        return "Error: Cannot launch '$packageName' - no launchable activity found"
     }
 }

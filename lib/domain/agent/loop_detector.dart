@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 sealed class LoopCheckResult {
   const LoopCheckResult();
@@ -19,6 +20,8 @@ class LoopForceBreak extends LoopCheckResult {
 }
 
 class LoopDetector {
+  static const _tag = 'AIOS-LoopDetector';
+
   final _loopOverrides = <String, Set<String>>{
     'screen_action': {'scroll', 'swipe', 'global'},
   };
@@ -78,11 +81,16 @@ class LoopDetector {
 
   String _canonicalizeArgs(String args) {
     try {
-      final parsed =
-          jsonDecode(args) as Map<String, dynamic>;
-      final keys = parsed.keys.toList()..sort();
-      return keys.map((k) => '$k=${parsed[k]}').join(',');
-    } on Object {
+      final decoded = jsonDecode(args);
+      if (decoded is! Map<String, dynamic>) return args;
+      final keys = decoded.keys.toList()..sort();
+      return keys.map((k) => '$k=${decoded[k]}').join(',');
+    } on Object catch (e) {
+      developer.log(
+        'canonicalizeArgs error: $e',
+        name: _tag,
+        level: 900,
+      );
       return args;
     }
   }

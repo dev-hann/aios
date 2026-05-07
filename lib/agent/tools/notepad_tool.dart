@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/agent_tool.dart';
 
-class NotePadTool implements AgentTool {
+class NotePadTool extends AgentTool {
   NotePadTool(this._notes);
+
+  static const _tag = 'AIOS-NotepadTool';
 
   final Map<String, String> _notes;
 
@@ -20,10 +23,10 @@ class NotePadTool implements AgentTool {
       '"value": "string (for save)"}';
 
   @override
-  String execute(String args) {
+  Future<String> execute(String args) async {
     try {
-      final json = jsonDecode(args) as Map<String, dynamic>;
-      final action = json['action']?.toString() ?? '';
+      final json = _tryParseJson(args);
+      final action = json['action']?.toString().toLowerCase() ?? '';
       return switch (action) {
         'save' => _save(json),
         'get' => _get(json),
@@ -63,5 +66,25 @@ class NotePadTool implements AgentTool {
       return "Deleted note '$key'";
     }
     return "Note '$key' not found";
+  }
+
+  Map<String, dynamic> _tryParseJson(String args) {
+    try {
+      final decoded = json.decode(args);
+      if (decoded is Map<String, dynamic>) return decoded;
+      developer.log(
+        'Invalid JSON type: ${decoded.runtimeType}',
+        name: _tag,
+        level: 900,
+      );
+      return {};
+    } on Object catch (e) {
+      developer.log(
+        'JSON parse error: $e',
+        name: _tag,
+        level: 900,
+      );
+      return {};
+    }
   }
 }

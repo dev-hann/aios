@@ -34,7 +34,12 @@ class ToolContextImpl implements ToolContext {
         'isAccessibilityEnabled',
       );
       return result ?? false;
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      developer.log(
+        'isAccessibilityEnabled error: $e',
+        name: _tag,
+        level: 1000,
+      );
       return false;
     }
   }
@@ -46,7 +51,12 @@ class ToolContextImpl implements ToolContext {
         'isNotificationListenerEnabled',
       );
       return result ?? false;
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      developer.log(
+        'isNotificationListenerEnabled error: $e',
+        name: _tag,
+        level: 1000,
+      );
       return false;
     }
   }

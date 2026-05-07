@@ -180,8 +180,8 @@ void main() {
       );
 
       expect(result, isNotNull);
-      expect(await result!.exists(), isTrue);
-      expect(await result.readAsBytes(), fakeBytes);
+      expect(await File(result!).exists(), isTrue);
+      expect(await File(result).readAsBytes(), fakeBytes);
     });
 
     test('downloadApk_reportsProgress', () async {
@@ -215,14 +215,14 @@ void main() {
         openFile: (path) async => OpenResult(type: ResultType.done),
       );
 
-      expect(await repo.installApk(file), isTrue);
+      expect(await repo.installApk(file.path), isTrue);
     });
 
     test('installApk_nonExistentFile_returnsFalse', () async {
       final file = File('${tempDir.path}/nonexistent.apk');
       final repo = _repo();
 
-      expect(await repo.installApk(file), isFalse);
+      expect(await repo.installApk(file.path), isFalse);
     });
 
     test('installApk_returnsFalse_whenOpenFileFails', () async {
@@ -234,7 +234,7 @@ void main() {
             OpenResult(type: ResultType.error, message: 'denied'),
       );
 
-      expect(await repo.installApk(file), isFalse);
+      expect(await repo.installApk(file.path), isFalse);
     });
 
     test('installApk_returnsFalse_onException', () async {
@@ -245,7 +245,7 @@ void main() {
         openFile: (path) async => throw Exception('boom'),
       );
 
-      expect(await repo.installApk(file), isFalse);
+      expect(await repo.installApk(file.path), isFalse);
     });
 
     test('checkForUpdate_noApkAsset_returnsError', () async {

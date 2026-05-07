@@ -14,13 +14,13 @@ void main() {
   });
 
   group('execute_tap', () {
-    test('tap by text invokes tapByText', () async {
+    test('execute_tapByText_invokesTapByText', () async {
       await tool.execute('{"action": "tap", "text": "Button"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'tapByText');
       expect(mockContext.methodCalls.last.arguments, {'text': 'Button'});
     });
 
-    test('tap by coordinates invokes performTap', () async {
+    test('execute_tapByCoordinates_invokesPerformTap', () async {
       await tool.execute(
           '{"action": "tap", "x": 100, "y": 200}', mockContext);
       expect(mockContext.methodCalls.last.method, 'performTap');
@@ -29,7 +29,7 @@ void main() {
       expect(args['y'], 200.0);
     });
 
-    test('tap with string coordinates parses correctly', () async {
+    test('execute_tapWithStringCoordinates_parsesCorrectly', () async {
       await tool.execute(
           '{"action": "tap", "x": "50", "y": "75"}', mockContext);
       final args = mockContext.methodCalls.last.arguments as Map;
@@ -37,7 +37,7 @@ void main() {
       expect(args['y'], 75.0);
     });
 
-    test('tap without text or coordinates returns error', () async {
+    test('execute_tapWithoutTarget_returnsError', () async {
       final result =
           await tool.execute('{"action": "tap"}', mockContext);
       expect(result, contains('Error'));
@@ -45,13 +45,13 @@ void main() {
   });
 
   group('execute_longClick', () {
-    test('long_click with text invokes longClickByText', () async {
+    test('execute_longClickWithText_invokesLongClickByText', () async {
       await tool.execute(
           '{"action": "long_click", "text": "Item"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'longClickByText');
     });
 
-    test('long_click without text returns error', () async {
+    test('execute_longClickWithoutText_returnsError', () async {
       final result =
           await tool.execute('{"action": "long_click"}', mockContext);
       expect(result, contains("'text' required"));
@@ -59,7 +59,7 @@ void main() {
   });
 
   group('execute_type', () {
-    test('type with content invokes typeText', () async {
+    test('execute_typeWithContent_invokesTypeText', () async {
       await tool.execute(
           '{"action": "type", "content": "hello"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'typeText');
@@ -69,13 +69,13 @@ void main() {
       );
     });
 
-    test('type without content returns error', () async {
+    test('execute_typeWithoutContent_returnsError', () async {
       final result =
           await tool.execute('{"action": "type"}', mockContext);
       expect(result, contains("'content' required"));
     });
 
-    test('type with target passes target', () async {
+    test('execute_typeWithTarget_passesTarget', () async {
       await tool.execute(
           '{"action": "type", "content": "hi", "target": "field"}',
           mockContext);
@@ -86,7 +86,7 @@ void main() {
   });
 
   group('execute_scroll', () {
-    test('scroll invokes scroll method', () async {
+    test('execute_scroll_invokesScrollMethod', () async {
       await tool.execute(
           '{"action": "scroll", "direction": "down"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'scroll');
@@ -96,7 +96,7 @@ void main() {
       );
     });
 
-    test('scroll without direction defaults to forward', () async {
+    test('execute_scrollWithoutDirection_defaultsToForward', () async {
       await tool.execute('{"action": "scroll"}', mockContext);
       expect(
         (mockContext.methodCalls.last.arguments as Map)['direction'],
@@ -106,7 +106,7 @@ void main() {
   });
 
   group('execute_swipe', () {
-    test('swipe invokes swipe method with direction', () async {
+    test('execute_swipeWithDirection_invokesSwipeMethod', () async {
       await tool.execute(
           '{"action": "swipe", "direction": "up"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'swipe');
@@ -116,7 +116,7 @@ void main() {
       );
     });
 
-    test('swipe without direction defaults to up', () async {
+    test('execute_swipeWithoutDirection_defaultsToUp', () async {
       await tool.execute('{"action": "swipe"}', mockContext);
       expect(
         (mockContext.methodCalls.last.arguments as Map)['direction'],
@@ -126,7 +126,7 @@ void main() {
   });
 
   group('execute_global', () {
-    test('global with action invokes performGlobalAction', () async {
+    test('execute_globalWithAction_invokesPerformGlobalAction', () async {
       await tool.execute(
           '{"action": "global", "global_action": "back"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'performGlobalAction');
@@ -136,7 +136,7 @@ void main() {
       );
     });
 
-    test('global without global_action returns error', () async {
+    test('execute_globalWithoutAction_returnsError', () async {
       final result =
           await tool.execute('{"action": "global"}', mockContext);
       expect(result, contains("'global_action' required"));
@@ -144,34 +144,34 @@ void main() {
   });
 
   group('execute_unknownAction', () {
-    test('unknown action returns error', () async {
+    test('execute_unknownAction_returnsError', () async {
       final result =
           await tool.execute('{"action": "unknown"}', mockContext);
       expect(result, contains("Error: Unknown action 'unknown'"));
     });
 
-    test('empty action returns error', () async {
+    test('execute_emptyAction_returnsError', () async {
       final result = await tool.execute('{}', mockContext);
       expect(result, contains('Error: Unknown action'));
     });
   });
 
   group('execute_caseInsensitive', () {
-    test('TAP is treated as tap', () async {
+    test('execute_upperCaseAction_treatedAsTap', () async {
       await tool.execute('{"action": "TAP", "text": "Btn"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'tapByText');
     });
   });
 
   group('execute_malformedInput', () {
-    test('malformed JSON returns error', () async {
+    test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json', mockContext);
       expect(result, contains('Error: Unknown action'));
     });
   });
 
   group('execute_nullResult', () {
-    test('null invokeMethod result returns Error', () async {
+    test('execute_nullResult_returnsError', () async {
       mockContext.setInvokeResult(null);
       final result = await tool.execute(
           '{"action": "tap", "text": "Btn"}', mockContext);
@@ -180,11 +180,11 @@ void main() {
   });
 
   group('name_andMetadata', () {
-    test('name is screen_action', () {
+    test('name_returnsScreenAction', () {
       expect(tool.name, 'screen_action');
     });
 
-    test('description is not empty', () {
+    test('description_isNotEmpty', () {
       expect(tool.description.isNotEmpty, isTrue);
     });
   });

@@ -1,17 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import 'package:aios/agent/tools/app_launcher_tool.dart';
-import 'package:aios/agent/tools/calculator_tool.dart';
-import 'package:aios/agent/tools/contact_search_tool.dart';
-import 'package:aios/agent/tools/device_info_tool.dart';
-import 'package:aios/agent/tools/notepad_tool.dart';
-import 'package:aios/agent/tools/notification_tool.dart';
-import 'package:aios/agent/tools/phone_caller_tool.dart';
-import 'package:aios/agent/tools/screen_action_tool.dart';
-import 'package:aios/agent/tools/screen_reader_tool.dart';
-import 'package:aios/agent/tools/sms_sender_tool.dart';
-import 'package:aios/agent/tools/timer_tool.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/audit_log.dart';
@@ -27,14 +16,21 @@ import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 
 class ReactStrategy implements AgentStrategy {
-  ReactStrategy(this._llmRepository, {ToolContext? toolContext})
-      : _toolContext = toolContext;
+  ReactStrategy(
+    this._llmRepository, {
+    ToolContext? toolContext,
+    Map<String, AgentTool>? basicTools,
+    Map<String, ExtendedTool>? extendedTools,
+  })  : _toolContext = toolContext,
+        _basicTools = basicTools ?? {},
+        _extendedTools = extendedTools ?? {};
 
   final LlmRepository _llmRepository;
   final ToolContext? _toolContext;
+  final Map<String, AgentTool> _basicTools;
+  final Map<String, ExtendedTool> _extendedTools;
 
   bool _cancelled = false;
-  final _notes = <String, String>{};
 
   final _riskClassifier = RiskClassifier();
   final _loopDetector = LoopDetector();
@@ -42,30 +38,6 @@ class ReactStrategy implements AgentStrategy {
   final _auditLog = AuditLog();
 
   late final PromptBuilder _promptBuilder = PromptBuilder();
-
-  late final Map<String, AgentTool> _basicTools = {
-    for (final tool in [
-      CalculatorTool(),
-      TimerTool(),
-      NotePadTool(_notes),
-    ])
-      tool.name: tool,
-  };
-
-  late final Map<String, ExtendedTool> _extendedTools = {
-    for (final tool in [
-      DeviceInfoTool(),
-      ScreenReaderTool(),
-      ScreenFindTool(),
-      ScreenActionTool(),
-      AppLauncherTool(),
-      NotificationTool(),
-      ContactSearchTool(),
-      SmsSenderTool(),
-      PhoneCallerTool(),
-    ])
-      tool.name: tool,
-  };
 
   Set<String> get _allToolNames =>
       {..._basicTools.keys, ..._extendedTools.keys};
@@ -140,6 +112,10 @@ class ReactStrategy implements AgentStrategy {
         final parsed = _responseParser.parse(response);
 
         if (parsed is ParseAction) {
+          developer.log(
+            'tool=${parsed.toolName} args=${parsed.args}',
+            name: _tag,
+          );
           steps.add(
             AgentStep(
               'action',
@@ -208,9 +184,8 @@ class ReactStrategy implements AgentStrategy {
           } else if (i >= maxIterations - 1) {
             steps.add(AgentStep(
               'answer',
-              '모델이 빈 응답을 생성했습니다. 다시 시도해주세요.',
+              '\uBAA8\uB378\uC774 \uBE48 \uC751\uB2F5\uC744 \uC0DD\uC131\uD588\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
             ));
-            onStep?.call(steps.last);
           }
           break;
         }
@@ -224,8 +199,8 @@ class ReactStrategy implements AgentStrategy {
             ? lastObs.substring(0, 200)
             : lastObs;
         final summary = truncated != null
-            ? '작업을 완료하지 못했습니다. 마지막 관찰 결과: $truncated'
-            : '작업을 완료하지 못했습니다. 다시 시도해주세요.';
+            ? '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB9C8\uC9C0\uB9C9 \uAD00\uCC30 \uACB0\uACFC: $truncated'
+            : '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.';
         steps.add(AgentStep('answer', summary));
         onStep?.call(steps.last);
       }
@@ -271,14 +246,10 @@ class ReactStrategy implements AgentStrategy {
     ];
 
     final responseBuffer = StringBuffer();
-    final completer = Completer<void>();
 
     final tokenSub = _llmRepository.tokenStream.listen(
       (token) {
         responseBuffer.write(token);
-      },
-      onDone: () {
-        if (!completer.isCompleted) completer.complete();
       },
       onError: (Object e) {
         developer.log(
@@ -286,7 +257,6 @@ class ReactStrategy implements AgentStrategy {
           name: _tag,
           level: 1000,
         );
-        if (!completer.isCompleted) completer.complete();
       },
     );
 
@@ -297,7 +267,7 @@ class ReactStrategy implements AgentStrategy {
         maxTokens: maxTokens,
       );
 
-      await completer.future;
+      await Future<void>.delayed(Duration.zero);
     } on Object catch (e) {
       developer.log(
         'Generate response error: $e',
@@ -308,7 +278,9 @@ class ReactStrategy implements AgentStrategy {
       await tokenSub.cancel();
     }
 
-    return responseBuffer.toString();
+    final response = responseBuffer.toString();
+    developer.log('LLM response="$response"', name: _tag);
+    return response;
   }
 
   Future<String> _executeTool(
@@ -317,6 +289,20 @@ class ReactStrategy implements AgentStrategy {
     void Function(AgentStep)? onStep,
   ) async {
     final risk = _riskClassifier.classify(name, args);
+
+    final basicTool = _basicTools[name];
+    if (basicTool != null) {
+      final validationError = await basicTool.validate(args);
+      if (validationError != null) return validationError;
+    }
+
+    final extendedTool = _extendedTools[name];
+    if (extendedTool != null) {
+      final ctx = _toolContext;
+      if (ctx == null) return _noContextError(name, args, risk);
+      final validationError = await extendedTool.validate(args, ctx);
+      if (validationError != null) return validationError;
+    }
 
     if (risk == ToolRisk.high || risk == ToolRisk.critical) {
       final approved = await _confirmationGate.requestConfirmation(
@@ -331,14 +317,12 @@ class ReactStrategy implements AgentStrategy {
       }
     }
 
-    final basicTool = _basicTools[name];
     if (basicTool != null) {
-      final result = basicTool.execute(args);
+      final result = await basicTool.execute(args);
       _auditLog.add(name, args, risk, true, result);
       return result;
     }
 
-    final extendedTool = _extendedTools[name];
     if (extendedTool != null) {
       final ctx = _toolContext;
       if (ctx == null) {

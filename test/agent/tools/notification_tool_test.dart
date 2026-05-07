@@ -16,7 +16,7 @@ void main() {
   });
 
   group('execute_happyPath', () {
-    test('reads notifications with default max_count', () async {
+    test('execute_defaultMaxCount_invokesGetNotifications', () async {
       await tool.execute('{}', mockContext);
       expect(mockContext.methodCalls.last.method, 'getNotifications');
       expect(
@@ -25,7 +25,7 @@ void main() {
       );
     });
 
-    test('reads notifications with custom max_count', () async {
+    test('execute_customMaxCount_passesMaxCount', () async {
       await tool.execute('{"max_count": 10}', mockContext);
       expect(
         (mockContext.methodCalls.last.arguments as Map)['max_count'],
@@ -35,13 +35,13 @@ void main() {
   });
 
   group('execute_errorHandling', () {
-    test('null result returns no notifications', () async {
+    test('execute_nullResult_returnsNoNotifications', () async {
       mockContext.setInvokeResult(null);
       final result = await tool.execute('{}', mockContext);
       expect(result, 'No notifications');
     });
 
-    test('platform exception returns error string', () async {
+    test('execute_platformException_returnsErrorString', () async {
       mockContext.onInvokeMethod = (_, __) => throw Exception('fail');
       final result = await tool.execute('{}', mockContext);
       expect(result, contains('Error:'));
@@ -49,7 +49,7 @@ void main() {
   });
 
   group('execute_malformedInput', () {
-    test('malformed JSON uses defaults', () async {
+    test('execute_malformedJson_usesDefaults', () async {
       final result = await tool.execute('not json', mockContext);
       expect(
         (mockContext.methodCalls.last.arguments as Map)['max_count'],
@@ -60,11 +60,11 @@ void main() {
   });
 
   group('name_andMetadata', () {
-    test('name is notification_reader', () {
+    test('name_returnsNotificationReader', () {
       expect(tool.name, 'notification_reader');
     });
 
-    test('description is not empty', () {
+    test('description_isNotEmpty', () {
       expect(tool.description.isNotEmpty, isTrue);
     });
   });

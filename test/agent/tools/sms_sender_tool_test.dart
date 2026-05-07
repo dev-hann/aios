@@ -14,7 +14,7 @@ void main() {
   });
 
   group('execute_send', () {
-    test('send with to and body invokes sendSms', () async {
+    test('execute_sendWithToAndBody_invokesSendSms', () async {
       await tool.execute(
           '{"action": "send", "to": "01012345678", "body": "Hello"}',
           mockContext);
@@ -25,7 +25,7 @@ void main() {
       );
     });
 
-    test('send without to returns error', () async {
+    test('execute_sendWithoutTo_returnsError', () async {
       final result = await tool.execute(
         '{"action": "send", "body": "Hello"}',
         mockContext,
@@ -33,13 +33,13 @@ void main() {
       expect(result, contains("'to' required"));
     });
 
-    test('send without body returns error', () async {
+    test('execute_sendWithoutBody_returnsError', () async {
       final result = await tool.execute(
           '{"action": "send", "to": "01012345678"}', mockContext);
       expect(result, contains("'body' required"));
     });
 
-    test('send with empty to after trim returns error', () async {
+    test('execute_sendWithEmptyTo_returnsError', () async {
       final result = await tool.execute(
           '{"action": "send", "to": "  ", "body": "Hello"}', mockContext);
       expect(result, contains("'to' required"));
@@ -47,7 +47,7 @@ void main() {
   });
 
   group('execute_read', () {
-    test('read with default limit invokes readSms', () async {
+    test('execute_readWithDefaultLimit_invokesReadSms', () async {
       await tool.execute('{"action": "read"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'readSms');
       expect(
@@ -56,7 +56,7 @@ void main() {
       );
     });
 
-    test('read with custom limit passes limit', () async {
+    test('execute_readWithCustomLimit_passesLimit', () async {
       await tool.execute('{"action": "read", "limit": 20}', mockContext);
       expect(
         (mockContext.methodCalls.last.arguments as Map)['limit'],
@@ -66,20 +66,20 @@ void main() {
   });
 
   group('execute_unknownAction', () {
-    test('unknown action returns error', () async {
+    test('execute_unknownAction_returnsError', () async {
       final result =
           await tool.execute('{"action": "unknown"}', mockContext);
       expect(result, contains("Error: Unknown action 'unknown'"));
     });
 
-    test('empty action returns error', () async {
+    test('execute_emptyAction_returnsError', () async {
       final result = await tool.execute('{}', mockContext);
       expect(result, contains('Error: Unknown action'));
     });
   });
 
   group('execute_caseInsensitive', () {
-    test('SEND is treated as send', () async {
+    test('execute_upperCaseSend_treatedAsSend', () async {
       await tool.execute(
           '{"action": "SEND", "to": "010", "body": "hi"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'sendSms');
@@ -87,18 +87,18 @@ void main() {
   });
 
   group('execute_malformedInput', () {
-    test('malformed JSON returns error', () async {
+    test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json', mockContext);
       expect(result, contains('Error: Unknown action'));
     });
   });
 
   group('name_andMetadata', () {
-    test('name is sms_sender', () {
+    test('name_returnsSmsSender', () {
       expect(tool.name, 'sms_sender');
     });
 
-    test('description is not empty', () {
+    test('description_isNotEmpty', () {
       expect(tool.description.isNotEmpty, isTrue);
     });
   });

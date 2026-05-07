@@ -13,7 +13,7 @@ void main() {
   });
 
   group('execute_happyPath', () {
-    test('returns device info from platform', () async {
+    test('execute_returnsDeviceInfoFromPlatform', () async {
       mockContext.setInvokeResult(
         '{"model": "Pixel 8", "os": "Android 14", "memory": "8GB"}',
       );
@@ -21,7 +21,7 @@ void main() {
       expect(result, contains('Pixel 8'));
     });
 
-    test('invokes getDeviceInfo method', () async {
+    test('execute_invokesGetDeviceInfoMethod', () async {
       mockContext.setInvokeResult('info');
       await tool.execute('{}', mockContext);
       expect(mockContext.methodCalls.length, 1);
@@ -30,13 +30,13 @@ void main() {
   });
 
   group('execute_errorHandling', () {
-    test('null result returns error', () async {
+    test('execute_nullResult_returnsError', () async {
       mockContext.setInvokeResult(null);
       final result = await tool.execute('{}', mockContext);
       expect(result, 'Error: No result');
     });
 
-    test('platform exception returns error string', () async {
+    test('execute_platformException_returnsErrorString', () async {
       mockContext.onInvokeMethod = (_, __) => throw Exception('fail');
       final result = await tool.execute('{}', mockContext);
       expect(result, contains('Error:'));
@@ -44,15 +44,15 @@ void main() {
   });
 
   group('name_andMetadata', () {
-    test('name is device_info', () {
+    test('name_returnsDeviceInfo', () {
       expect(tool.name, 'device_info');
     });
 
-    test('description is not empty', () {
+    test('description_isNotEmpty', () {
       expect(tool.description.isNotEmpty, isTrue);
     });
 
-    test('parameters is not empty', () {
+    test('parameters_isNotEmpty', () {
       expect(tool.parameters.isNotEmpty, isTrue);
     });
   });

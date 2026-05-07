@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 
-class ScreenReaderTool implements ExtendedTool {
+class ScreenReaderTool extends ExtendedTool {
   @override
   String get name => 'screen_reader';
 
@@ -17,6 +18,9 @@ class ScreenReaderTool implements ExtendedTool {
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
+      if (!await toolContext.isAccessibilityEnabled()) {
+        return 'Error: Accessibility service not enabled';
+      }
       final result = await toolContext.invokeMethod('getScreenText');
       return result ?? 'Error: No result';
     } on Object catch (e) {
@@ -25,7 +29,9 @@ class ScreenReaderTool implements ExtendedTool {
   }
 }
 
-class ScreenFindTool implements ExtendedTool {
+class ScreenFindTool extends ExtendedTool {
+  static const _tag = 'AIOS-ScreenFind';
+
   @override
   String get name => 'screen_find';
 
@@ -40,8 +46,11 @@ class ScreenFindTool implements ExtendedTool {
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
+      if (!await toolContext.isAccessibilityEnabled()) {
+        return 'Error: Accessibility service not enabled';
+      }
       final text = _parseArg(args, 'text');
-      if (text.isEmpty) return "Error: 'text' parameter required";
+      if (text.isEmpty) return "Error: 'text' required";
       final result = await toolContext.invokeMethod(
         'findNodesByText',
         {'text': text},
@@ -58,8 +67,18 @@ class ScreenFindTool implements ExtendedTool {
       if (decoded is Map<String, dynamic>) {
         return decoded[key]?.toString() ?? '';
       }
+      developer.log(
+        'Invalid JSON type: ${decoded.runtimeType}',
+        name: _tag,
+        level: 900,
+      );
       return '';
-    } on Object {
+    } on Object catch (e) {
+      developer.log(
+        'JSON parse error: $e',
+        name: _tag,
+        level: 900,
+      );
       return '';
     }
   }

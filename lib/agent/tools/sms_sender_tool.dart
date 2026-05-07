@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 
-class SmsSenderTool implements ExtendedTool {
+class SmsSenderTool extends ExtendedTool {
+  static const _tag = 'AIOS-SmsSender';
+
   @override
   String get name => 'sms_sender';
 
@@ -38,8 +41,8 @@ class SmsSenderTool implements ExtendedTool {
   ) async {
     final to = json['to']?.toString().trim() ?? '';
     final body = json['body']?.toString().trim() ?? '';
-    if (to.isEmpty) return "Error: 'to' required (phone number)";
-    if (body.isEmpty) return "Error: 'body' required (message text)";
+    if (to.isEmpty) return "Error: 'to' required";
+    if (body.isEmpty) return "Error: 'body' required";
     return await toolContext.invokeMethod(
           'sendSms',
           {'to': to, 'body': body},
@@ -51,7 +54,7 @@ class SmsSenderTool implements ExtendedTool {
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
-    final limit = json['limit'] as int? ?? 10;
+    final limit = _parseInt(json['limit']) ?? 10;
     return await toolContext.invokeMethod(
           'readSms',
           {'limit': limit},
@@ -59,10 +62,28 @@ class SmsSenderTool implements ExtendedTool {
         'Error';
   }
 
+  int? _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   Map<String, dynamic> _tryParseJson(String args) {
     try {
-      return json.decode(args) as Map<String, dynamic>;
-    } on Object {
+      final decoded = json.decode(args);
+      if (decoded is Map<String, dynamic>) return decoded;
+      developer.log(
+        'Invalid JSON type: ${decoded.runtimeType}',
+        name: _tag,
+        level: 900,
+      );
+      return {};
+    } on Object catch (e) {
+      developer.log(
+        'JSON parse error: $e',
+        name: _tag,
+        level: 900,
+      );
       return {};
     }
   }

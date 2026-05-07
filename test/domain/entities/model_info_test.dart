@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ModelInfo', () {
-    test('should create with required fields', () {
+    test('constructor_withRequiredFields_createsSuccessfully', () {
       final model = ModelInfo(
         name: 'gemma-2b-it',
         size: 5400000000,
@@ -15,7 +15,7 @@ void main() {
       expect(model.path, '/data/models/gemma-2b-it.gguf');
     });
 
-    test('should serialize to json', () {
+    test('toJson_returnsCorrectMap', () {
       final model = ModelInfo(
         name: 'gemma-2b-it',
         size: 5400000000,
@@ -29,7 +29,7 @@ void main() {
       expect(json['path'], '/data/models/gemma-2b-it.gguf');
     });
 
-    test('should deserialize from json', () {
+    test('fromJson_returnsCorrectInstance', () {
       final json = {
         'name': 'llama-7b',
         'size': 13000000000,
@@ -43,7 +43,7 @@ void main() {
       expect(model.path, '/models/llama-7b.gguf');
     });
 
-    test('should handle equality', () {
+    test('equality_sameValues_areEqual', () {
       final a = ModelInfo(
         name: 'gemma-2b-it',
         size: 5400000000,
@@ -59,7 +59,7 @@ void main() {
       expect(a.hashCode, equals(b.hashCode));
     });
 
-    test('should support copyWith', () {
+    test('copyWith_returnsUpdatedCopy', () {
       final original = ModelInfo(
         name: 'gemma-2b-it',
         size: 5400000000,

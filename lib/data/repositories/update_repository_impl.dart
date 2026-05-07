@@ -75,7 +75,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
   }
 
   @override
-  Future<File?> downloadApk(
+  Future<String?> downloadApk(
     String url,
     String fileName, {
     void Function(double progress)? onProgress,
@@ -96,7 +96,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
 
       final file = File(savePath);
       if (await file.exists()) {
-        return file;
+        return savePath;
       }
       return null;
     } catch (e) {
@@ -110,10 +110,11 @@ class UpdateRepositoryImpl implements UpdateRepository {
   }
 
   @override
-  Future<bool> installApk(File apkFile) async {
-    if (!apkFile.existsSync()) return false;
+  Future<bool> installApk(String apkPath) async {
+    final file = File(apkPath);
+    if (!await file.exists()) return false;
     try {
-      final result = await _openFile(apkFile.path);
+      final result = await _openFile(apkPath);
       developer.log(
         'open_file result: ${result.type}',
         name: 'AIOS-UpdateRepo',

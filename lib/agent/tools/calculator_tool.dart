@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/agent_tool.dart';
 
-class CalculatorTool implements AgentTool {
+class CalculatorTool extends AgentTool {
+  static const _tag = 'AIOS-CalculatorTool';
+
   @override
   String get name => 'calculator';
 
@@ -13,13 +16,13 @@ class CalculatorTool implements AgentTool {
   String get parameters => '{"expression": "string"}';
 
   @override
-  String execute(String args) {
+  Future<String> execute(String args) async {
     try {
-      final json = jsonDecode(args) as Map<String, dynamic>;
+      final json = _tryParseJson(args);
       final expr = json['expression']?.toString() ?? '';
       final sanitized =
           expr.replaceAll(RegExp(r'[^0-9+\-*/.()% ]'), '');
-      if (sanitized.isEmpty) return 'Error: empty expression';
+      if (sanitized.isEmpty) return "Error: 'expression' required";
       final result = _evalExpr(sanitized);
       return result.toStringAsFixed(4);
     } on Object catch (e) {
@@ -79,5 +82,25 @@ class CalculatorTool implements AgentTool {
       applyOp();
     }
     return values.last;
+  }
+
+  Map<String, dynamic> _tryParseJson(String args) {
+    try {
+      final decoded = json.decode(args);
+      if (decoded is Map<String, dynamic>) return decoded;
+      developer.log(
+        'Invalid JSON type: ${decoded.runtimeType}',
+        name: _tag,
+        level: 900,
+      );
+      return {};
+    } on Object catch (e) {
+      developer.log(
+        'JSON parse error: $e',
+        name: _tag,
+        level: 900,
+      );
+      return {};
+    }
   }
 }

@@ -1,12 +1,10 @@
-import 'dart:io';
-
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _MockUpdateRepository implements UpdateRepository {
   UpdateResult _nextResult = const UpdateResult.notAvailable();
-  File? _downloadedFile;
+  String? _downloadedFile;
   bool _installResult = true;
 
   @override
@@ -15,7 +13,7 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<File?> downloadApk(
+  Future<String?> downloadApk(
     String url,
     String fileName, {
     void Function(double progress)? onProgress,
@@ -26,7 +24,7 @@ class _MockUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<bool> installApk(File apkFile) async => _installResult;
+  Future<bool> installApk(String apkPath) async => _installResult;
 }
 
 void main() {
@@ -82,8 +80,7 @@ void main() {
 
     test('downloadApk_callsProgress_and_returnsFile', () async {
       final progressCalls = <double>[];
-      final file = File('/tmp/test.apk');
-      repository._downloadedFile = file;
+      repository._downloadedFile = '/tmp/test.apk';
 
       final result = await repository.downloadApk(
         'https://example.com/app.apk',
@@ -105,7 +102,7 @@ void main() {
     });
 
     test('installApk_returnsTrue_byDefault', () async {
-      final result = await repository.installApk(File('/tmp/test.apk'));
+      final result = await repository.installApk('/tmp/test.apk');
 
       expect(result, isTrue);
     });
@@ -113,7 +110,7 @@ void main() {
     test('installApk_returnsFalse_whenSet', () async {
       repository._installResult = false;
 
-      final result = await repository.installApk(File('/tmp/test.apk'));
+      final result = await repository.installApk('/tmp/test.apk');
 
       expect(result, isFalse);
     });

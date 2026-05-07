@@ -14,7 +14,7 @@ void main() {
   });
 
   group('execute_happyPath', () {
-    test('call action invokes makeCall with call action', () async {
+    test('execute_callAction_invokesMakeCallWithCallAction', () async {
       await tool.execute(
           '{"action": "call", "number": "01012345678"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'makeCall');
@@ -23,14 +23,14 @@ void main() {
       expect(args['number'], '01012345678');
     });
 
-    test('dial action invokes makeCall with dial action', () async {
+    test('execute_dialAction_invokesMakeCallWithDialAction', () async {
       await tool.execute(
           '{"action": "dial", "number": "01012345678"}', mockContext);
       final args = mockContext.methodCalls.last.arguments as Map;
       expect(args['action'], 'dial');
     });
 
-    test('missing action defaults to dial', () async {
+    test('execute_missingAction_defaultsToDial', () async {
       await tool.execute('{"number": "01012345678"}', mockContext);
       final args = mockContext.methodCalls.last.arguments as Map;
       expect(args['action'], 'dial');
@@ -38,12 +38,12 @@ void main() {
   });
 
   group('execute_errorHandling', () {
-    test('missing number returns error', () async {
+    test('execute_missingNumber_returnsError', () async {
       final result = await tool.execute('{"action": "call"}', mockContext);
       expect(result, contains("'number' required"));
     });
 
-    test('empty number after trim returns error', () async {
+    test('execute_emptyNumber_returnsError', () async {
       final result =
           await tool.execute('{"action": "call", "number": "  "}', mockContext);
       expect(result, contains("'number' required"));
@@ -51,14 +51,14 @@ void main() {
   });
 
   group('execute_malformedInput', () {
-    test('malformed JSON returns error', () async {
+    test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json', mockContext);
       expect(result, contains("'number' required"));
     });
   });
 
   group('execute_nullResult', () {
-    test('null invokeMethod result returns Error', () async {
+    test('execute_nullResult_returnsError', () async {
       mockContext.setInvokeResult(null);
       final result = await tool.execute(
           '{"action": "call", "number": "010"}', mockContext);
@@ -67,11 +67,11 @@ void main() {
   });
 
   group('name_andMetadata', () {
-    test('name is phone_caller', () {
+    test('name_returnsPhoneCaller', () {
       expect(tool.name, 'phone_caller');
     });
 
-    test('description is not empty', () {
+    test('description_isNotEmpty', () {
       expect(tool.description.isNotEmpty, isTrue);
     });
   });

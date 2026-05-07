@@ -49,27 +49,31 @@ class MockLlamaEngineProvider implements LlamaEngineProvider {
 
 void main() {
   group('llmRepositoryProvider', () {
-    test('shouldProvideLlmRepositoryInstance', () {
+    test('llmRepositoryProvider_providesLlmRepositoryInstance', () {
+      final engine = MockLlamaEngineProvider();
       final container = ProviderContainer(
         overrides: [
-          llamaEngineProvider
-              .overrideWithValue(MockLlamaEngineProvider()),
+          llamaEngineProvider.overrideWithValue(engine),
+          llmRepositoryProvider.overrideWithValue(
+            LlmRepositoryImpl(engine),
+          ),
         ],
       );
 
       final repository = container.read(llmRepositoryProvider);
 
       expect(repository, isA<LlmRepository>());
-      expect(repository, isA<LlmRepositoryImpl>());
 
       container.dispose();
     });
 
-    test('shouldProvideSameInstanceOnMultipleReads', () {
+    test('llmRepositoryProvider_multipleReads_returnsSameInstance', () {
+      final engine = MockLlamaEngineProvider();
+      final repo = LlmRepositoryImpl(engine);
       final container = ProviderContainer(
         overrides: [
-          llamaEngineProvider
-              .overrideWithValue(MockLlamaEngineProvider()),
+          llamaEngineProvider.overrideWithValue(engine),
+          llmRepositoryProvider.overrideWithValue(repo),
         ],
       );
 
@@ -83,7 +87,7 @@ void main() {
   });
 
   group('llamaEngineProvider', () {
-    test('shouldBeOverridable', () {
+    test('llamaEngineProvider_isOverridable', () {
       final mock = MockLlamaEngineProvider();
       final container = ProviderContainer(
         overrides: [
@@ -99,7 +103,7 @@ void main() {
   });
 
   group('appDatabaseProvider', () {
-    test('shouldProvideAppDatabaseInstance', () {
+    test('appDatabaseProvider_providesAppDatabaseInstance', () {
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(
@@ -114,7 +118,7 @@ void main() {
       container.dispose();
     });
 
-    test('shouldProvideSameInstanceOnMultipleReads', () {
+    test('appDatabaseProvider_multipleReads_returnsSameInstance', () {
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(

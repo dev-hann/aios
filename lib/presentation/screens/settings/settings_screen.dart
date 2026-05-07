@@ -476,7 +476,7 @@ class _AppInfoSectionState extends State<_AppInfoSection> {
               label: const Text('Check for Updates'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.secondary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.textPrimary,
               ),
             ),
           ),

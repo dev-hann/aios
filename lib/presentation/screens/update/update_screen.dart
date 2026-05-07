@@ -249,7 +249,7 @@ class _DownloadedView extends StatelessWidget {
           label: const Text('Install'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.textPrimary,
           ),
         ),
       ],
@@ -374,7 +374,7 @@ class _ErrorView extends StatelessWidget {
           label: const Text('Retry'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.error,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.textPrimary,
           ),
         ),
       ],

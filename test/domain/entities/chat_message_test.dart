@@ -5,7 +5,7 @@ void main() {
   group('ChatMessage', () {
     final fixedDate = DateTime(2026, 1, 15, 10, 30, 0);
 
-    test('should create with required fields', () {
+    test('constructor_withRequiredFields_createsSuccessfully', () {
       final message = ChatMessage(
         id: 'msg-1',
         role: 'user',
@@ -19,7 +19,7 @@ void main() {
       expect(message.createdAt, fixedDate);
     });
 
-    test('should default optional fields to null', () {
+    test('constructor_defaultOptionalFields_areNull', () {
       final message = ChatMessage(
         id: 'msg-1',
         role: 'user',
@@ -32,7 +32,7 @@ void main() {
       expect(message.toolResult, isNull);
     });
 
-    test('should create with optional fields', () {
+    test('constructor_withOptionalFields_createsSuccessfully', () {
       final message = ChatMessage(
         id: 'msg-2',
         role: 'assistant',
@@ -48,7 +48,7 @@ void main() {
       expect(message.toolResult, 'success');
     });
 
-    test('should support copyWith', () {
+    test('copyWith_returnsUpdatedCopy', () {
       final original = ChatMessage(
         id: 'msg-1',
         role: 'user',
@@ -68,7 +68,7 @@ void main() {
       expect(original.content, 'Hello');
     });
 
-    test('should serialize to json', () {
+    test('toJson_returnsCorrectMap', () {
       final message = ChatMessage(
         id: 'msg-1',
         role: 'user',
@@ -86,7 +86,7 @@ void main() {
       expect(json['toolResult'], isNull);
     });
 
-    test('should deserialize from json', () {
+    test('fromJson_returnsCorrectInstance', () {
       final json = {
         'id': 'msg-1',
         'role': 'assistant',
@@ -105,7 +105,7 @@ void main() {
       expect(message.toolName, 'screen_action');
     });
 
-    test('should handle equality', () {
+    test('equality_sameValues_areEqual', () {
       final a = ChatMessage(
         id: 'msg-1',
         role: 'user',

@@ -1,7 +1,7 @@
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 
-class DeviceInfoTool implements ExtendedTool {
+class DeviceInfoTool extends ExtendedTool {
   @override
   String get name => 'device_info';
 

@@ -3,5 +3,7 @@ abstract class AgentTool {
   String get description;
   String get parameters;
 
-  String execute(String args);
+  Future<String> execute(String args);
+
+  Future<String?> validate(String args) async => null;
 }

@@ -14,7 +14,7 @@ void main() {
   });
 
   group('execute_happyPath', () {
-    test('search with query invokes searchContacts', () async {
+    test('execute_searchWithQuery_invokesSearchContacts', () async {
       await tool.execute('{"query": "Kim"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'searchContacts');
       final args = mockContext.methodCalls.last.arguments as Map;
@@ -22,7 +22,7 @@ void main() {
       expect(args['limit'], 10);
     });
 
-    test('search with custom limit passes limit', () async {
+    test('execute_searchWithCustomLimit_passesLimit', () async {
       await tool.execute('{"query": "Kim", "limit": 5}', mockContext);
       final args = mockContext.methodCalls.last.arguments as Map;
       expect(args['limit'], 5);
@@ -30,17 +30,17 @@ void main() {
   });
 
   group('execute_errorHandling', () {
-    test('missing query returns error', () async {
+    test('execute_missingQuery_returnsError', () async {
       final result = await tool.execute('{}', mockContext);
-      expect(result, contains("'query' parameter required"));
+      expect(result, contains("'query' required"));
     });
 
-    test('empty query after trim returns error', () async {
+    test('execute_emptyQuery_returnsError', () async {
       final result = await tool.execute('{"query": "  "}', mockContext);
-      expect(result, contains("'query' parameter required"));
+      expect(result, contains("'query' required"));
     });
 
-    test('null result returns no contacts found', () async {
+    test('execute_nullResult_returnsNoContactsFound', () async {
       mockContext.setInvokeResult(null);
       final result = await tool.execute('{"query": "Kim"}', mockContext);
       expect(result, 'No contacts found');
@@ -48,18 +48,18 @@ void main() {
   });
 
   group('execute_malformedInput', () {
-    test('malformed JSON returns error', () async {
+    test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json', mockContext);
-      expect(result, contains("'query' parameter required"));
+      expect(result, contains("'query' required"));
     });
   });
 
   group('name_andMetadata', () {
-    test('name is contact_search', () {
+    test('name_returnsContactSearch', () {
       expect(tool.name, 'contact_search');
     });
 
-    test('description is not empty', () {
+    test('description_isNotEmpty', () {
       expect(tool.description.isNotEmpty, isTrue);
     });
   });

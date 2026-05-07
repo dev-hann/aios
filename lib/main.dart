@@ -1,10 +1,16 @@
 import 'package:aios/core/router/router.dart';
 import 'package:aios/core/theme/theme.dart';
+import 'package:aios/data/datasources/local/database.dart';
 import 'package:aios/data/datasources/remote/github_api.dart';
 import 'package:aios/data/providers/real_llama_engine_provider.dart';
+import 'package:aios/data/providers/tool_context_impl.dart';
+import 'package:aios/data/repositories/conversation_repository_impl.dart';
+import 'package:aios/data/repositories/llm_repository_impl.dart';
 import 'package:aios/data/repositories/model_repository_impl.dart';
 import 'package:aios/data/repositories/settings_repository_impl.dart';
 import 'package:aios/data/repositories/update_repository_impl.dart';
+import 'package:aios/presentation/providers/agent_provider.dart';
+import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/model_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
@@ -27,13 +33,17 @@ void main() async {
 
   final packageInfo = await PackageInfo.fromPlatform();
 
+  final appDatabase = AppDatabase();
+  final llamaEngine = RealLlamaEngineProvider();
+
   runApp(
     ProviderScope(
       overrides: [
-        llamaEngineProvider
-            .overrideWithValue(RealLlamaEngineProvider()),
-        settingsRepositoryProvider
-            .overrideWithValue(settingsRepo),
+        llamaEngineProvider.overrideWithValue(llamaEngine),
+        llmRepositoryProvider.overrideWithValue(
+          LlmRepositoryImpl(llamaEngine),
+        ),
+        settingsRepositoryProvider.overrideWithValue(settingsRepo),
         modelRepositoryProvider.overrideWithValue(
           ModelRepositoryImpl(
             modelsDir: modelsDir,
@@ -48,6 +58,10 @@ void main() async {
           ),
         ),
         currentVersionProvider.overrideWithValue(packageInfo.version),
+        toolContextProvider.overrideWithValue(ToolContextImpl()),
+        conversationRepositoryProvider.overrideWithValue(
+          ConversationRepositoryImpl(appDatabase),
+        ),
       ],
       child: const AIOSApp(),
     ),

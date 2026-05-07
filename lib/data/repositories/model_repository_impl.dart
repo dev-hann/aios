@@ -34,38 +34,28 @@ class ModelRepositoryImpl implements ModelRepository {
 
   @override
   List<ModelInfo> scanExternalDirs() {
-    final externalDirs = [
-      '/sdcard/Download',
-      '/storage/emulated/0/Download',
-    ];
-    final seen = <String>{};
-    final results = <ModelInfo>[];
+    final dir = Directory('/storage/emulated/0/Download');
+    if (!dir.existsSync()) return [];
 
-    for (final dirPath in externalDirs) {
-      final dir = Directory(dirPath);
-      if (!dir.existsSync()) continue;
-      try {
-        for (final f in dir.listSync().whereType<File>()) {
-          if (!f.path.toLowerCase().endsWith('.gguf')) continue;
-          final name = f.path.split(Platform.pathSeparator).last;
-          if (seen.contains(name)) continue;
-          seen.add(name);
-          results.add(ModelInfo(
-            name: f.path.split(Platform.pathSeparator).last,
-            size: f.lengthSync(),
-            path: f.path,
-          ));
-        }
-      } on Object catch (e) {
-        developer.log(
-          'scanExternalDirs failed for $dirPath: $e',
-          name: 'AIOS-ModelRepo',
-          level: 900,
-        );
-      }
+    try {
+      return dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.toLowerCase().endsWith('.gguf'))
+          .map((f) => ModelInfo(
+                name: f.path.split(Platform.pathSeparator).last,
+                size: f.lengthSync(),
+                path: f.path,
+              ))
+          .toList();
+    } on Object catch (e) {
+      developer.log(
+        'scanExternalDirs failed: $e',
+        name: 'AIOS-ModelRepo',
+        level: 900,
+      );
+      return [];
     }
-
-    return results;
   }
 
   @override

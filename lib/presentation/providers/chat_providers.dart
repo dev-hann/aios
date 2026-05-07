@@ -1,3 +1,4 @@
+import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/chat_notifier.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
@@ -8,5 +9,6 @@ final chatStateProvider =
     StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   final llmRepo = ref.watch(llmRepositoryProvider);
   final conversationRepo = ref.watch(conversationRepositoryProvider);
-  return ChatNotifier(llmRepo, conversationRepo);
+  final agent = ref.watch(agentProvider);
+  return ChatNotifier(llmRepo, conversationRepo, agent);
 });

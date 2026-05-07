@@ -178,6 +178,7 @@ TAG 형식: `"AIOS-{Component}"` (예: AIOS-React, AIOS-LlmRepo, AIOS-Bridge)
 | Widget | `presentation/widgets/` | `input_bar.dart` |
 | Provider | `presentation/providers/` | `chat_provider.dart` |
 | DataSource | `data/datasources/` | `llm_data_source.dart` |
+| Engine Provider | `data/providers/` | `llama_engine_provider.dart` |
 | Theme | `core/theme/` | `app_colors.dart` |
 
 ### 3.4 코드 리뷰 기준

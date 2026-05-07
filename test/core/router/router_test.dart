@@ -17,38 +17,38 @@ void main() {
       container.dispose();
     });
 
-    test('shouldHaveExactlyThreeRoutes', () {
+    test('routerProvider_hasExactlyThreeRoutes', () {
       expect(router.configuration.routes.length, 3);
     });
 
-    test('shouldHaveChatRoute', () {
+    test('routerProvider_hasChatRoute', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
       expect(routes.any((r) => r.path == '/'), isTrue);
     });
 
-    test('shouldHaveSettingsRoute', () {
+    test('routerProvider_hasSettingsRoute', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
       expect(routes.any((r) => r.path == '/settings'), isTrue);
     });
 
-    test('shouldHaveUpdateRoute', () {
+    test('routerProvider_hasUpdateRoute', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
       expect(routes.any((r) => r.path == '/update'), isTrue);
     });
 
-    test('chatRoute_shouldHaveBuilder', () {
+    test('chatRoute_hasBuilder', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
       final chatRoute = routes.firstWhere((r) => r.path == '/');
       expect(chatRoute.builder, isNotNull);
     });
 
-    test('settingsRoute_shouldHaveBuilder', () {
+    test('settingsRoute_hasBuilder', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
       final settingsRoute = routes.firstWhere((r) => r.path == '/settings');
       expect(settingsRoute.builder, isNotNull);
     });
 
-    test('updateRoute_shouldHaveBuilder', () {
+    test('updateRoute_hasBuilder', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
       final updateRoute = routes.firstWhere((r) => r.path == '/update');
       expect(updateRoute.builder, isNotNull);

@@ -5,129 +5,129 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AppColors', () {
-    test('background_shouldHaveCorrectValue', () {
+    test('appColors_background_hasCorrectValue', () {
       expect(AppColors.background, const Color(0xFF0E0E10));
     });
 
-    test('surface_shouldHaveCorrectValue', () {
+    test('appColors_surface_hasCorrectValue', () {
       expect(AppColors.surface, const Color(0xFF18181B));
     });
 
-    test('surfaceElevated_shouldHaveCorrectValue', () {
+    test('appColors_surfaceElevated_hasCorrectValue', () {
       expect(AppColors.surfaceElevated, const Color(0xFF1F1F23));
     });
 
-    test('primary_shouldHaveCorrectValue', () {
+    test('appColors_primary_hasCorrectValue', () {
       expect(AppColors.primary, const Color(0xFF9146FF));
     });
 
-    test('secondary_shouldHaveCorrectValue', () {
+    test('appColors_secondary_hasCorrectValue', () {
       expect(AppColors.secondary, const Color(0xFFBF94FF));
     });
 
-    test('textPrimary_shouldHaveCorrectValue', () {
+    test('appColors_textPrimary_hasCorrectValue', () {
       expect(AppColors.textPrimary, const Color(0xFFEFEFF1));
     });
 
-    test('textSecondary_shouldHaveCorrectValue', () {
+    test('appColors_textSecondary_hasCorrectValue', () {
       expect(AppColors.textSecondary, const Color(0xFFADADB8));
     });
 
-    test('error_shouldHaveCorrectValue', () {
+    test('appColors_error_hasCorrectValue', () {
       expect(AppColors.error, const Color(0xFFEB0400));
     });
 
-    test('success_shouldHaveCorrectValue', () {
+    test('appColors_success_hasCorrectValue', () {
       expect(AppColors.success, const Color(0xFF00C853));
     });
 
-    test('warning_shouldHaveCorrectValue', () {
+    test('appColors_warning_hasCorrectValue', () {
       expect(AppColors.warning, const Color(0xFFFFCA28));
     });
 
-    test('divider_shouldHaveCorrectValue', () {
+    test('appColors_divider_hasCorrectValue', () {
       expect(AppColors.divider, const Color(0xFF2F2F35));
     });
 
-    test('cardBackground_shouldHaveCorrectValue', () {
+    test('appColors_cardBackground_hasCorrectValue', () {
       expect(AppColors.cardBackground, const Color(0xFF18181B));
     });
 
-    test('sliderActive_shouldHaveCorrectValue', () {
+    test('appColors_sliderActive_hasCorrectValue', () {
       expect(AppColors.sliderActive, const Color(0xFF9146FF));
     });
 
-    test('sliderInactive_shouldHaveCorrectValue', () {
+    test('appColors_sliderInactive_hasCorrectValue', () {
       expect(AppColors.sliderInactive, const Color(0xFF2F2F35));
     });
   });
 
   group('aiosTheme', () {
-    test('shouldUseDarkBrightness', () {
+    test('aiosTheme_usesDarkBrightness', () {
       expect(aiosTheme.brightness, Brightness.dark);
     });
 
-    test('scaffoldBackground_shouldBeDarkBackground', () {
+    test('aiosTheme_scaffoldBackground_isDarkBackground', () {
       expect(aiosTheme.scaffoldBackgroundColor, AppColors.background);
     });
 
-    test('colorScheme_primary_shouldMatchAppColors', () {
+    test('aiosTheme_colorSchemePrimary_matchesAppColors', () {
       expect(aiosTheme.colorScheme.primary, AppColors.primary);
     });
 
-    test('colorScheme_secondary_shouldMatchAppColors', () {
+    test('aiosTheme_colorSchemeSecondary_matchesAppColors', () {
       expect(aiosTheme.colorScheme.secondary, AppColors.secondary);
     });
 
-    test('colorScheme_surface_shouldMatchAppColors', () {
+    test('aiosTheme_colorSchemeSurface_matchesAppColors', () {
       expect(aiosTheme.colorScheme.surface, AppColors.surface);
     });
 
-    test('colorScheme_error_shouldMatchAppColors', () {
+    test('aiosTheme_colorSchemeError_matchesAppColors', () {
       expect(aiosTheme.colorScheme.error, AppColors.error);
     });
 
-    test('appBarTheme_background_shouldBeSurface', () {
+    test('aiosTheme_appBarBackground_isSurface', () {
       expect(aiosTheme.appBarTheme.backgroundColor, AppColors.surface);
     });
 
-    test('appBarTheme_foregroundColor_shouldBeTextPrimary', () {
+    test('aiosTheme_appBarForeground_isTextPrimary', () {
       expect(aiosTheme.appBarTheme.foregroundColor, AppColors.textPrimary);
     });
 
-    test('cardTheme_color_shouldBeSurface', () {
+    test('aiosTheme_cardThemeColor_isSurface', () {
       expect(aiosTheme.cardTheme.color, AppColors.surface);
     });
   });
 
   group('AppRadius', () {
-    test('xs_shouldBe2', () {
+    test('appRadius_xs_is2', () {
       expect(AppRadius.xs, 2);
     });
 
-    test('sm_shouldBe4', () {
+    test('appRadius_sm_is4', () {
       expect(AppRadius.sm, 4);
     });
 
-    test('md_shouldBe6', () {
+    test('appRadius_md_is6', () {
       expect(AppRadius.md, 6);
     });
 
-    test('lg_shouldBe10', () {
+    test('appRadius_lg_is10', () {
       expect(AppRadius.lg, 10);
     });
   });
 
   group('AppSpacing', () {
-    test('base_shouldBe4', () {
+    test('appSpacing_base_is4', () {
       expect(AppSpacing.base, 4);
     });
 
-    test('s_shouldBe8', () {
+    test('appSpacing_s_is8', () {
       expect(AppSpacing.s, 8);
     });
 
-    test('l_shouldBe16', () {
+    test('appSpacing_l_is16', () {
       expect(AppSpacing.l, 16);
     });
   });

@@ -32,11 +32,11 @@ class MockToolContext implements ToolContext {
 
   @override
   Future<bool> isAccessibilityEnabled() async {
-    return onIsAccessibilityEnabled?.call() ?? false;
+    return onIsAccessibilityEnabled?.call() ?? true;
   }
 
   @override
   Future<bool> isNotificationListenerEnabled() async {
-    return onIsNotificationListenerEnabled?.call() ?? false;
+    return onIsNotificationListenerEnabled?.call() ?? true;
   }
 }

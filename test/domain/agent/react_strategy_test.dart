@@ -1,0 +1,454 @@
+import 'dart:async';
+
+import 'package:aios/domain/agent/agent_tool.dart';
+import 'package:aios/domain/agent/extended_tool.dart';
+import 'package:aios/domain/agent/react_strategy.dart';
+import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/entities/agent_models.dart';
+import 'package:aios/domain/entities/chat_message.dart';
+import 'package:aios/domain/entities/service_state.dart';
+import 'package:aios/domain/repositories/llm_repository.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+class _MockLlmRepository implements LlmRepository {
+  final _stateController = StreamController<ServiceState>.broadcast();
+  final _tokenController = StreamController<String>.broadcast();
+  final _progressController = StreamController<double>.broadcast();
+
+  List<String> tokensToEmit = [];
+  bool shouldThrowOnSend = false;
+  String? lastUserMessage;
+  List<ChatMessage>? lastHistory;
+  int? lastMaxTokens;
+  bool stopCalled = false;
+  Completer<void>? holdAfterSend;
+
+  @override
+  Stream<ServiceState> get state => _stateController.stream;
+
+  @override
+  Stream<String> get tokenStream => _tokenController.stream;
+
+  @override
+  Stream<double> get loadProgress => _progressController.stream;
+
+  @override
+  Future<bool> loadModel(String path, {int? contextSize}) async => true;
+
+  @override
+  Future<void> releaseModel() async {}
+
+  @override
+  bool get isModelLoaded => true;
+
+  @override
+  String getModelInfo() => 'TestModel';
+
+  @override
+  String getContextUsage() => '0/2048';
+
+  @override
+  Future<void> resetContext() async {}
+
+  @override
+  Future<void> sendMessage(
+    List<ChatMessage> history, {
+    required String userMessage,
+    double? temperature,
+    int? maxTokens,
+    int? topK,
+    double? topP,
+    double? repeatPenalty,
+  }) async {
+    lastHistory = history;
+    lastUserMessage = userMessage;
+    lastMaxTokens = maxTokens;
+    if (shouldThrowOnSend) {
+      throw Exception('LLM error');
+    }
+    _stateController.add(ServiceState.generating);
+    for (final token in tokensToEmit) {
+      _tokenController.add(token);
+    }
+    _stateController.add(ServiceState.ready);
+    if (holdAfterSend != null) {
+      await holdAfterSend!.future;
+    }
+  }
+
+  @override
+  Future<void> stopGeneration() async {
+    stopCalled = true;
+  }
+
+  @override
+  Future<void> saveSession(String path) async {}
+
+  @override
+  Future<void> loadSession(String path) async {}
+
+  void dispose() {
+    _stateController.close();
+    _tokenController.close();
+    _progressController.close();
+  }
+}
+
+class _MockToolContext implements ToolContext {
+  String? Function(String method, dynamic arguments)? onInvokeMethod;
+
+  @override
+  Future<String?> invokeMethod(String method, [dynamic arguments]) async {
+    return onInvokeMethod?.call(method, arguments);
+  }
+
+  @override
+  Future<bool> isAccessibilityEnabled() async => true;
+
+  @override
+  Future<bool> isNotificationListenerEnabled() async => true;
+}
+
+class _FakeBasicTool implements AgentTool {
+  final String _name;
+  final String _result;
+  String? _validationError;
+  String? lastArgs;
+  int executeCount = 0;
+
+  _FakeBasicTool(this._name, this._result, {String? validationError})
+      : _validationError = validationError;
+
+  void setValidationError(String? error) => _validationError = error;
+
+  @override
+  String get name => _name;
+
+  @override
+  String get description => 'Fake $_name tool';
+
+  @override
+  String get parameters => '{}';
+
+  @override
+  Future<String> execute(String args) async {
+    lastArgs = args;
+    executeCount++;
+    return _result;
+  }
+
+  @override
+  Future<String?> validate(String args) async => _validationError;
+}
+
+class _FakeExtendedTool implements ExtendedTool {
+  final String _name;
+  final String _result;
+  String? _validationError;
+  String? lastArgs;
+  int executeCount = 0;
+
+  _FakeExtendedTool(this._name, this._result, {String? validationError})
+      : _validationError = validationError;
+
+  void setValidationError(String? error) => _validationError = error;
+
+  @override
+  String get name => _name;
+
+  @override
+  String get description => 'Fake $_name tool';
+
+  @override
+  String get parameters => '{}';
+
+  @override
+  Future<String> execute(String args, ToolContext toolContext) async {
+    lastArgs = args;
+    executeCount++;
+    return _result;
+  }
+
+  @override
+  Future<String?> validate(String args, ToolContext toolContext) async =>
+      _validationError;
+}
+
+void main() {
+  group('ReactStrategy', () {
+    late _MockLlmRepository llmRepo;
+    late _MockToolContext toolContext;
+
+    setUp(() {
+      llmRepo = _MockLlmRepository();
+      toolContext = _MockToolContext();
+    });
+
+    tearDown(() {
+      llmRepo.dispose();
+    });
+
+    group('execute', () {
+      test('execute_answerResponse_returnsSuccess', () async {
+        llmRepo.tokensToEmit = ['Answer: Hello! How can I help?'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final result = await strategy.execute('Hi');
+
+        expect(result.success, isTrue);
+        expect(
+          result.steps.any((s) => s.type == 'answer'),
+          isTrue,
+        );
+      });
+
+      test('execute_emptyResponse_returnsFallbackAnswer', () async {
+        llmRepo.tokensToEmit = [''];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final result = await strategy.execute('Hi');
+
+        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
+      });
+
+      test('execute_emitsThoughtSteps', () async {
+        llmRepo.tokensToEmit = ['Answer: done'];
+        final steps = <AgentStep>[];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        await strategy.execute('Hi', onStep: steps.add);
+
+        expect(steps.any((s) => s.type == 'thought'), isTrue);
+      });
+
+      test('execute_emitsAnswerStep', () async {
+        llmRepo.tokensToEmit = ['Answer: The answer is 42'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final result = await strategy.execute('question');
+
+        final answerStep = result.steps.where((s) => s.type == 'answer').first;
+        expect(answerStep.content, 'The answer is 42');
+      });
+
+      test('execute_passesMaxTokens', () async {
+        llmRepo.tokensToEmit = ['Answer: ok'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        await strategy.execute('Hi', maxTokens: 256);
+
+        expect(llmRepo.lastMaxTokens, 256);
+      });
+
+      test('execute_withNoToolContext_extendedToolReturnsError', () async {
+        llmRepo.tokensToEmit = [
+          'Action: app_launcher\nArgs: {"action": "list_apps"}',
+          'Answer: done',
+        ];
+
+        final strategy = ReactStrategy(llmRepo);
+        final result = await strategy.execute('list apps');
+
+        final obsSteps = result.steps
+            .where((s) => s.type == 'observation')
+            .toList();
+        if (obsSteps.isNotEmpty) {
+          expect(obsSteps.first.content, contains('Error'));
+        }
+      });
+
+      test('execute_llmException_returnsErrorAnswer', () async {
+        llmRepo.shouldThrowOnSend = true;
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final result = await strategy.execute('Hi');
+
+        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
+      });
+
+      test('execute_callsOnStepCallback', () async {
+        llmRepo.tokensToEmit = ['Answer: ok'];
+        final steps = <AgentStep>[];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        await strategy.execute('Hi', onStep: steps.add);
+
+        expect(steps, isNotEmpty);
+      });
+
+      test('execute_plainTextResponse_returnsAsAnswer', () async {
+        llmRepo.tokensToEmit = ['Just a plain response'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final result = await strategy.execute('Hi');
+
+        final answerSteps =
+            result.steps.where((s) => s.type == 'answer').toList();
+        expect(answerSteps, isNotEmpty);
+        expect(answerSteps.first.content, 'Just a plain response');
+      });
+    });
+
+    group('cancel', () {
+      test('cancel_setsCancelled', () async {
+        llmRepo.tokensToEmit = [];
+        llmRepo.holdAfterSend = Completer<void>();
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+
+        final future = strategy.execute('long task');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        strategy.cancel();
+        llmRepo.holdAfterSend!.complete();
+        await future;
+
+        expect(llmRepo.stopCalled, isTrue);
+      });
+    });
+
+    group('resolveConfirmation', () {
+      test('resolveConfirmation_doesNotThrow', () async {
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+
+        expect(() => strategy.resolveConfirmation(true), returnsNormally);
+        expect(() => strategy.resolveConfirmation(false), returnsNormally);
+      });
+    });
+
+    group('constructor', () {
+      test('constructor_acceptsInjectedTools', () {
+        final basicTools = {
+          'calculator': _FakeBasicTool('calculator', '42'),
+        };
+        final extendedTools = {
+          'screen_action': _FakeExtendedTool('screen_action', 'tapped'),
+        };
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: basicTools,
+          extendedTools: extendedTools,
+        );
+        final manifest = strategy.getToolManifest();
+
+        expect(manifest, contains('calculator'));
+        expect(manifest, contains('screen_action'));
+      });
+    });
+
+    group('getToolManifest', () {
+      test('getToolManifest_withBasicAndExtendedTools_returnsAllTools', () {
+        final basicTools = {
+          'calculator': _FakeBasicTool('calculator', '42'),
+          'timer': _FakeBasicTool('timer', 'done'),
+        };
+        final extendedTools = {
+          'screen_action': _FakeExtendedTool('screen_action', 'tapped'),
+        };
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: basicTools,
+          extendedTools: extendedTools,
+        );
+        final manifest = strategy.getToolManifest();
+
+        expect(manifest, contains('calculator'));
+        expect(manifest, contains('timer'));
+        expect(manifest, contains('screen_action'));
+        expect(manifest, contains('Fake calculator tool'));
+        expect(manifest, contains('Fake screen_action tool'));
+      });
+
+      test('getToolManifest_withNoInjectedTools_returnsEmpty', () async {
+        llmRepo.tokensToEmit = [];
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+
+        final manifest = strategy.getToolManifest();
+
+        expect(manifest, isEmpty);
+      });
+
+      test('getToolManifest_withNoTools_returnsEmpty', () async {
+        llmRepo.tokensToEmit = [];
+        final strategy = ReactStrategy(llmRepo);
+
+        final manifest = strategy.getToolManifest();
+
+        expect(manifest, isEmpty);
+      });
+    });
+
+    group('getConversationHistory', () {
+      test('getConversationHistory_emptyInitially', () async {
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+
+        expect(strategy.getConversationHistory(), isEmpty);
+      });
+
+      test('getConversationHistory_afterExecute_hasMessages', () async {
+        llmRepo.tokensToEmit = ['Answer: done'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        await strategy.execute('Hello');
+
+        final history = strategy.getConversationHistory();
+        expect(history, isNotEmpty);
+        expect(history.any((m) => m.content.contains('Hello')), isTrue);
+      });
+    });
+
+    group('clearHistory', () {
+      test('clearHistory_removesHistory', () async {
+        llmRepo.tokensToEmit = ['Answer: done'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        await strategy.execute('Hello');
+
+        expect(strategy.getConversationHistory(), isNotEmpty);
+
+        strategy.clearHistory();
+
+        expect(strategy.getConversationHistory(), isEmpty);
+      });
+    });
+
+    group('multipleExecutes', () {
+      test('execute_twice_independentResults', () async {
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+
+        llmRepo.tokensToEmit = ['Answer: first'];
+        final result1 = await strategy.execute('Q1');
+
+        llmRepo.tokensToEmit = ['Answer: second'];
+        final result2 = await strategy.execute('Q2');
+
+        expect(result1.steps.any((s) => s.content.contains('first')), isTrue);
+        expect(result2.steps.any((s) => s.content.contains('second')), isTrue);
+      });
+
+      test('execute_afterCancel_worksNormally', () async {
+        llmRepo.tokensToEmit = [];
+        llmRepo.holdAfterSend = Completer<void>();
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+
+        final future = strategy.execute('task1');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        strategy.cancel();
+        llmRepo.holdAfterSend!.complete();
+        await future;
+
+        llmRepo.holdAfterSend = null;
+        llmRepo.tokensToEmit = ['Answer: ok'];
+        llmRepo.stopCalled = false;
+
+        final result = await strategy.execute('task2');
+        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
+      });
+    });
+  });
+}

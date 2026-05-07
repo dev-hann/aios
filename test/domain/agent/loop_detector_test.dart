@@ -9,19 +9,19 @@ void main() {
   });
 
   group('record', () {
-    test('ok on first call', () {
+    test('record_firstCall_returnsOk', () {
       final result = detector.record('calculator', '{}', 'result');
       expect(result, isA<LoopOk>());
     });
 
-    test('ok on different actions', () {
+    test('record_differentActions_returnsOk', () {
       detector.record('calculator', '{}', '5');
       detector.record('timer', '{"seconds": 5}', 'done');
       final result = detector.record('notepad', '{"action": "list"}', 'none');
       expect(result, isA<LoopOk>());
     });
 
-    test('warning after 3 consecutive same actions', () {
+    test('record_threeConsecutiveSameActions_returnsWarning', () {
       detector.record('calculator', '{"expression": "1+1"}', 'result 1');
       detector.record('calculator', '{"expression": "1+1"}', 'result 2');
       final result =
@@ -32,7 +32,7 @@ void main() {
       expect(warning.count, 3);
     });
 
-    test('force break after warning then repeat', () {
+    test('record_warningThenRepeat_returnsForceBreak', () {
       detector.record('calculator', '{"expression": "1+1"}', 'a');
       detector.record('calculator', '{"expression": "1+1"}', 'b');
       final warning =
@@ -44,7 +44,7 @@ void main() {
       expect(force, isA<LoopForceBreak>());
     });
 
-    test('force break on identical observations', () {
+    test('record_identicalObservations_returnsForceBreak', () {
       detector.record('screen_action', '{"action": "tap", "x": 1}', 'same');
       final warning = detector.record(
         'screen_action',
@@ -54,7 +54,7 @@ void main() {
       expect(warning, isA<LoopWarning>());
     });
 
-    test('allowed repeated actions for scroll', () {
+    test('record_scrollRepeats_returnsOk', () {
       detector.record('screen_action', '{"action": "scroll"}', 'scrolled 1');
       detector.record('screen_action', '{"action": "scroll"}', 'scrolled 2');
       final result =
@@ -66,7 +66,7 @@ void main() {
       expect(result, isA<LoopOk>());
     });
 
-    test('allowed repeated actions for swipe', () {
+    test('record_swipeRepeats_returnsOk', () {
       detector.record('screen_action', '{"action": "swipe"}', 'swiped 1');
       detector.record('screen_action', '{"action": "swipe"}', 'swiped 2');
       final result =
@@ -80,19 +80,19 @@ void main() {
   });
 
   group('shouldNudge', () {
-    test('nudge after 3 iterations without answer', () {
+    test('shouldNudge_threeIterationsWithoutAnswer_returnsTrue', () {
       expect(detector.shouldNudge(3, false), true);
     });
 
-    test('no nudge when answer exists', () {
+    test('shouldNudge_answerExists_returnsFalse', () {
       expect(detector.shouldNudge(5, true), false);
     });
 
-    test('no nudge before 3 iterations', () {
+    test('shouldNudge_lessThanThreeIterations_returnsFalse', () {
       expect(detector.shouldNudge(2, false), false);
     });
 
-    test('no nudge after warning given', () {
+    test('shouldNudge_afterWarningGiven_returnsFalse', () {
       detector.record('calc', '{}', 'a');
       detector.record('calc', '{}', 'b');
       detector.record('calc', '{}', 'c');
@@ -101,7 +101,7 @@ void main() {
   });
 
   group('reset', () {
-    test('clears history and warning state', () {
+    test('reset_clearsHistoryAndWarningState', () {
       detector.record('calc', '{"a": 1}', 'x');
       detector.record('calc', '{"a": 1}', 'y');
       expect(
@@ -113,6 +113,56 @@ void main() {
 
       final result = detector.record('calc', '{"a": 1}', 'v');
       expect(result, isA<LoopOk>());
+    });
+  });
+
+  group('edge cases', () {
+    test('record_exactlyTwoCalls_returnsOk', () {
+      detector.record('calc', '{}', 'a');
+      final result = detector.record('calc', '{}', 'b');
+      expect(result, isA<LoopOk>());
+    });
+
+    test('record_sameToolDifferentArgs_returnsOk', () {
+      detector.record('calc', '{"expression": "1+1"}', '2');
+      detector.record('calc', '{"expression": "3+4"}', '7');
+      final result =
+          detector.record('calc', '{"expression": "5+5"}', '10');
+      expect(result, isA<LoopOk>());
+    });
+
+    test('record_globalActionRepeats_returnsOk', () {
+      detector.record('screen_action', '{"action": "global"}', 'done 1');
+      detector.record('screen_action', '{"action": "global"}', 'done 2');
+      final result =
+          detector.record('screen_action', '{"action": "global"}', 'done 3');
+      expect(result, isA<LoopOk>());
+    });
+
+    test('record_interleavedDifferentTools_returnsOk', () {
+      detector.record('calc', '{}', 'a');
+      detector.record('timer', '{}', 'b');
+      detector.record('calc', '{}', 'c');
+      final result = detector.record('calc', '{}', 'd');
+      expect(result, isA<LoopOk>());
+    });
+
+    test('shouldNudge_atExactly3Iterations_returnsTrue', () {
+      expect(detector.shouldNudge(3, false), true);
+    });
+
+    test('shouldNudge_atHighIterationCount_returnsTrue', () {
+      expect(detector.shouldNudge(10, false), true);
+    });
+
+    test('reset_preservesNoSideEffects', () {
+      detector.record('a', '{}', 'x');
+      detector.record('a', '{}', 'y');
+      detector.record('a', '{}', 'z');
+
+      detector.reset();
+
+      expect(detector.shouldNudge(1, false), false);
     });
   });
 }

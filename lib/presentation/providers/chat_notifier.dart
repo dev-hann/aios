@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:aios/domain/agent/agent_strategy.dart';
+import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
@@ -9,15 +11,18 @@ import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ChatNotifier extends StateNotifier<ChatState> {
-  ChatNotifier(this._llmRepository, this._conversationRepository)
-      : super(const ChatState()) {
+  ChatNotifier(
+    this._llmRepository,
+    this._conversationRepository,
+    this._agent,
+  ) : super(const ChatState()) {
     _listenToStateChanges();
   }
 
   final LlmRepository _llmRepository;
   final ConversationRepository _conversationRepository;
+  final AgentStrategy _agent;
   StreamSubscription<ServiceState>? _stateSub;
-  StreamSubscription<String>? _tokenSub;
 
   static const _tag = 'AIOS-ChatNotifier';
 
@@ -35,6 +40,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    int? agentMaxIterations,
   }) async {
     if (text.trim().isEmpty) return;
 
@@ -45,54 +51,51 @@ class ChatNotifier extends StateNotifier<ChatState> {
       createdAt: DateTime.now(),
     );
 
-    final previousMessages = List<ChatMessage>.from(state.messages);
-
     state = state.copyWith(
       messages: [...state.messages, userMessage],
       isGenerating: true,
       currentResponse: '',
       errorMessage: null,
+      agentSteps: [],
+      isConfirming: false,
     );
 
     await _conversationRepository.appendMessage(userMessage);
 
-    _tokenSub = _llmRepository.tokenStream.listen(
-      (token) {
-        if (!mounted) return;
-        state = state.copyWith(
-          currentResponse: state.currentResponse + token,
-        );
-      },
-      onError: (Object e) {
-        developer.log(
-          'Token stream error',
-          name: _tag,
-          error: e,
-          level: 1000,
-        );
-      },
-    );
-
     try {
-      await _llmRepository.sendMessage(
-        previousMessages,
-        userMessage: text.trim(),
-        temperature: temperature,
-        maxTokens: maxTokens,
-        topK: topK,
-        topP: topP,
-        repeatPenalty: repeatPenalty,
+      final result = await _agent.execute(
+        text.trim(),
+        maxIterations: agentMaxIterations ?? 8,
+        maxTokens: maxTokens ?? 512,
+        onStep: _handleStep,
       );
-
-      await _tokenSub?.cancel();
-      _tokenSub = null;
 
       if (!mounted) return;
 
-      await _finalizeResponse();
+      _agent.clearHistory();
+
+      final answerStep = result.steps.where(
+        (s) => s.type == 'answer',
+      );
+      if (answerStep.isNotEmpty) {
+        final assistantMessage = ChatMessage(
+          id: 'assistant_${DateTime.now().millisecondsSinceEpoch}',
+          role: 'assistant',
+          content: answerStep.last.content,
+          createdAt: DateTime.now(),
+        );
+        state = state.copyWith(
+          messages: [...state.messages, assistantMessage],
+        );
+        await _conversationRepository.appendMessage(assistantMessage);
+      }
+
+      state = state.copyWith(
+        isGenerating: false,
+        agentSteps: [],
+        isConfirming: false,
+      );
     } on Object catch (e) {
-      await _tokenSub?.cancel();
-      _tokenSub = null;
       developer.log(
         'sendMessage failed',
         name: _tag,
@@ -107,36 +110,47 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  Future<void> _finalizeResponse() async {
-    final responseText = state.currentResponse;
-    if (responseText.isNotEmpty) {
+  void _handleStep(AgentStep step) {
+    if (!mounted) return;
+
+    state = state.copyWith(
+      agentSteps: [...state.agentSteps, step],
+      isConfirming:
+          step.type == 'confirmation_required' ? true : state.isConfirming,
+    );
+  }
+
+  void resolveConfirmation(bool approved) {
+    _agent.resolveConfirmation(approved);
+    state = state.copyWith(isConfirming: false);
+  }
+
+  Future<void> stopGeneration() async {
+    _agent.cancel();
+    await _llmRepository.stopGeneration();
+
+    if (!mounted) return;
+
+    final lastStep = state.agentSteps
+        .where((s) => s.type == 'answer')
+        .lastOrNull;
+    if (lastStep != null) {
       final assistantMessage = ChatMessage(
         id: 'assistant_${DateTime.now().millisecondsSinceEpoch}',
         role: 'assistant',
-        content: responseText,
+        content: lastStep.content,
         createdAt: DateTime.now(),
       );
       state = state.copyWith(
         messages: [...state.messages, assistantMessage],
-        currentResponse: '',
-      );
-      await _conversationRepository.appendMessage(assistantMessage);
-    } else {
-      state = state.copyWith(
-        errorMessage: 'No response from model',
       );
     }
-    state = state.copyWith(isGenerating: false);
-  }
 
-  Future<void> stopGeneration() async {
-    await _llmRepository.stopGeneration();
-    await _tokenSub?.cancel();
-    _tokenSub = null;
-
-    if (!mounted) return;
-
-    await _finalizeResponse();
+    state = state.copyWith(
+      isGenerating: false,
+      isConfirming: false,
+      agentSteps: [],
+    );
   }
 
   Future<void> loadConversation() async {
@@ -165,6 +179,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   Future<void> clearChat() async {
+    _agent.clearHistory();
     await _conversationRepository.clear();
     state = const ChatState();
   }
@@ -172,7 +187,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
   @override
   void dispose() {
     _stateSub?.cancel();
-    _tokenSub?.cancel();
     super.dispose();
   }
 }

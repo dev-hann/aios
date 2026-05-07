@@ -14,13 +14,13 @@ void main() {
     });
 
     group('execute_happyPath', () {
-      test('returns screen text from platform', () async {
+      test('execute_returnsScreenTextFromPlatform', () async {
         mockContext.setInvokeResult('Home Screen\nSettings Button');
         final result = await tool.execute('{}', mockContext);
         expect(result, 'Home Screen\nSettings Button');
       });
 
-      test('invokes getScreenText method', () async {
+      test('execute_invokesGetScreenTextMethod', () async {
         mockContext.setInvokeResult('text');
         await tool.execute('{}', mockContext);
         expect(mockContext.methodCalls.length, 1);
@@ -29,13 +29,13 @@ void main() {
     });
 
     group('execute_errorHandling', () {
-      test('null result returns error', () async {
+      test('execute_nullResult_returnsError', () async {
         mockContext.setInvokeResult(null);
         final result = await tool.execute('{}', mockContext);
         expect(result, 'Error: No result');
       });
 
-      test('platform exception returns error string', () async {
+      test('execute_platformException_returnsErrorString', () async {
         mockContext.onInvokeMethod = (_, __) => throw Exception('fail');
         final result = await tool.execute('{}', mockContext);
         expect(result, contains('Error:'));
@@ -43,11 +43,11 @@ void main() {
     });
 
     group('name_andMetadata', () {
-      test('name is screen_reader', () {
+      test('name_returnsScreenReader', () {
         expect(tool.name, 'screen_reader');
       });
 
-      test('description is not empty', () {
+      test('description_isNotEmpty', () {
         expect(tool.description.isNotEmpty, isTrue);
       });
     });
@@ -66,7 +66,7 @@ void main() {
     });
 
     group('execute_happyPath', () {
-      test('find with text invokes findNodesByText', () async {
+      test('execute_findWithText_invokesFindNodesByText', () async {
         await tool.execute('{"text": "Settings"}', mockContext);
         expect(mockContext.methodCalls.last.method, 'findNodesByText');
         expect(
@@ -75,7 +75,7 @@ void main() {
         );
       });
 
-      test('null result returns no elements found', () async {
+      test('execute_nullResult_returnsNoElementsFound', () async {
         mockContext.setInvokeResult(null);
         final result =
             await tool.execute('{"text": "test"}', mockContext);
@@ -84,22 +84,22 @@ void main() {
     });
 
     group('execute_errorHandling', () {
-      test('missing text parameter returns error', () async {
+      test('execute_missingText_returnsError', () async {
         final result = await tool.execute('{}', mockContext);
-        expect(result, contains("'text' parameter required"));
+        expect(result, contains("'text' required"));
       });
 
-      test('empty text returns error', () async {
+      test('execute_emptyText_returnsError', () async {
         final result = await tool.execute('{"text": ""}', mockContext);
-        expect(result, contains("'text' parameter required"));
+        expect(result, contains("'text' required"));
       });
 
-      test('malformed JSON returns error', () async {
+      test('execute_malformedJson_returnsError', () async {
         final result = await tool.execute('not json', mockContext);
         expect(result, contains('Error:'));
       });
 
-      test('platform exception returns error string', () async {
+      test('execute_platformException_returnsErrorString', () async {
         mockContext.onInvokeMethod = (_, __) => throw Exception('fail');
         final result =
             await tool.execute('{"text": "test"}', mockContext);
@@ -108,11 +108,11 @@ void main() {
     });
 
     group('name_andMetadata', () {
-      test('name is screen_find', () {
+      test('name_returnsScreenFind', () {
         expect(tool.name, 'screen_find');
       });
 
-      test('description is not empty', () {
+      test('description_isNotEmpty', () {
         expect(tool.description.isNotEmpty, isTrue);
       });
     });

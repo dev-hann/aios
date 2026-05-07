@@ -1,3 +1,4 @@
+import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -13,6 +14,8 @@ class ChatState with _$ChatState {
     @Default(false) bool isGenerating,
     @Default(ServiceState.idle) ServiceState serviceState,
     String? errorMessage,
+    @Default([]) List<AgentStep> agentSteps,
+    @Default(false) bool isConfirming,
   }) = _ChatState;
 
   factory ChatState.fromJson(Map<String, dynamic> json) =>

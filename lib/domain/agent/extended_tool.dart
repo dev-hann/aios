@@ -6,4 +6,7 @@ abstract class ExtendedTool {
   String get parameters;
 
   Future<String> execute(String args, ToolContext toolContext);
+
+  Future<String?> validate(String args, ToolContext toolContext) async =>
+      null;
 }

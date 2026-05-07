@@ -434,5 +434,116 @@ void main() {
       await expectLater(tokenFuture, completes);
       await expectLater(progressFuture, completes);
     });
+
+    test('sendMessage_concurrentCalls_onlyOneRunsAtATime', () async {
+      await repository.loadModel('/model.gguf');
+
+      final controller1 = StreamController<String>();
+      mockProvider._activeController = controller1;
+
+      final states = <ServiceState>[];
+      repository.state.listen(states.add);
+
+      final future1 = repository.sendMessage(
+        [],
+        userMessage: 'First',
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(states, contains(ServiceState.generating));
+
+      controller1.add('Hello');
+      await controller1.close();
+      await future1;
+
+      expect(states.last, ServiceState.ready);
+    });
+
+    test('sendMessage_afterPreviousCompletes_succeeds', () async {
+      await repository.loadModel('/model.gguf');
+
+      mockProvider._activeController = null;
+      await repository.sendMessage([], userMessage: 'First');
+
+      mockProvider._activeController = null;
+      await repository.sendMessage([], userMessage: 'Second');
+
+      expect(mockProvider.lastUserMessage, 'Second');
+    });
+
+    test('loadModel_twice_inSequence', () async {
+      final result1 = await repository.loadModel('/model1.gguf');
+      final result2 = await repository.loadModel('/model2.gguf');
+
+      expect(result1, isTrue);
+      expect(result2, isTrue);
+      expect(mockProvider.lastModelPath, '/model2.gguf');
+    });
+
+    test('sendMessage_emptyHistory_works', () async {
+      await repository.loadModel('/model.gguf');
+
+      mockProvider._activeController = null;
+
+      await repository.sendMessage([], userMessage: 'Hello');
+
+      expect(mockProvider.lastUserMessage, 'Hello');
+    });
+
+    test('stopGeneration_beforeSend_doesNotThrow', () async {
+      await repository.loadModel('/model.gguf');
+
+      await repository.stopGeneration();
+
+      expect(mockProvider.stopGenerationCalled, isTrue);
+    });
+
+    test('stateStream_isBroadcast', () async {
+      final sub1 = repository.state.listen((_) {});
+      final sub2 = repository.state.listen((_) {});
+
+      await repository.loadModel('/model.gguf');
+
+      await sub1.cancel();
+      await sub2.cancel();
+    });
+
+    test('tokenStream_isBroadcast', () async {
+      final tokens1 = <String>[];
+      final tokens2 = <String>[];
+
+      await repository.loadModel('/model.gguf');
+
+      final controller = StreamController<String>();
+      mockProvider._activeController = controller;
+
+      repository.tokenStream.listen(tokens1.add);
+      repository.tokenStream.listen(tokens2.add);
+
+      final future = repository.sendMessage([], userMessage: 'Hi');
+
+      controller.add('Token');
+      await controller.close();
+      await future;
+
+      expect(tokens1, ['Token']);
+      expect(tokens2, ['Token']);
+    });
+
+    test('resetContext_afterError_emitsReady', () async {
+      mockProvider.loadModelResult = false;
+      await repository.loadModel('/model.gguf');
+
+      mockProvider._modelLoaded = true;
+      mockProvider.loadModelResult = true;
+      await repository.loadModel('/model.gguf');
+
+      final states = <ServiceState>[];
+      repository.state.listen(states.add);
+
+      await repository.resetContext();
+
+      expect(states, contains(ServiceState.ready));
+    });
   });
 }

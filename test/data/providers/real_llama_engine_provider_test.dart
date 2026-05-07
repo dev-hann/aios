@@ -5,7 +5,7 @@ import 'package:llama_cpp_dart/llama_cpp_dart.dart' hide ChatMessage;
 
 void main() {
   group('classifyTemplateByName', () {
-    test('detects gemma from filename', () {
+    test('classifyTemplateByName_gemmaFilename_returnsGemma', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/data/models/gemma-2b-it-Q4_K_M.gguf',
@@ -14,7 +14,7 @@ void main() {
       );
     });
 
-    test('detects gemma case insensitively', () {
+    test('classifyTemplateByName_gemmaCaseInsensitive_returnsGemma', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/Gemma-3-4B-it.gguf',
@@ -23,7 +23,7 @@ void main() {
       );
     });
 
-    test('detects llama3 from filename with hyphen', () {
+    test('classifyTemplateByName_llama3WithHyphen_returnsLlama3', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/llama-3.1-8B-Instruct-Q4.gguf',
@@ -32,7 +32,7 @@ void main() {
       );
     });
 
-    test('detects llama3 from filename without hyphen', () {
+    test('classifyTemplateByName_llama3WithoutHyphen_returnsLlama3', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/llama3-8B-Instruct.gguf',
@@ -41,7 +41,7 @@ void main() {
       );
     });
 
-    test('does not match llama2 as llama3', () {
+    test('classifyTemplateByName_llama2_returnsNull', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/llama-2-7b-chat.gguf',
@@ -50,7 +50,7 @@ void main() {
       );
     });
 
-    test('detects mistral from filename', () {
+    test('classifyTemplateByName_mistralFilename_returnsMistral', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/mistral-7b-instruct-v0.3.gguf',
@@ -59,7 +59,7 @@ void main() {
       );
     });
 
-    test('detects phi3 from filename with hyphen', () {
+    test('classifyTemplateByName_phi3WithHyphen_returnsPhi3', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/phi-3-mini-4k-instruct.gguf',
@@ -68,7 +68,7 @@ void main() {
       );
     });
 
-    test('detects phi3 from filename without hyphen', () {
+    test('classifyTemplateByName_phi3WithoutHyphen_returnsPhi3', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/phi3-mini.gguf',
@@ -77,7 +77,7 @@ void main() {
       );
     });
 
-    test('detects qwen as chatml', () {
+    test('classifyTemplateByName_qwenFilename_returnsChatml', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/qwen2.5-7b-instruct.gguf',
@@ -86,7 +86,7 @@ void main() {
       );
     });
 
-    test('detects deepseek from filename', () {
+    test('classifyTemplateByName_deepseekFilename_returnsDeepseek', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/deepseek-r1-7b.gguf',
@@ -95,7 +95,7 @@ void main() {
       );
     });
 
-    test('detects command-r from filename', () {
+    test('classifyTemplateByName_commandRFilename_returnsCommandR', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/command-r-v01.gguf',
@@ -104,7 +104,7 @@ void main() {
       );
     });
 
-    test('detects vicuna from filename', () {
+    test('classifyTemplateByName_vicunaFilename_returnsVicuna', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/vicuna-7b-v1.5.gguf',
@@ -113,7 +113,7 @@ void main() {
       );
     });
 
-    test('detects falcon from filename', () {
+    test('classifyTemplateByName_falconFilename_returnsFalcon3', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/falcon3-7b-instruct.gguf',
@@ -122,7 +122,7 @@ void main() {
       );
     });
 
-    test('returns null for unknown model', () {
+    test('classifyTemplateByName_unknownModel_returnsNull', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/models/unknown-model.gguf',
@@ -131,16 +131,14 @@ void main() {
       );
     });
 
-    test('returns null for empty path', () {
+    test('classifyTemplateByName_emptyPath_returnsNull', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(''),
         isNull,
       );
     });
 
-    test(
-        'classifies unsloth gemma variant via filename '
-        'when gguf template lacks magic substring', () {
+    test('classifyTemplateByName_unslothGemmaVariant_returnsGemma', () {
       expect(
         RealLlamaEngineProvider.classifyTemplateByName(
           '/data/models/gemma-4-E2B-it-Q8_0.gguf',
@@ -151,7 +149,7 @@ void main() {
   });
 
   group('isGemma4Model', () {
-    test('detects gemma-4 with hyphen', () {
+    test('isGemma4Model_gemma4WithHyphen_returnsTrue', () {
       expect(
         RealLlamaEngineProvider.isGemma4Model(
           '/models/gemma-4-E2B-it-Q8_0.gguf',
@@ -160,7 +158,7 @@ void main() {
       );
     });
 
-    test('detects gemma4 without hyphen', () {
+    test('isGemma4Model_gemma4WithoutHyphen_returnsTrue', () {
       expect(
         RealLlamaEngineProvider.isGemma4Model(
           '/models/gemma4-9b-it.gguf',
@@ -169,7 +167,7 @@ void main() {
       );
     });
 
-    test('detects case insensitively', () {
+    test('isGemma4Model_caseInsensitive_returnsTrue', () {
       expect(
         RealLlamaEngineProvider.isGemma4Model(
           '/models/Gemma-4-IT.gguf',
@@ -178,7 +176,7 @@ void main() {
       );
     });
 
-    test('returns false for gemma 2', () {
+    test('isGemma4Model_gemma2_returnsFalse', () {
       expect(
         RealLlamaEngineProvider.isGemma4Model(
           '/models/gemma-2b-it.gguf',
@@ -187,7 +185,7 @@ void main() {
       );
     });
 
-    test('returns false for gemma 3', () {
+    test('isGemma4Model_gemma3_returnsFalse', () {
       expect(
         RealLlamaEngineProvider.isGemma4Model(
           '/models/gemma-3-4b-it.gguf',
@@ -196,7 +194,7 @@ void main() {
       );
     });
 
-    test('returns false for non-gemma', () {
+    test('isGemma4Model_nonGemma_returnsFalse', () {
       expect(
         RealLlamaEngineProvider.isGemma4Model(
           '/models/llama-3-8b.gguf',
@@ -207,7 +205,7 @@ void main() {
   });
 
   group('renderGemma4Prompt', () {
-    test('renders single user message', () {
+    test('renderGemma4Prompt_singleUserMessage_rendersCorrectly', () {
       final result = RealLlamaEngineProvider.renderGemma4Prompt(
         [],
         'how are you?',
@@ -217,7 +215,8 @@ void main() {
       expect(result, contains('<|turn>model'));
     });
 
-    test('renders history with user and assistant', () {
+    test('renderGemma4Prompt_historyWithUserAndAssistant_rendersCorrectly',
+        () {
       final history = [
         ChatMessage(
           id: '1',
@@ -241,7 +240,7 @@ void main() {
       expect(result, contains('how are you?<turn|>'));
     });
 
-    test('ends with assistant start marker', () {
+    test('renderGemma4Prompt_endsWithAssistantStartMarker', () {
       final result = RealLlamaEngineProvider.renderGemma4Prompt(
         [],
         'test',
@@ -249,7 +248,7 @@ void main() {
       expect(result.endsWith('<|turn>model\n'), isTrue);
     });
 
-    test('renders system message', () {
+    test('renderGemma4Prompt_systemMessage_rendersCorrectly', () {
       final history = [
         ChatMessage(
           id: '1',
@@ -265,7 +264,7 @@ void main() {
       expect(result, contains('<|turn>system\nYou are helpful.<turn|>'));
     });
 
-    test('maps assistant role to model', () {
+    test('renderGemma4Prompt_assistantRole_mapsToModel', () {
       final history = [
         ChatMessage(
           id: '1',

@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 
-class ScreenActionTool implements ExtendedTool {
+class ScreenActionTool extends ExtendedTool {
+  static const _tag = 'AIOS-ScreenAction';
+
   @override
   String get name => 'screen_action';
 
@@ -30,6 +33,10 @@ class ScreenActionTool implements ExtendedTool {
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
+      if (!await toolContext.isAccessibilityEnabled()) {
+        return 'Error: Accessibility service not enabled';
+      }
+
       final json = _tryParseJson(args);
       final action = json['action']?.toString().toLowerCase() ?? '';
 
@@ -66,7 +73,7 @@ class ScreenActionTool implements ExtendedTool {
           }) ??
           'Error';
     }
-    return "Error: Provide 'text' or 'x'/'y' for tap action";
+    return "Error: 'text' required";
   }
 
   Future<String> _handleLongClick(
@@ -74,7 +81,7 @@ class ScreenActionTool implements ExtendedTool {
     ToolContext toolContext,
   ) async {
     final text = json['text']?.toString() ?? '';
-    if (text.isEmpty) return "Error: 'text' required for long_click";
+    if (text.isEmpty) return "Error: 'text' required";
     return await toolContext.invokeMethod(
           'longClickByText',
           {'text': text},
@@ -87,7 +94,7 @@ class ScreenActionTool implements ExtendedTool {
     ToolContext toolContext,
   ) async {
     final content = json['content']?.toString() ?? '';
-    if (content.isEmpty) return "Error: 'content' required for type action";
+    if (content.isEmpty) return "Error: 'content' required";
     final target = json['target']?.toString() ?? '';
     return await toolContext.invokeMethod('typeText', {
           'content': content,
@@ -128,8 +135,7 @@ class ScreenActionTool implements ExtendedTool {
   ) async {
     final action = json['global_action']?.toString() ?? '';
     if (action.isEmpty) {
-      return "Error: 'global_action' required "
-          '(back, home, recents, notifications, quick_settings)';
+      return "Error: 'global_action' required";
     }
     return await toolContext.invokeMethod(
           'performGlobalAction',
@@ -146,8 +152,20 @@ class ScreenActionTool implements ExtendedTool {
 
   Map<String, dynamic> _tryParseJson(String args) {
     try {
-      return json.decode(args) as Map<String, dynamic>;
-    } on Object {
+      final decoded = json.decode(args);
+      if (decoded is Map<String, dynamic>) return decoded;
+      developer.log(
+        'Invalid JSON type: ${decoded.runtimeType}',
+        name: _tag,
+        level: 900,
+      );
+      return {};
+    } on Object catch (e) {
+      developer.log(
+        'JSON parse error: $e',
+        name: _tag,
+        level: 900,
+      );
       return {};
     }
   }

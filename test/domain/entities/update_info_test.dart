@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('UpdateStatus', () {
-    test('should have all expected states', () {
+    test('values_containsAllExpectedStatuses', () {
       const statuses = UpdateStatus.values;
 
       expect(statuses, contains(UpdateStatus.idle));
@@ -22,7 +22,7 @@ void main() {
   group('UpdateInfo', () {
     final fixedDate = DateTime(2026, 3, 1, 12, 0, 0);
 
-    test('should create with all fields', () {
+    test('constructor_withAllFields_createsSuccessfully', () {
       final info = UpdateInfo(
         currentVersion: '2.0.0',
         latestVersion: '2.1.0',
@@ -40,7 +40,7 @@ void main() {
       expect(info.publishedAt, fixedDate);
     });
 
-    test('should serialize to json', () {
+    test('toJson_returnsCorrectMap', () {
       final info = UpdateInfo(
         currentVersion: '2.0.0',
         latestVersion: '2.1.0',
@@ -61,7 +61,7 @@ void main() {
   });
 
   group('UpdateResult', () {
-    test('should create UpdateResult.success', () {
+    test('updateResult_success_returnsSuccess', () {
       final info = UpdateInfo(
         currentVersion: '2.0.0',
         latestVersion: '2.1.0',
@@ -82,7 +82,7 @@ void main() {
       );
     });
 
-    test('should create UpdateResult.notAvailable', () {
+    test('updateResult_notAvailable_returnsNotAvailable', () {
       const result = UpdateResult.notAvailable();
 
       result.when(
@@ -92,7 +92,7 @@ void main() {
       );
     });
 
-    test('should create UpdateResult.error', () {
+    test('updateResult_error_returnsError', () {
       const result = UpdateResult.error('Network error');
 
       result.when(
@@ -104,7 +104,7 @@ void main() {
       );
     });
 
-    test('should handle equality for UpdateResult variants', () {
+    test('updateResult_equality_sameVariant_areEqual', () {
       const a = UpdateResult.notAvailable();
       const b = UpdateResult.notAvailable();
 
