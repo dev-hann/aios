@@ -29,9 +29,13 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           _ModelSection(state: state),
           const _SectionDivider(),
+          _ThemeSection(state: state),
+          const _SectionDivider(),
           _InferenceSection(state: state),
           const _SectionDivider(),
           _AgentSection(state: state),
+          const _SectionDivider(),
+          const _PermissionSection(),
           const _SectionDivider(),
           _AppInfoSection(),
           const _SectionDivider(),
@@ -626,6 +630,175 @@ class _SliderTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ThemeSection extends ConsumerWidget {
+  const _ThemeSection({required this.state});
+
+  final SettingsState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _SectionCard(
+      title: 'Appearance',
+      icon: Icons.palette,
+      child: Column(
+        children: [
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Theme'),
+            trailing: SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+                ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                ButtonSegment(value: ThemeMode.system, label: Text('Auto')),
+              ],
+              selected: {state.themeMode},
+              onSelectionChanged: (modes) {
+                ref
+                    .read(settingsProvider.notifier)
+                    .updateThemeMode(modes.first);
+              },
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                textStyle: WidgetStateProperty.all(
+                  const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PermissionSection extends StatefulWidget {
+  const _PermissionSection();
+
+  @override
+  State<_PermissionSection> createState() => _PermissionSectionState();
+}
+
+class _PermissionSectionState extends State<_PermissionSection> {
+  final Map<String, bool> _statuses = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    final results = <String, bool>{};
+    results['storage'] =
+        await Permission.manageExternalStorage.status.isGranted;
+    results['notifications'] = await Permission.notification.status.isGranted;
+    results['contacts'] = await Permission.contacts.status.isGranted;
+    results['phone'] = await Permission.phone.status.isGranted;
+    results['sms'] = await Permission.sms.status.isGranted;
+    if (mounted) setState(() => _statuses.addAll(results));
+  }
+
+  Future<void> _requestPermission(String key, Permission permission) async {
+    await permission.request();
+    await _checkPermissions();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Permissions',
+      icon: Icons.security,
+      child: Column(
+        children: [
+          _PermissionTile(
+            icon: Icons.folder,
+            title: 'Storage',
+            granted: _statuses['storage'] ?? false,
+            onRequest: () => _requestPermission(
+              'storage',
+              Permission.manageExternalStorage,
+            ),
+          ),
+          _PermissionTile(
+            icon: Icons.notifications,
+            title: 'Notifications',
+            granted: _statuses['notifications'] ?? false,
+            onRequest: () => _requestPermission(
+              'notifications',
+              Permission.notification,
+            ),
+          ),
+          _PermissionTile(
+            icon: Icons.contacts,
+            title: 'Contacts',
+            granted: _statuses['contacts'] ?? false,
+            onRequest: () => _requestPermission(
+              'contacts',
+              Permission.contacts,
+            ),
+          ),
+          _PermissionTile(
+            icon: Icons.phone,
+            title: 'Phone',
+            granted: _statuses['phone'] ?? false,
+            onRequest: () => _requestPermission(
+              'phone',
+              Permission.phone,
+            ),
+          ),
+          _PermissionTile(
+            icon: Icons.sms,
+            title: 'SMS',
+            granted: _statuses['sms'] ?? false,
+            onRequest: () => _requestPermission(
+              'sms',
+              Permission.sms,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PermissionTile extends StatelessWidget {
+  const _PermissionTile({
+    required this.icon,
+    required this.title,
+    required this.granted,
+    required this.onRequest,
+  });
+
+  final IconData icon;
+  final String title;
+  final bool granted;
+  final VoidCallback onRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        icon,
+        color: granted ? AppColors.success : AppColors.textSecondary,
+        size: 20,
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 13),
+      ),
+      trailing: granted
+          ? const Icon(Icons.check_circle, color: AppColors.success, size: 18)
+          : TextButton(
+              onPressed: onRequest,
+              child: const Text('Grant'),
+            ),
     );
   }
 }

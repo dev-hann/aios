@@ -25,6 +25,8 @@ class _MockSettingsRepository implements SettingsRepository {
   double _repeatPenalty = SettingsRepository.defaultRepeatPenalty;
   int _agentMaxIterations = SettingsRepository.defaultAgentMaxIterations;
   String? _lastModelPath;
+  String _themeMode = 'dark';
+  bool _onboardingCompleted = false;
 
   @override
   double get temperature => _temperature;
@@ -42,6 +44,10 @@ class _MockSettingsRepository implements SettingsRepository {
   int get agentMaxIterations => _agentMaxIterations;
   @override
   String? get lastModelPath => _lastModelPath;
+  @override
+  String get themeMode => _themeMode;
+  @override
+  bool get onboardingCompleted => _onboardingCompleted;
 
   @override
   Future<void> setTemperature(double value) async => _temperature = value;
@@ -62,6 +68,11 @@ class _MockSettingsRepository implements SettingsRepository {
   Future<void> setLastModelPath(String path) async => _lastModelPath = path;
   @override
   Future<void> clearLastModelPath() async => _lastModelPath = null;
+  @override
+  Future<void> setThemeMode(String mode) async => _themeMode = mode;
+  @override
+  Future<void> setOnboardingCompleted() async =>
+      _onboardingCompleted = true;
 }
 
 class _MockLlmRepository implements LlmRepository {
@@ -255,6 +266,30 @@ void main() {
 
       expect(find.text('Scan'), findsOneWidget);
       expect(find.text('Import'), findsOneWidget);
+    });
+
+    testWidgets('shows_appearance_section', (tester) async {
+      await tester.pumpWidget(_createTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Appearance'), findsOneWidget);
+      expect(find.text('Theme'), findsOneWidget);
+    });
+
+    testWidgets('shows_permissions_section', (tester) async {
+      await tester.pumpWidget(_createTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Permissions'),
+        200,
+        scrollable: find.byType(Scrollable),
+      );
+
+      expect(find.text('Permissions'), findsOneWidget);
+      expect(find.text('Storage'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Contacts'), findsOneWidget);
     });
   });
 

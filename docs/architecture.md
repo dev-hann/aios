@@ -46,7 +46,7 @@ AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llama_cpp
 |--------------|------|------|
 | `entities/` | 불변 데이터 모델 (freezed) | `chat_message.dart`, `agent_models.dart`, `model_info.dart` |
 | `repositories/` | Repository 인터페이스 (abstract class) | `llm_repository.dart`, `settings_repository.dart` |
-| `agent/` | 에이전트 전략, 파서, 위험 분류 | `react_strategy.dart`, `response_parser.dart`, `risk_classifier.dart`, `conversation_context.dart`, `tool_preference_tracker.dart`, `error_recovery.dart` |
+| `agent/` | 에이전트 전략, 파서, 위험 분류 | `react_strategy.dart`, `response_parser.dart`, `risk_classifier.dart`, `conversation_context.dart`, `tool_preference_tracker.dart`, `error_recovery.dart`, `user_message_mapper.dart` |
 
 **규칙**: Domain은 Data, Presentation, 외부 패키지를 import하지 않음.
 
@@ -69,8 +69,8 @@ UI와 상태 관리. Riverpod으로 Domain/Data 계층 사용.
 
 | 하위 디렉토리 | 역할 | 파일 |
 |--------------|------|------|
-| `screens/` | 화면 단위 Widget | `chat_screen.dart`, `settings_screen.dart`, `update_screen.dart` |
-| `widgets/` | 재사용 UI 컴포넌트 | `message_bubble.dart`, `input_bar.dart`, `status_bar.dart` |
+| `screens/` | 화면 단위 Widget | `chat_screen.dart`, `settings_screen.dart`, `update_screen.dart`, `onboarding_screen.dart` |
+| `widgets/` | 재사용 UI 컴포넌트 | `message_bubble.dart`, `input_bar.dart`, `status_bar.dart`, `loading_indicator.dart` |
 | `providers/` | Riverpod Provider + StateNotifier | `chat_notifier.dart`, `agent_provider.dart`, `settings_notifier.dart` |
 
 **규칙**: Presentation은 Domain 인터페이스를 통해서만 Data에 접근. 직접 DataSource 참조 금지.
@@ -100,7 +100,7 @@ UI와 상태 관리. Riverpod으로 Domain/Data 계층 사용.
 | 하위 디렉토리 | 역할 |
 |--------------|------|
 | `router/` | GoRouter 화면 라우팅 |
-| `theme/` | `AppColors` 색상 상수, `aiosTheme` ThemeData |
+| `theme/` | `AppColors`/`LightColors` 색상 상수, `aiosDarkTheme`/`aiosLightTheme` ThemeData, 테마 모드 전환 |
 
 ## Data Flow
 
@@ -235,6 +235,49 @@ idle → loadingModel → ready ↔ generating → ready
 - **UI 업데이트**: Main Isolate (기본값, 별도 처리 불필요)
 - **에이전트 실행**: LlmEngine Isolate에서 실행, Stream으로 UI에 전달
 - **취소**: 취소 플래그 + StreamController.close() 조합
+
+## UX Polish
+
+### Onboarding
+
+첫 실행 시 설정 가이드 표시 (4페이지):
+1. Welcome - 앱 소개 및 핵심 기능 안내
+2. Model Setup - GGUF 모델 가져오기 안내
+3. Permissions - 필요 권한 안내
+4. Ready - 설정 완료
+
+```
+ChatScreen.initState()
+  → _checkOnboarding()
+    → settings.onboardingCompleted == false
+      → context.go('/onboarding')
+        → OnboardingScreen (PageView)
+          → complete() → settings.setOnboardingCompleted()
+            → context.go('/')
+```
+
+### User-Friendly Error Messages
+
+```
+UserMessageMapper.map(technicalError)
+  → 키워드 매칭으로 사용자 친화적 메시지 반환
+  → 모델 오류, 권한, 네트워크, 타임아웃, SMS, 전화, 앱 미설치 등
+```
+
+### Light/Dark Theme
+
+```
+SettingsState.themeMode (ThemeMode)
+  → SettingsRepository에 'light'/'dark'/'system' 문자열로 저장
+  → AIOSApp.build()에서 aiosThemeOf(mode)로 테마 선택
+  → SettingsScreen에 Appearance 섹션에서 SegmentedButton으로 전환
+```
+
+### Permission Management
+
+SettingsScreen의 Permissions 섹션에서 각 권한 상태 표시:
+- Storage, Notifications, Contacts, Phone, SMS
+- 권한 부여 상태를 아이콘으로 표시 (check_circle / Grant 버튼)
 
 ## Key Design Decisions
 

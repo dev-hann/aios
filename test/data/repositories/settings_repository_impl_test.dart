@@ -99,5 +99,33 @@ void main() {
       await repository.clearLastModelPath();
       expect(repository.lastModelPath, isNull);
     });
+
+    test('themeMode_defaultIsDark', () {
+      expect(repository.themeMode, 'dark');
+    });
+
+    test('setThemeMode_persistsValue', () async {
+      await repository.setThemeMode('light');
+
+      expect(repository.themeMode, 'light');
+
+      final repo2 = SettingsRepositoryImpl();
+      await repo2.init();
+      expect(repo2.themeMode, 'light');
+    });
+
+    test('onboardingCompleted_defaultIsFalse', () {
+      expect(repository.onboardingCompleted, isFalse);
+    });
+
+    test('setOnboardingCompleted_persistsValue', () async {
+      await repository.setOnboardingCompleted();
+
+      expect(repository.onboardingCompleted, isTrue);
+
+      final repo2 = SettingsRepositoryImpl();
+      await repo2.init();
+      expect(repo2.onboardingCompleted, isTrue);
+    });
   });
 }

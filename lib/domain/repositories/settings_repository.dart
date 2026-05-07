@@ -17,6 +17,10 @@ abstract class SettingsRepository {
   Future<void> setAgentMaxIterations(int value);
   Future<void> setLastModelPath(String path);
   Future<void> clearLastModelPath();
+  String get themeMode;
+  Future<void> setThemeMode(String mode);
+  bool get onboardingCompleted;
+  Future<void> setOnboardingCompleted();
 
   static const int defaultContextSize = 2048;
   static const int defaultMaxTokens = 512;

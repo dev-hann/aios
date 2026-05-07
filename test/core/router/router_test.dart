@@ -17,8 +17,8 @@ void main() {
       container.dispose();
     });
 
-    test('routerProvider_hasExactlyThreeRoutes', () {
-      expect(router.configuration.routes.length, 3);
+    test('routerProvider_hasExactlyFourRoutes', () {
+      expect(router.configuration.routes.length, 4);
     });
 
     test('routerProvider_hasChatRoute', () {
@@ -52,6 +52,18 @@ void main() {
       final routes = router.configuration.routes.whereType<GoRoute>();
       final updateRoute = routes.firstWhere((r) => r.path == '/update');
       expect(updateRoute.builder, isNotNull);
+    });
+
+    test('routerProvider_hasOnboardingRoute', () {
+      final routes = router.configuration.routes.whereType<GoRoute>();
+      expect(routes.any((r) => r.path == '/onboarding'), isTrue);
+    });
+
+    test('onboardingRoute_hasBuilder', () {
+      final routes = router.configuration.routes.whereType<GoRoute>();
+      final onboardingRoute =
+          routes.firstWhere((r) => r.path == '/onboarding');
+      expect(onboardingRoute.builder, isNotNull);
     });
   });
 }

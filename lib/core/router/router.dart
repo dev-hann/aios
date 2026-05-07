@@ -1,4 +1,5 @@
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
+import 'package:aios/presentation/screens/onboarding/onboarding_screen.dart';
 import 'package:aios/presentation/screens/settings/settings_screen.dart';
 import 'package:aios/presentation/screens/update/update_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/update',
         builder: (_, __) => const UpdateScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, __) => const OnboardingScreen(),
       ),
     ],
   );

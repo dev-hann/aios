@@ -140,6 +140,12 @@ class _MockSettingsRepository implements SettingsRepository {
   String? get lastModelPath => null;
 
   @override
+  String get themeMode => 'dark';
+
+  @override
+  bool get onboardingCompleted => true;
+
+  @override
   Future<void> setContextSize(int value) async {}
 
   @override
@@ -165,6 +171,12 @@ class _MockSettingsRepository implements SettingsRepository {
 
   @override
   Future<void> clearLastModelPath() async {}
+
+  @override
+  Future<void> setThemeMode(String mode) async {}
+
+  @override
+  Future<void> setOnboardingCompleted() async {}
 }
 
 class _MockModelRepository implements ModelRepository {

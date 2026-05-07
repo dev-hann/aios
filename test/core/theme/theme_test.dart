@@ -62,41 +62,115 @@ void main() {
     });
   });
 
-  group('aiosTheme', () {
-    test('aiosTheme_usesDarkBrightness', () {
-      expect(aiosTheme.brightness, Brightness.dark);
+  group('LightColors', () {
+    test('lightColors_background_hasCorrectValue', () {
+      expect(LightColors.background, const Color(0xFFF7F7F8));
     });
 
-    test('aiosTheme_scaffoldBackground_isDarkBackground', () {
-      expect(aiosTheme.scaffoldBackgroundColor, AppColors.background);
+    test('lightColors_surface_hasCorrectValue', () {
+      expect(LightColors.surface, const Color(0xFFFFFFFF));
     });
 
-    test('aiosTheme_colorSchemePrimary_matchesAppColors', () {
-      expect(aiosTheme.colorScheme.primary, AppColors.primary);
+    test('lightColors_primary_hasCorrectValue', () {
+      expect(LightColors.primary, const Color(0xFF7C3AED));
     });
 
-    test('aiosTheme_colorSchemeSecondary_matchesAppColors', () {
-      expect(aiosTheme.colorScheme.secondary, AppColors.secondary);
+    test('lightColors_textPrimary_hasCorrectValue', () {
+      expect(LightColors.textPrimary, const Color(0xFF18181B));
     });
 
-    test('aiosTheme_colorSchemeSurface_matchesAppColors', () {
-      expect(aiosTheme.colorScheme.surface, AppColors.surface);
+    test('lightColors_error_hasCorrectValue', () {
+      expect(LightColors.error, const Color(0xFFDC2626));
+    });
+  });
+
+  group('aiosDarkTheme', () {
+    test('aiosDarkTheme_usesDarkBrightness', () {
+      expect(aiosDarkTheme.brightness, Brightness.dark);
     });
 
-    test('aiosTheme_colorSchemeError_matchesAppColors', () {
-      expect(aiosTheme.colorScheme.error, AppColors.error);
+    test('aiosDarkTheme_scaffoldBackground_isDarkBackground', () {
+      expect(aiosDarkTheme.scaffoldBackgroundColor, AppColors.background);
     });
 
-    test('aiosTheme_appBarBackground_isSurface', () {
-      expect(aiosTheme.appBarTheme.backgroundColor, AppColors.surface);
+    test('aiosDarkTheme_colorSchemePrimary_matchesAppColors', () {
+      expect(aiosDarkTheme.colorScheme.primary, AppColors.primary);
     });
 
-    test('aiosTheme_appBarForeground_isTextPrimary', () {
-      expect(aiosTheme.appBarTheme.foregroundColor, AppColors.textPrimary);
+    test('aiosDarkTheme_colorSchemeSecondary_matchesAppColors', () {
+      expect(aiosDarkTheme.colorScheme.secondary, AppColors.secondary);
     });
 
-    test('aiosTheme_cardThemeColor_isSurface', () {
-      expect(aiosTheme.cardTheme.color, AppColors.surface);
+    test('aiosDarkTheme_colorSchemeSurface_matchesAppColors', () {
+      expect(aiosDarkTheme.colorScheme.surface, AppColors.surface);
+    });
+
+    test('aiosDarkTheme_colorSchemeError_matchesAppColors', () {
+      expect(aiosDarkTheme.colorScheme.error, AppColors.error);
+    });
+
+    test('aiosDarkTheme_appBarBackground_isSurface', () {
+      expect(
+        aiosDarkTheme.appBarTheme.backgroundColor,
+        AppColors.surface,
+      );
+    });
+
+    test('aiosDarkTheme_appBarForeground_isTextPrimary', () {
+      expect(
+        aiosDarkTheme.appBarTheme.foregroundColor,
+        AppColors.textPrimary,
+      );
+    });
+
+    test('aiosDarkTheme_cardThemeColor_isSurface', () {
+      expect(aiosDarkTheme.cardTheme.color, AppColors.surface);
+    });
+  });
+
+  group('aiosLightTheme', () {
+    test('aiosLightTheme_usesLightBrightness', () {
+      expect(aiosLightTheme.brightness, Brightness.light);
+    });
+
+    test('aiosLightTheme_scaffoldBackground_isLightBackground', () {
+      expect(
+        aiosLightTheme.scaffoldBackgroundColor,
+        LightColors.background,
+      );
+    });
+
+    test('aiosLightTheme_colorSchemePrimary_matchesLightColors', () {
+      expect(aiosLightTheme.colorScheme.primary, LightColors.primary);
+    });
+
+    test('aiosLightTheme_colorSchemeSecondary_matchesLightColors', () {
+      expect(aiosLightTheme.colorScheme.secondary, LightColors.secondary);
+    });
+
+    test('aiosLightTheme_colorSchemeSurface_matchesLightColors', () {
+      expect(aiosLightTheme.colorScheme.surface, LightColors.surface);
+    });
+
+    test('aiosLightTheme_colorSchemeError_matchesLightColors', () {
+      expect(aiosLightTheme.colorScheme.error, LightColors.error);
+    });
+  });
+
+  group('aiosThemeOf', () {
+    test('aiosThemeOf_light_returnsLightTheme', () {
+      final theme = aiosThemeOf(ThemeMode.light);
+      expect(theme.brightness, Brightness.light);
+    });
+
+    test('aiosThemeOf_dark_returnsDarkTheme', () {
+      final theme = aiosThemeOf(ThemeMode.dark);
+      expect(theme.brightness, Brightness.dark);
+    });
+
+    test('aiosThemeOf_system_returnsDarkTheme', () {
+      final theme = aiosThemeOf(ThemeMode.system);
+      expect(theme.brightness, Brightness.dark);
     });
   });
 

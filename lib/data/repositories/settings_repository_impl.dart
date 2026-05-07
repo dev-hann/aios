@@ -12,6 +12,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const String _keyRepeatPenalty = 'repeat_penalty';
   static const String _keyAgentMaxIterations = 'agent_max_iterations';
   static const String _keyLastModelPath = 'last_model_path';
+  static const String _keyThemeMode = 'theme_mode';
+  static const String _keyOnboardingCompleted = 'onboarding_completed';
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -83,4 +85,19 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   @override
   Future<void> clearLastModelPath() => _prefs.remove(_keyLastModelPath);
+
+  @override
+  String get themeMode => _prefs.getString(_keyThemeMode) ?? 'dark';
+
+  @override
+  Future<void> setThemeMode(String mode) =>
+      _prefs.setString(_keyThemeMode, mode);
+
+  @override
+  bool get onboardingCompleted =>
+      _prefs.getBool(_keyOnboardingCompleted) ?? false;
+
+  @override
+  Future<void> setOnboardingCompleted() =>
+      _prefs.setBool(_keyOnboardingCompleted, true);
 }

@@ -9,7 +9,7 @@
 
 ## 2. Current Status
 
-- **875 테스트** 전체 통과
+- **934 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
 - 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 
@@ -34,6 +34,7 @@
 | RiskClassifier | `lib/domain/agent/risk_classifier.dart` | 위험도 분류 (LOW/MEDIUM/HIGH/CRITICAL) |
 | LoopDetector | `lib/domain/agent/loop_detector.dart` | 반복 감지, 넛지/강제종료 |
 | ErrorRecovery | `lib/domain/agent/error_recovery.dart` | 에러 분류, 복구 힌트, 재시도 추적, 사용자 메시지 |
+| UserMessageMapper | `lib/domain/agent/user_message_mapper.dart` | 기술적 에러 → 사용자 친화적 메시지 변환 |
 | AppLauncherTool | `lib/agent/tools/app_launcher_tool.dart` | open_app/open_url/list_apps, validate, 에러 처리 |
 | ScreenActionTool | `lib/agent/tools/screen_action_tool.dart` | tap/long_click/type/scroll/swipe/global, 에러 처리 |
 | ScreenReaderTool | `lib/agent/tools/screen_reader_tool.dart` | 화면 텍스트 읽기, UI 요소 검색, toolPrompt |
@@ -56,8 +57,9 @@
 | Screen | File | Test 항목 |
 |--------|------|-----------|
 | ChatScreen | `lib/presentation/screens/chat/chat_screen.dart` | 메시지 전송, 정지 버튼, 입력바 가시성 |
-| SettingsScreen | `lib/presentation/screens/settings/settings_screen.dart` | 권한 설정, 고급 옵션 토글 |
+| SettingsScreen | `lib/presentation/screens/settings/settings_screen.dart` | 권한 설정, 테마 전환, 고급 옵션 토글 |
 | UpdateScreen | `lib/presentation/screens/update/update_screen.dart` | 상태 전이, 다운로드 진행률 |
+| OnboardingScreen | `lib/presentation/screens/onboarding/onboarding_screen.dart` | 페이지 전환, 시작 가이드 |
 
 ### P4: Integration (기기 필요)
 

@@ -1,4 +1,5 @@
 import 'package:aios/core/theme/app_colors.dart';
+import 'package:aios/domain/agent/user_message_mapper.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/presentation/providers/chat_providers.dart';
@@ -6,6 +7,7 @@ import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/widgets/input_bar.dart';
+import 'package:aios/presentation/widgets/loading_indicator.dart';
 import 'package:aios/presentation/widgets/message_bubble.dart';
 import 'package:aios/presentation/widgets/status_bar.dart';
 import 'package:flutter/material.dart';
@@ -23,9 +25,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () => ref.read(chatStateProvider.notifier).loadConversation(),
-    );
+    Future.microtask(() {
+      ref.read(chatStateProvider.notifier).loadConversation();
+      _checkOnboarding();
+    });
+  }
+
+  void _checkOnboarding() {
+    final settings = ref.read(settingsProvider);
+    if (!settings.onboardingCompleted) {
+      Future.microtask(() => context.go('/onboarding'));
+    }
   }
 
   void _showClearChatDialog(BuildContext context, WidgetRef ref) {
@@ -185,7 +195,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           : Column(
               children: [
                 if (chatState.errorMessage != null)
-                  _ErrorBar(message: chatState.errorMessage!),
+                  _ErrorBar(
+                    message: UserMessageMapper.map(
+                      chatState.errorMessage!,
+                    ),
+                  ),
                 Expanded(
                   child: chatState.messages.isEmpty &&
                           !chatState.isGenerating
@@ -577,21 +591,6 @@ class _ModelLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(color: AppColors.primary),
-          SizedBox(height: 16),
-          Text(
-            'Loading Model...',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const LoadingIndicator(phase: LoadingPhase.loadingModel);
   }
 }
