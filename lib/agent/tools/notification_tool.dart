@@ -21,9 +21,6 @@ class NotificationTool extends ExtendedTool {
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
-      if (!await toolContext.isNotificationListenerEnabled()) {
-        return 'Error: Notification listener not enabled';
-      }
       final json = _tryParseJson(args);
       final maxCount = _parseInt(json['max_count']) ?? 20;
       return await toolContext.invokeMethod(

@@ -18,9 +18,6 @@ class ScreenReaderTool extends ExtendedTool {
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
-      if (!await toolContext.isAccessibilityEnabled()) {
-        return 'Error: Accessibility service not enabled';
-      }
       final result = await toolContext.invokeMethod('getScreenText');
       return result ?? 'Error: No result';
     } on Object catch (e) {
@@ -46,9 +43,6 @@ class ScreenFindTool extends ExtendedTool {
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
-      if (!await toolContext.isAccessibilityEnabled()) {
-        return 'Error: Accessibility service not enabled';
-      }
       final text = _parseArg(args, 'text');
       if (text.isEmpty) return "Error: 'text' required";
       final result = await toolContext.invokeMethod(

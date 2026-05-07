@@ -21,9 +21,6 @@ class PhoneCallerTool extends ExtendedTool {
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
-      if (!await toolContext.isAccessibilityEnabled()) {
-        return 'Error: Accessibility service not enabled';
-      }
       final json = _tryParseJson(args);
       final action = json['action']?.toString().toLowerCase() ?? 'dial';
       final number = json['number']?.toString().trim() ?? '';
