@@ -19,6 +19,19 @@ class SmsSenderTool extends ExtendedTool {
       '"body": "string", "limit": "integer (default 10)"}';
 
   @override
+  String get toolPrompt =>
+      'Send and read SMS messages.\n\n'
+      'Actions:\n'
+      '- send: Send an SMS to a phone number\n'
+      '- read: Read recent SMS messages\n\n'
+      'Parameters: $parameters\n\n'
+      'Rules:\n'
+      '- send requires both "to" (phone number) and "body" (message)\n'
+      '- "to" must be a valid phone number (e.g. 01012345678)\n'
+      '- read shows recent messages, use "limit" to control count\n'
+      '- Respond with user language';
+
+  @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);

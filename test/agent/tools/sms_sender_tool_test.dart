@@ -93,6 +93,30 @@ void main() {
     });
   });
 
+  group('toolPrompt', () {
+    test('toolPrompt_containsActions', () {
+      final prompt = tool.toolPrompt;
+      expect(prompt, contains('send'));
+      expect(prompt, contains('read'));
+    });
+
+    test('toolPrompt_containsParameters', () {
+      final prompt = tool.toolPrompt;
+      expect(prompt, contains('action'));
+      expect(prompt, contains('to'));
+      expect(prompt, contains('body'));
+    });
+
+    test('toolPrompt_isNotEmpty', () {
+      expect(tool.toolPrompt.isNotEmpty, isTrue);
+    });
+
+    test('toolPrompt_containsRules', () {
+      final prompt = tool.toolPrompt;
+      expect(prompt, contains('Rules'));
+    });
+  });
+
   group('name_andMetadata', () {
     test('name_returnsSmsSender', () {
       expect(tool.name, 'sms_sender');

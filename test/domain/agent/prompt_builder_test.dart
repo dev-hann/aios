@@ -66,6 +66,12 @@ void main() {
 
       expect(prompt, contains('screen_reader'));
     });
+
+    test('contains sms_sender examples', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('sms_sender'));
+    });
   });
 
   group('buildToolPrompt', () {
