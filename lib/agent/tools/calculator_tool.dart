@@ -9,10 +9,23 @@ class CalculatorTool extends AgentTool {
   String get name => 'calculator';
 
   @override
-  String get description => 'Evaluate math expression. Args: {expression}';
+  String get description =>
+      'Evaluate math expression. Args: {expression}';
 
   @override
-  String get parameters => '{"expression": "string"}';
+  String get parameters =>
+      '{"expression": "string (e.g. "2+3", "10*5", "(4+1)/2")"}';
+
+  @override
+  String get toolPrompt =>
+      'Evaluate a mathematical expression.\n\n'
+      'Parameters: $parameters\n\n'
+      'Rules:\n'
+      '- "expression" is required (math expression string)\n'
+      '- Supports +, -, *, /, parentheses\n'
+      '- Korean: convert "더하기" to +, "빼기" to -, '
+      '"곱하기" to *, "나누기" to /\n'
+      '- Respond with user language';
 
   @override
   Future<String> execute(String args) async {

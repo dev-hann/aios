@@ -45,7 +45,13 @@ class PromptBuilder {
         'User: 김씨 연락처 찾아줘\n'
         'Action: contact_search\n\n'
         'User: what is 2+2\n'
-        'Answer: 4\n\n'
+        'Action: calculator\n\n'
+        'User: 385 곱하기 22 얼마야\n'
+        'Action: calculator\n\n'
+        'User: 1000 나누기 3은\n'
+        'Action: calculator\n\n'
+        'User: calculate (15+7)*3\n'
+        'Action: calculator\n\n'
         'Rules: Max 5 tool calls. Be concise. Match user language. '
         'NEVER respond with anything except Action: or Answer: format.';
   }

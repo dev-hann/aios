@@ -1,4 +1,5 @@
 import 'package:aios/agent/tools/app_launcher_tool.dart';
+import 'package:aios/agent/tools/calculator_tool.dart';
 import 'package:aios/agent/tools/contact_search_tool.dart';
 import 'package:aios/agent/tools/notification_tool.dart';
 import 'package:aios/agent/tools/phone_caller_tool.dart';
@@ -6,6 +7,7 @@ import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/agent/tools/screen_reader_tool.dart';
 import 'package:aios/agent/tools/sms_sender_tool.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
+import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/agent/tool_context.dart';
@@ -19,6 +21,10 @@ final toolContextProvider = Provider<ToolContext>((ref) {
 final agentProvider = Provider<AgentStrategy>((ref) {
   final llmRepo = ref.watch(llmRepositoryProvider);
   final toolContext = ref.watch(toolContextProvider);
+
+  final basicTools = <String, AgentTool>{
+    'calculator': CalculatorTool(),
+  };
 
   final extendedTools = <String, ExtendedTool>{
     'app_launcher': AppLauncherTool(),
@@ -34,6 +40,7 @@ final agentProvider = Provider<AgentStrategy>((ref) {
   return ReactStrategy(
     llmRepo,
     toolContext: toolContext,
+    basicTools: basicTools,
     extendedTools: extendedTools,
   );
 });

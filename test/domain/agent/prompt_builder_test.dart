@@ -84,6 +84,12 @@ void main() {
 
       expect(prompt, contains('contact_search'));
     });
+
+    test('contains calculator examples', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('calculator'));
+    });
   });
 
   group('buildToolPrompt', () {

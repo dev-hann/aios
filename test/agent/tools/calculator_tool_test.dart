@@ -56,6 +56,26 @@ void main() {
     });
   });
 
+  group('execute_complexExpressions', () {
+    test('execute_nestedParentheses_returnsCorrectResult', () async {
+      final result =
+          await tool.execute('{"expression": "((2+3)*4-5)/3"}');
+      expect(result, '5.0000');
+    });
+
+    test('execute_largeNumbers_returnsCorrectResult', () async {
+      final result =
+          await tool.execute('{"expression": "385*22"}');
+      expect(result, '8470.0000');
+    });
+
+    test('execute_percentage_returnsCorrectResult', () async {
+      final result =
+          await tool.execute('{"expression": "200*0.15"}');
+      expect(result, '30.0000');
+    });
+  });
+
   group('execute_errorHandling', () {
     test('execute_emptyExpression_returnsError', () async {
       final result = await tool.execute('{"expression": ""}');
@@ -95,6 +115,15 @@ void main() {
 
     test('parameters_isNotEmpty', () async {
       expect(tool.parameters.isNotEmpty, isTrue);
+    });
+
+    test('toolPrompt_containsKoreanConversion', () async {
+      expect(tool.toolPrompt, contains('곱하기'));
+      expect(tool.toolPrompt, contains('나누기'));
+    });
+
+    test('toolPrompt_containsExpressionRules', () async {
+      expect(tool.toolPrompt, contains('expression'));
     });
   });
 }
