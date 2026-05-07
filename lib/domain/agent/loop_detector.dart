@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 sealed class LoopCheckResult {
   const LoopCheckResult();
@@ -86,11 +85,7 @@ class LoopDetector {
       final keys = decoded.keys.toList()..sort();
       return keys.map((k) => '$k=${decoded[k]}').join(',');
     } on Object catch (e) {
-      developer.log(
-        'canonicalizeArgs error: $e',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: canonicalizeArgs error: $e');
       return args;
     }
   }

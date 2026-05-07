@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
@@ -29,6 +28,23 @@ class ScreenActionTool extends ExtendedTool {
       '"distance": "float (for swipe, default 500)", '
       '"global_action": '
       '"back|home|recents|notifications|quick_settings"}';
+
+  @override
+  String get toolPrompt =>
+      'Control the device screen.\n\n'
+      'Actions:\n'
+      '- tap: Tap on element by text or coordinates\n'
+      '- long_click: Long press on element by text\n'
+      '- type: Type text into input field\n'
+      '- scroll: Scroll in a direction\n'
+      '- swipe: Swipe with direction and distance\n'
+      '- global: System action (back, home, recents)\n\n'
+      'Parameters: $parameters\n\n'
+      'Rules:\n'
+      '- Prefer tap with "text" over coordinates\n'
+      '- Use "target" in type to specify field\n'
+      '- Use global for navigation (back, home, recents)\n'
+      '- For scroll/swipe, use direction: up|down|left|right';
 
   @override
   Future<String> execute(String args, ToolContext toolContext) async {
@@ -150,18 +166,10 @@ class ScreenActionTool extends ExtendedTool {
     try {
       final decoded = json.decode(args);
       if (decoded is Map<String, dynamic>) return decoded;
-      developer.log(
-        'Invalid JSON type: ${decoded.runtimeType}',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
       return {};
     } on Object catch (e) {
-      developer.log(
-        'JSON parse error: $e',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: JSON parse error: $e');
       return {};
     }
   }

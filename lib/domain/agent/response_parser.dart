@@ -1,22 +1,20 @@
-import 'dart:developer' as developer;
-
 class ResponseParser {
   ResponseParser(this.validToolNames);
 
   final Set<String> validToolNames;
 
   static final _actionRegex = RegExp(
-    r'^Action\s*:\s*(\w+)',
+    r'Action\s*:\s*(\w+)',
     multiLine: true,
     caseSensitive: false,
   );
   static final _argsRegex = RegExp(
-    r'^Args\s*:\s*(.+)',
+    r'Args\s*:\s*(.+)',
     multiLine: true,
     caseSensitive: false,
   );
   static final _answerRegex = RegExp(
-    r'^Answer\s*:\s*(.+)',
+    r'Answer\s*:\s*(.+)',
     multiLine: true,
     caseSensitive: false,
     dotAll: true,
@@ -49,11 +47,7 @@ class ResponseParser {
         return ParseAnswer(answerMatch.group(1)!.trim());
       }
     } on Object catch (e) {
-      developer.log(
-        'parseResponse error: $e',
-        name: 'AIOS-Parser',
-        level: 1000,
-      );
+      print('[AIOS-Parser] ERROR: parseResponse error: $e');
     }
 
     return const ParseEmpty();

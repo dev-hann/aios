@@ -179,6 +179,30 @@ void main() {
     });
   });
 
+  group('toolPrompt', () {
+    test('toolPrompt_containsAllActions', () {
+      final prompt = tool.toolPrompt;
+      expect(prompt, contains('tap'));
+      expect(prompt, contains('long_click'));
+      expect(prompt, contains('type'));
+      expect(prompt, contains('scroll'));
+      expect(prompt, contains('swipe'));
+      expect(prompt, contains('global'));
+    });
+
+    test('toolPrompt_containsParameters', () {
+      final prompt = tool.toolPrompt;
+      expect(prompt, contains('action'));
+      expect(prompt, contains('text'));
+      expect(prompt, contains('content'));
+      expect(prompt, contains('direction'));
+    });
+
+    test('toolPrompt_isNotEmpty', () {
+      expect(tool.toolPrompt.isNotEmpty, isTrue);
+    });
+  });
+
   group('name_andMetadata', () {
     test('name_returnsScreenAction', () {
       expect(tool.name, 'screen_action');

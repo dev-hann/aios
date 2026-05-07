@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/entities/agent_models.dart';
@@ -96,12 +95,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         isConfirming: false,
       );
     } on Object catch (e) {
-      developer.log(
-        'sendMessage failed',
-        name: _tag,
-        error: e,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: sendMessage failed - $e');
       if (!mounted) return;
       state = state.copyWith(
         isGenerating: false,
@@ -159,18 +153,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
       if (!mounted) return;
       if (messages.isNotEmpty) {
         state = state.copyWith(messages: messages);
-        developer.log(
-          'Loaded ${messages.length} messages',
-          name: _tag,
-        );
+        print('[$_tag] Loaded ${messages.length} messages');
       }
     } on Object catch (e) {
-      developer.log(
-        'loadConversation failed',
-        name: _tag,
-        error: e,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: loadConversation failed - $e');
     }
   }
 

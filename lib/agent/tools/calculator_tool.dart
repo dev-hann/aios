@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/agent_tool.dart';
 
@@ -88,18 +87,10 @@ class CalculatorTool extends AgentTool {
     try {
       final decoded = json.decode(args);
       if (decoded is Map<String, dynamic>) return decoded;
-      developer.log(
-        'Invalid JSON type: ${decoded.runtimeType}',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
       return {};
     } on Object catch (e) {
-      developer.log(
-        'JSON parse error: $e',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: JSON parse error: $e');
       return {};
     }
   }

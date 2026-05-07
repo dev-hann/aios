@@ -9,7 +9,7 @@
 ### 필수 도구
 
 - **Flutter SDK** 3.41+ (`flutter --version` 확인)
-- **Android Studio** (최신 안정 버전) 또는 **VS Code** + Flutter 확장
+- **Android Studio** 또는 **VS Code** + Flutter 확장
 - **Android SDK**: compileSdk 36, minSdk 26
 - **Git**
 
@@ -45,11 +45,11 @@ mkdir -p android/app/libs
 flutter pub get                  # 의존성 설치
 flutter run                      # Debug 실행 (연결된 디바이스)
 flutter build apk                # Release APK
+flutter build apk --debug        # Debug APK (자율 개발 루프용)
 flutter build appbundle          # Release AAB (Play Store용)
-flutter test                     # 단위 + 위젯 테스트
+flutter test                     # 단위 + 위젯 테스트 (687개)
 flutter test integration_test/   # 통합 테스트 (디바이스 필요)
 dart run build_runner build      # 코드 생성 (freezed, drift, mockito)
-dart run build_runner watch      # 코드 생성 감시 (개발 중)
 dart format .                    # 코드 포맷팅
 flutter analyze                  # 정적 분석
 ```
@@ -65,13 +65,11 @@ flutter pub get
 
 ## 3. 코드 생성
 
-freezed 모델, drift 데이터베이스, mockito mock 등 코드 생성이 필요한 경우:
-
 ```bash
-# 전체 생성 (충돌 출력 삭제)
+# 전체 생성
 dart run build_runner build --delete-conflicting-outputs
 
-# 변경 감시 모드 (개발 중)
+# 변경 감시 모드
 dart run build_runner watch --delete-conflicting-outputs
 ```
 
@@ -91,12 +89,6 @@ git checkout -b feature/your-feature-name
 # 또는
 git checkout -b fix/your-bug-fix
 ```
-
-### 코드 작성
-
-- 기존 코드 스타일과 컨벤션 준수 ([AGENTS.md](AGENTS.md) 참고)
-- 변경사항은 집중적이고 원자적으로 유지
-- 가능하면 실기기에서 테스트
 
 ### 커밋 메시지
 
@@ -118,8 +110,6 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 ---
 
 ## 5. PR 규칙
-
-모든 PR은 다음 기준을 충족해야 합니다:
 
 | 항목 | 명령어 | 기준 |
 |------|--------|------|
@@ -145,10 +135,7 @@ version: MAJOR.MINOR.PATCH+BUILD_NUMBER
 ### 빌드 & 배포
 
 ```bash
-# Release APK 빌드
 flutter build apk --release
-
-# Release AAB 빌드 (Play Store)
 flutter build appbundle --release
 ```
 
@@ -171,9 +158,9 @@ flutter build appbundle --release
 
 ## 참고 문서
 
-- **[AGENTS.md](AGENTS.md)** — 코딩 규약, 금지사항, 작업 가이드라인
-- **[docs/architecture.md](docs/architecture.md)** — 시스템 아키텍처, 모듈 구조, 데이터 흐름
-- **[TESTING.md](TESTING.md)** — TDD 워크플로우, 테스트 범위, 커버리지 요구사항
+- **[AGENTS.md](AGENTS.md)** — 자율 개발 프로세스, 코딩 규약, 금지사항
+- **[docs/architecture.md](docs/architecture.md)** — 시스템 아키텍처, 2-Phase ReAct, 데이터 흐름
+- **[TESTING.md](TESTING.md)** — TDD 워크플로우, 테스트 범위, 커버리지
 
 ---
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
@@ -59,11 +58,7 @@ class ReactStrategy implements AgentStrategy {
     _loopDetector.reset();
     final steps = <AgentStep>[];
 
-    developer.log(
-      'Agent run: prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", '
-      'maxIter=$maxIterations',
-      name: _tag,
-    );
+    print('[$_tag] Agent run: prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", maxIter=$maxIterations');
 
     final runStartTime = DateTime.now();
     const maxRunDuration = Duration(seconds: 120);
@@ -101,10 +96,7 @@ class ReactStrategy implements AgentStrategy {
         final phase1Response =
             await _generateResponse(routingSystem, maxTokens);
 
-        developer.log(
-          'Phase1 iter$i: ${phase1Response.substring(0, phase1Response.length > 200 ? 200 : phase1Response.length)}',
-          name: _tag,
-        );
+        print('[$_tag] Phase1 iter$i: ${phase1Response.substring(0, phase1Response.length > 200 ? 200 : phase1Response.length)}');
 
         onStep?.call(const AgentStep('thinking_end', ''));
 
@@ -122,20 +114,14 @@ class ReactStrategy implements AgentStrategy {
           final String observation;
 
           if (_hasValidArgs(parsed.args)) {
-            developer.log(
-              'Phase1 direct execute: tool=${parsed.toolName}',
-              name: _tag,
-            );
+            print('[$_tag] Phase1 direct execute: tool=${parsed.toolName}');
             observation = await _executeTool(
               parsed.toolName,
               parsed.args,
               onStep,
             );
           } else {
-            developer.log(
-              'Phase2: tool=${parsed.toolName}',
-              name: _tag,
-            );
+            print('[$_tag] Phase2: tool=${parsed.toolName}');
             observation = await _phase2Execute(
               parsed.toolName,
               prompt,
@@ -195,18 +181,23 @@ class ReactStrategy implements AgentStrategy {
             );
           }
         } else {
-          final directAnswer = phase1Response.trim();
-          if (directAnswer.isNotEmpty) {
-            steps.add(AgentStep('answer', directAnswer));
-            onStep?.call(steps.last);
-          } else if (i >= maxIterations - 1) {
+          print('[$_tag] WARN: ParseEmpty iter$i, adding format nudge');
+          _promptBuilder.addObservation(
+            'IMPORTANT: You must respond with ONLY '
+            '"Action: tool_name" or "Answer: your text". '
+            'Do not write anything else. '
+            'Try again.',
+          );
+          if (i >= maxIterations - 1) {
             steps.add(AgentStep(
               'answer',
-              '\uBAA8\uB378\uC774 \uBE48 \uC751\uB2F5\uC744 \uC0DD\uC131\uD588\uC2B5\uB2C8\uB2E4. '
+              '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. '
               '\uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
             ));
+            onStep?.call(steps.last);
+            break;
           }
-          break;
+          continue;
         }
       }
 
@@ -226,11 +217,7 @@ class ReactStrategy implements AgentStrategy {
         onStep?.call(steps.last);
       }
     } on Object catch (e) {
-      developer.log(
-        'Agent run crashed: $e',
-        name: _tag,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: Agent run crashed: $e');
       if (steps.every((s) => s.type != 'answer')) {
         steps.add(AgentStep(
           'answer',
@@ -256,11 +243,7 @@ class ReactStrategy implements AgentStrategy {
     final tokenSub = _llmRepository.tokenStream.listen(
       (token) => responseBuffer.write(token),
       onError: (Object e) {
-        developer.log(
-          'Token stream error: $e',
-          name: _tag,
-          level: 1000,
-        );
+        print('[$_tag] ERROR: Token stream error: $e');
       },
     );
 
@@ -272,17 +255,13 @@ class ReactStrategy implements AgentStrategy {
       );
       await Future<void>.delayed(Duration.zero);
     } on Object catch (e) {
-      developer.log(
-        'Generate response error: $e',
-        name: _tag,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: Generate response error: $e');
     } finally {
       await tokenSub.cancel();
     }
 
     final response = responseBuffer.toString();
-    developer.log('LLM response="$response"', name: _tag);
+    print('[$_tag] LLM response="$response"');
     return response;
   }
 
@@ -341,7 +320,7 @@ class ReactStrategy implements AgentStrategy {
       maxTokens,
     );
 
-    developer.log('Phase2 response="$phase2Response"', name: _tag);
+    print('[$_tag] Phase2 response="$phase2Response"');
 
     final parsed = _responseParser.parse(phase2Response);
     if (parsed is ParseAction) {
@@ -361,11 +340,7 @@ class ReactStrategy implements AgentStrategy {
     final tokenSub = _llmRepository.tokenStream.listen(
       (token) => responseBuffer.write(token),
       onError: (Object e) {
-        developer.log(
-          'Stream error: $e',
-          name: _tag,
-          level: 1000,
-        );
+        print('[$_tag] ERROR: Stream error: $e');
       },
     );
 
@@ -377,11 +352,7 @@ class ReactStrategy implements AgentStrategy {
       );
       await Future<void>.delayed(Duration.zero);
     } on Object catch (e) {
-      developer.log(
-        'Generate error: $e',
-        name: _tag,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: Generate error: $e');
     } finally {
       await tokenSub.cancel();
     }

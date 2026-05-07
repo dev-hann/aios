@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:aios/data/providers/llama_engine_provider.dart';
 import 'package:aios/domain/entities/chat_message.dart';
@@ -104,11 +103,7 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
 
       if (_isGemma4) {
         _session = await _engine!.createSession();
-        developer.log(
-          'Model loaded: $path (ctx=${contextSize ?? 2048}, '
-          'mode=gemma4-session)',
-          name: _tag,
-        );
+        print('[$_tag] Model loaded: $path (ctx=${contextSize ?? 2048}, mode=gemma4-session)');
       } else {
         _chat = await _engine!.createChat();
         _detectedTemplate = _classifyTemplate(_engine!.modelChatTemplate)
@@ -120,19 +115,11 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
                 ? 'gguf'
                 : 'filename')
             : 'native';
-        developer.log(
-          'Model loaded: $path (ctx=${contextSize ?? 2048}, '
-          'rawTemplate=$rawPresent, source=$source)',
-          name: _tag,
-        );
+        print('[$_tag] Model loaded: $path (ctx=${contextSize ?? 2048}, rawTemplate=$rawPresent, source=$source)');
       }
       return true;
     } on Object catch (e, st) {
-      developer.log(
-        'loadModel failed: $e\n$st',
-        name: _tag,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: loadModel failed: $e\n$st');
       _engine = null;
       _chat = null;
       _session = null;
@@ -157,7 +144,7 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     if (_engine != null) {
       await _engine!.dispose();
       _engine = null;
-      developer.log('Model released', name: _tag);
+      print('[$_tag] Model released');
     }
   }
 
@@ -205,7 +192,7 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
       repeatPenalty: repeatPenalty,
       controller: controller,
     ).catchError((Object e) {
-      developer.log('generate error', name: _tag, error: e, level: 1000);
+      print('[$_tag] ERROR: generate error - $e');
       if (!controller.isClosed) {
         controller
           ..addError(e)
@@ -338,7 +325,7 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     } else {
       await _chat?.saveState(path);
     }
-    developer.log('Session saved: $path', name: _tag);
+    print('[$_tag] Session saved: $path');
   }
 
   @override
@@ -348,6 +335,6 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     } else {
       await _chat?.loadState(path);
     }
-    developer.log('Session loaded: $path', name: _tag);
+    print('[$_tag] Session loaded: $path');
   }
 }

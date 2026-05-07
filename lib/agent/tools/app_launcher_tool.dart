@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
@@ -25,16 +24,21 @@ class AppLauncherTool extends ExtendedTool {
 
   @override
   String get toolPrompt =>
-      'Open apps/URLs or list installed apps.\n\n'
+      'Open apps or URLs.\n\n'
       'Actions:\n'
-      '- open_app: Open app by package_name\n'
-      '- open_url: Open URL in browser\n'
-      '- list_apps: List apps with optional query\n\n'
+      '- open_app: Open an installed app (ALWAYS prefer this for app names)\n'
+      '- open_url: Open a URL (ONLY when user gives http/https link)\n'
+      '- list_apps: List apps (ONLY when you cannot find the app)\n\n'
       'Parameters: {"action": "open_app|open_url|list_apps", '
       '"package_name": "string", "url": "string", '
       '"query": "string"}\n\n'
-      'Rules: Use exact package_name from app list. '
-      'Never guess or invent a package_name.';
+      'CRITICAL RULES:\n'
+      '- "open youtube" = open_app with package_name from app list\n'
+      '- "open firefox" = open_app with package_name from app list\n'
+      '- "open google.com" = open_url with url "https://google.com"\n'
+      '- Find the package_name from the Installed apps list below\n'
+      '- NEVER use open_url for app names like youtube, firefox, kakao\n'
+      '- NEVER guess package_name. Use exact name from app list.';
 
   @override
   Future<String?> phaseContext(
@@ -86,7 +90,7 @@ class AppLauncherTool extends ExtendedTool {
     ToolContext toolContext,
   ) async {
     final packageName = json['package_name']?.toString() ?? '';
-    developer.log('openApp: package="$packageName"', name: _tag);
+    print('[$_tag] openApp: package="$packageName"');
     if (packageName.isEmpty) return "Error: 'package_name' required";
 
     final result = await toolContext.invokeMethod(
@@ -94,7 +98,7 @@ class AppLauncherTool extends ExtendedTool {
           {'package_name': packageName},
         ) ??
         'Error';
-    developer.log('openApp result: $result', name: _tag);
+    print('[$_tag] openApp result: $result');
     return result;
   }
 
@@ -103,11 +107,7 @@ class AppLauncherTool extends ExtendedTool {
       final info = await InstalledApps.getAppInfo(packageName);
       return info != null;
     } on Object catch (e) {
-      developer.log(
-        'Package check error: $e',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: Package check error: $e');
       return false;
     }
   }
@@ -126,7 +126,7 @@ class AppLauncherTool extends ExtendedTool {
 
   Future<String> _listApps(Map<String, dynamic> json) async {
     final query = json['query']?.toString().toLowerCase() ?? '';
-    developer.log('listApps: query="$query"', name: _tag);
+    print('[$_tag] listApps: query="$query"');
     try {
       final apps = await InstalledApps.getInstalledApps(
         excludeSystemApps: true,
@@ -165,18 +165,10 @@ class AppLauncherTool extends ExtendedTool {
     try {
       final decoded = json.decode(args);
       if (decoded is Map<String, dynamic>) return decoded;
-      developer.log(
-        'Invalid JSON type: ${decoded.runtimeType}',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
       return {};
     } on Object catch (e) {
-      developer.log(
-        'JSON parse error: $e',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: JSON parse error: $e');
       return {};
     }
   }

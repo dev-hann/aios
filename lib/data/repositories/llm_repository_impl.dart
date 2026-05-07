@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:aios/data/providers/llama_engine_provider.dart';
 import 'package:aios/domain/entities/chat_message.dart';
@@ -59,25 +58,16 @@ class LlmRepositoryImpl implements LlmRepository {
       if (result) {
         _emitProgress(1);
         _emitState(ServiceState.ready);
-        developer.log('Model loaded: $path', name: _tag);
+        print('[$_tag] Model loaded: $path');
       } else {
         _emitState(ServiceState.error);
-        developer.log(
-          'Model load failed: $path',
-          name: _tag,
-          level: 1000,
-        );
+        print('[$_tag] ERROR: Model load failed: $path');
       }
 
       return result;
     } on Object catch (e) {
       _emitState(ServiceState.error);
-      developer.log(
-        'loadModel failed',
-        name: _tag,
-        error: e,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: loadModel failed - $e');
       return false;
     }
   }
@@ -87,14 +77,9 @@ class LlmRepositoryImpl implements LlmRepository {
     try {
       await _provider.releaseModel();
       _emitState(ServiceState.idle);
-      developer.log('Model released', name: _tag);
+      print('[$_tag] Model released');
     } on Object catch (e) {
-      developer.log(
-        'releaseModel failed',
-        name: _tag,
-        error: e,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: releaseModel failed - $e');
       _emitState(ServiceState.idle);
     }
   }
@@ -126,11 +111,7 @@ class LlmRepositoryImpl implements LlmRepository {
     double? repeatPenalty,
   }) async {
     if (!_provider.isModelLoaded) {
-      developer.log(
-        'sendMessage called without loaded model',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: sendMessage called without loaded model');
       _emitState(ServiceState.error);
       return;
     }
@@ -166,12 +147,7 @@ class LlmRepositoryImpl implements LlmRepository {
           _generationSubscription?.cancel();
           _generationSubscription = null;
           _emitState(ServiceState.error);
-          developer.log(
-            'Generation error',
-            name: _tag,
-            error: e,
-            level: 1000,
-          );
+          print('[$_tag] ERROR: Generation error - $e');
           if (!_generationCompleter!.isCompleted) {
             _generationCompleter!.completeError(e);
           }
@@ -182,12 +158,7 @@ class LlmRepositoryImpl implements LlmRepository {
       await _generationCompleter!.future;
     } on Object catch (e) {
       _emitState(ServiceState.error);
-      developer.log(
-        'sendMessage failed',
-        name: _tag,
-        error: e,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: sendMessage failed - $e');
       rethrow;
     }
   }
@@ -201,19 +172,19 @@ class LlmRepositoryImpl implements LlmRepository {
       _generationCompleter!.complete();
     }
     _emitState(ServiceState.ready);
-    developer.log('Generation stopped', name: _tag);
+    print('[$_tag] Generation stopped');
   }
 
   @override
   Future<void> saveSession(String path) async {
     await _provider.saveState(path);
-    developer.log('Session saved: $path', name: _tag);
+    print('[$_tag] Session saved: $path');
   }
 
   @override
   Future<void> loadSession(String path) async {
     await _provider.loadState(path);
-    developer.log('Session loaded: $path', name: _tag);
+    print('[$_tag] Session loaded: $path');
   }
 
   void dispose() {

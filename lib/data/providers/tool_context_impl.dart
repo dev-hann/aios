@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:flutter/services.dart';
 
@@ -17,12 +15,7 @@ class ToolContextImpl implements ToolContext {
       );
       return result;
     } on PlatformException catch (e) {
-      developer.log(
-        'MethodChannel error: $method',
-        name: _tag,
-        error: e,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: MethodChannel error: $method - $e');
       return 'Error: ${e.message}';
     }
   }
@@ -35,11 +28,7 @@ class ToolContextImpl implements ToolContext {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      developer.log(
-        'isAccessibilityEnabled error: $e',
-        name: _tag,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: isAccessibilityEnabled error: $e');
       return false;
     }
   }
@@ -52,11 +41,7 @@ class ToolContextImpl implements ToolContext {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      developer.log(
-        'isNotificationListenerEnabled error: $e',
-        name: _tag,
-        level: 1000,
-      );
+      print('[$_tag] ERROR: isNotificationListenerEnabled error: $e');
       return false;
     }
   }

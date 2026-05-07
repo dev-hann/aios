@@ -290,16 +290,19 @@ void main() {
         expect(steps, isNotEmpty);
       });
 
-      test('plain text response returns as answer', () async {
+      test('plain text response retries then returns fallback', () async {
         llmRepo.tokensToEmit = ['Just a plain response'];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
-        final result = await strategy.execute('Hi');
+        final result = await strategy.execute('Hi', maxIterations: 1);
 
         final answerSteps =
             result.steps.where((s) => s.type == 'answer').toList();
         expect(answerSteps, isNotEmpty);
-        expect(answerSteps.first.content, 'Just a plain response');
+        expect(
+          answerSteps.first.content,
+          contains('작업을 완료하지 못했습니다'),
+        );
       });
 
       test('phase1 with valid args executes directly', () async {

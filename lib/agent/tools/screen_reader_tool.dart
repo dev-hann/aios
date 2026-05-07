@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
@@ -61,18 +60,10 @@ class ScreenFindTool extends ExtendedTool {
       if (decoded is Map<String, dynamic>) {
         return decoded[key]?.toString() ?? '';
       }
-      developer.log(
-        'Invalid JSON type: ${decoded.runtimeType}',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
       return '';
     } on Object catch (e) {
-      developer.log(
-        'JSON parse error: $e',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: JSON parse error: $e');
       return '';
     }
   }

@@ -54,6 +54,12 @@ void main() {
       expect(prompt, contains('tool0'));
       expect(prompt, contains('tool49'));
     });
+
+    test('contains screen_action examples', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('screen_action'));
+    });
   });
 
   group('buildToolPrompt', () {
@@ -78,7 +84,7 @@ void main() {
     test('without extra context has no app list', () {
       final prompt = builder.buildToolPrompt('app_launcher', 'detail');
 
-      expect(prompt, isNot(contains('Installed apps:')));
+      expect(prompt, isNot(contains('Installed apps')));
     });
 
     test('with extra context includes app list', () {
@@ -88,7 +94,7 @@ void main() {
         extraContext: '1. YouTube (com.google.youtube)',
       );
 
-      expect(prompt, contains('Installed apps:'));
+      expect(prompt, contains('Installed apps'));
       expect(prompt, contains('YouTube'));
     });
   });

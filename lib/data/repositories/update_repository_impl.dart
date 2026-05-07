@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -65,11 +64,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
         publishedAt: DateTime.parse(release.publishedAt),
       ));
     } catch (e) {
-      developer.log(
-        'checkForUpdate failed: $e',
-        name: 'AIOS-UpdateRepo',
-        level: 1000,
-      );
+      print('[AIOS-UpdateRepo] ERROR: checkForUpdate failed: $e');
       return UpdateResult.error(e.toString());
     }
   }
@@ -100,11 +95,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
       }
       return null;
     } catch (e) {
-      developer.log(
-        'downloadApk failed: $e',
-        name: 'AIOS-UpdateRepo',
-        level: 1000,
-      );
+      print('[AIOS-UpdateRepo] ERROR: downloadApk failed: $e');
       return null;
     }
   }
@@ -115,17 +106,10 @@ class UpdateRepositoryImpl implements UpdateRepository {
     if (!await file.exists()) return false;
     try {
       final result = await _openFile(apkPath);
-      developer.log(
-        'open_file result: ${result.type}',
-        name: 'AIOS-UpdateRepo',
-      );
+        print('[AIOS-UpdateRepo] open_file result: ${result.type}');
       return result.type == ResultType.done;
     } catch (e) {
-      developer.log(
-        'installApk failed: $e',
-        name: 'AIOS-UpdateRepo',
-        level: 1000,
-      );
+      print('[AIOS-UpdateRepo] ERROR: installApk failed: $e');
       return false;
     }
   }

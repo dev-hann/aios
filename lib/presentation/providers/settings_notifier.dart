@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:aios/domain/entities/model_info.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/model_repository.dart';
@@ -40,10 +38,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         lastModelPath: _settingsRepository.lastModelPath,
         availableModels: _modelRepository.scanModels(),
       );
-      developer.log('Settings loaded', name: _tag);
+      print('[$_tag] Settings loaded');
     } catch (e) {
-      developer.log('loadSettings failed',
-          name: _tag, error: e, level: 1000);
+      print('[$_tag] ERROR: loadSettings failed - $e');
     }
   }
 
@@ -53,14 +50,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     final models = state.availableModels;
     final exists = models.any((m) => m.path == path);
     if (!exists) {
-      developer.log(
-        'Last model not found: $path',
-        name: _tag,
-        level: 900,
-      );
+      print('[$_tag] WARN: Last model not found: $path');
       return;
     }
-    developer.log('Auto-loading last model: $path', name: _tag);
+    print('[$_tag] Auto-loading last model: $path');
     await loadModel(path);
   }
 
@@ -115,12 +108,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
           await _modelRepository.importModelFromUri(sourcePath, fileName);
       if (success) {
         scanModels();
-        developer.log('Model imported: $fileName', name: _tag);
+        print('[$_tag] Model imported: $fileName');
       }
       return success;
     } catch (e) {
-      developer.log('importModel failed',
-          name: _tag, error: e, level: 1000);
+      print('[$_tag] ERROR: importModel failed - $e');
       return false;
     }
   }
@@ -138,16 +130,15 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
           lastModelPath: path,
           isLoadingModel: false,
         );
-        developer.log('Model loaded: $path', name: _tag);
+        print('[$_tag] Model loaded: $path');
       } else {
         state = state.copyWith(isLoadingModel: false);
-        developer.log('Model load failed: $path',
-            name: _tag, level: 900);
+        print('[$_tag] WARN: Model load failed: $path');
       }
       return success;
     } catch (e) {
       state = state.copyWith(isLoadingModel: false);
-      developer.log('loadModel error', name: _tag, error: e, level: 1000);
+      print('[$_tag] ERROR: loadModel error - $e');
       return false;
     }
   }

@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
 import 'package:aios/presentation/providers/update_state.dart';
@@ -17,33 +15,23 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
 
   Future<void> checkForUpdate() async {
     state = state.copyWith(status: UpdateStatus.checking, errorMessage: null);
-    developer.log(
-      'Checking for update (current: $_currentVersion)...',
-      name: _tag,
-    );
+    print('[$_tag] Checking for update (current: $_currentVersion)...');
 
     final result = await _updateRepository.checkForUpdate();
     result.when(
       success: (info) {
-        developer.log(
-          'Update available: ${info.latestVersion}',
-          name: _tag,
-        );
+        print('[$_tag] Update available: ${info.latestVersion}');
         state = state.copyWith(
           status: UpdateStatus.available,
           updateInfo: info,
         );
       },
       notAvailable: () {
-        developer.log('No update available', name: _tag);
+        print('[$_tag] No update available');
         state = state.copyWith(status: UpdateStatus.notAvailable);
       },
       error: (msg) {
-        developer.log(
-          'checkForUpdate failed: $msg',
-          name: _tag,
-          level: 1000,
-        );
+        print('[$_tag] ERROR: checkForUpdate failed: $msg');
         state = state.copyWith(
           status: UpdateStatus.error,
           errorMessage: msg,
@@ -58,7 +46,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       status: UpdateStatus.downloading,
       downloadProgress: 0,
     );
-    developer.log('Downloading APK...', name: _tag);
+    print('[$_tag] Downloading APK...');
 
     final file = await _updateRepository.downloadApk(
       state.updateInfo!.downloadUrl,
@@ -67,13 +55,13 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     );
 
     if (file != null) {
-      developer.log('Download complete', name: _tag);
+      print('[$_tag] Download complete');
       state = state.copyWith(
         status: UpdateStatus.downloaded,
         downloadedFilePath: file,
       );
     } else {
-      developer.log('Download failed', name: _tag, level: 1000);
+      print('[$_tag] ERROR: Download failed');
       state = state.copyWith(
         status: UpdateStatus.error,
         errorMessage: 'Download failed',
@@ -84,18 +72,14 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
   Future<void> installApk() async {
     if (state.downloadedFilePath == null) return;
     state = state.copyWith(status: UpdateStatus.installing);
-    developer.log('Installing APK...', name: _tag);
+    print('[$_tag] Installing APK...');
 
     final installStatus = await Permission.requestInstallPackages.status;
     if (!installStatus.isGranted) {
-      developer.log('Requesting install packages permission', name: _tag);
+      print('[$_tag] Requesting install packages permission');
       final result = await Permission.requestInstallPackages.request();
       if (!result.isGranted) {
-        developer.log(
-          'Install permission denied',
-          name: _tag,
-          level: 1000,
-        );
+        print('[$_tag] ERROR: Install permission denied');
         state = state.copyWith(
           status: UpdateStatus.error,
           errorMessage:
@@ -109,10 +93,10 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       state.downloadedFilePath!,
     );
     if (success) {
-      developer.log('Install intent launched', name: _tag);
+      print('[$_tag] Install intent launched');
       state = state.copyWith(status: UpdateStatus.installed);
     } else {
-      developer.log('Install failed', name: _tag, level: 1000);
+      print('[$_tag] ERROR: Install failed');
       state = state.copyWith(
         status: UpdateStatus.error,
         errorMessage: 'Install failed',
