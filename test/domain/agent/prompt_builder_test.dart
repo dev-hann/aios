@@ -60,6 +60,12 @@ void main() {
 
       expect(prompt, contains('screen_action'));
     });
+
+    test('contains screen_reader examples', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('screen_reader'));
+    });
   });
 
   group('buildToolPrompt', () {

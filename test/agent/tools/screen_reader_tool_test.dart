@@ -53,6 +53,26 @@ void main() {
     });
   });
 
+  group('ScreenReaderTool_toolPrompt', () {
+    late ScreenReaderTool tool;
+
+    setUp(() {
+      tool = ScreenReaderTool();
+    });
+
+    test('toolPrompt_containsReadAction', () {
+      expect(tool.toolPrompt, contains('Read'));
+    });
+
+    test('toolPrompt_containsDescription', () {
+      expect(tool.toolPrompt, contains('screen'));
+    });
+
+    test('toolPrompt_isNotEmpty', () {
+      expect(tool.toolPrompt.isNotEmpty, isTrue);
+    });
+  });
+
   group('ScreenFindTool', () {
     late ScreenFindTool tool;
     late MockToolContext mockContext;
@@ -104,6 +124,20 @@ void main() {
         final result =
             await tool.execute('{"text": "test"}', mockContext);
         expect(result, contains('Error:'));
+      });
+    });
+
+    group('ScreenFindTool_toolPrompt', () {
+      test('toolPrompt_containsFindAction', () {
+        expect(tool.toolPrompt, contains('Find'));
+      });
+
+      test('toolPrompt_containsTextParameter', () {
+        expect(tool.toolPrompt, contains('text'));
+      });
+
+      test('toolPrompt_isNotEmpty', () {
+        expect(tool.toolPrompt.isNotEmpty, isTrue);
       });
     });
 

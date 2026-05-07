@@ -9,7 +9,7 @@
 
 ## 2. Current Status
 
-- **691 테스트** 전체 통과
+- **698 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
 - 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 
@@ -33,6 +33,7 @@
 | LoopDetector | `lib/domain/agent/loop_detector.dart` | 반복 감지, 넛지/강제종료 |
 | AppLauncherTool | `lib/agent/tools/app_launcher_tool.dart` | open_app/open_url/list_apps, validate, 에러 처리 |
 | ScreenActionTool | `lib/agent/tools/screen_action_tool.dart` | tap/long_click/type/scroll/swipe/global, 에러 처리 |
+| ScreenReaderTool | `lib/agent/tools/screen_reader_tool.dart` | 화면 텍스트 읽기, UI 요소 검색, toolPrompt |
 
 ### P2: State Management (필수)
 
