@@ -11,11 +11,24 @@ class PhoneCallerTool extends ExtendedTool {
 
   @override
   String get description =>
-      'Call or dial a number. Args: {action: call|dial, number}';
+      'Call or dial a phone number. Args: {action: call|dial, number}';
 
   @override
   String get parameters =>
       '{"action": "call|dial", "number": "string"}';
+
+  @override
+  String get toolPrompt =>
+      'Make phone calls or dial numbers.\n\n'
+      'Actions:\n'
+      '- call: Directly make a phone call\n'
+      '- dial: Open the dialer with the number\n\n'
+      'Parameters: $parameters\n\n'
+      'Rules:\n'
+      '- "number" is required and must be a valid phone number\n'
+      '- Use "call" to directly call, "dial" to open dialer\n'
+      '- Numbers should be digits only (e.g. 01012345678)\n'
+      '- Respond with user language';
 
   @override
   Future<String> execute(String args, ToolContext toolContext) async {

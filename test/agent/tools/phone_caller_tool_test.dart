@@ -75,4 +75,44 @@ void main() {
       expect(tool.description.isNotEmpty, isTrue);
     });
   });
+
+  group('toolPrompt', () {
+    test('toolPrompt_containsActions', () {
+      final prompt = tool.toolPrompt;
+      expect(prompt, contains('call'));
+      expect(prompt, contains('dial'));
+    });
+
+    test('toolPrompt_containsParameters', () {
+      final prompt = tool.toolPrompt;
+      expect(prompt, contains('action'));
+      expect(prompt, contains('number'));
+    });
+
+    test('toolPrompt_isNotEmpty', () {
+      expect(tool.toolPrompt.isNotEmpty, isTrue);
+    });
+
+    test('toolPrompt_containsRules', () {
+      final prompt = tool.toolPrompt;
+      expect(prompt, contains('Rules'));
+    });
+  });
+
+  group('execute_caseInsensitive', () {
+    test('execute_upperCaseCall_treatedAsCall', () async {
+      await tool.execute(
+          '{"action": "CALL", "number": "01012345678"}', mockContext);
+      expect(mockContext.methodCalls.last.method, 'makeCall');
+      final args = mockContext.methodCalls.last.arguments as Map;
+      expect(args['action'], 'call');
+    });
+
+    test('execute_upperCaseDial_treatedAsDial', () async {
+      await tool.execute(
+          '{"action": "DIAL", "number": "01012345678"}', mockContext);
+      final args = mockContext.methodCalls.last.arguments as Map;
+      expect(args['action'], 'dial');
+    });
+  });
 }

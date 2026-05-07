@@ -9,7 +9,7 @@
 
 ## 2. Current Status
 
-- **719 테스트** 전체 통과
+- **726 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
 - 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 
@@ -36,6 +36,7 @@
 | ScreenReaderTool | `lib/agent/tools/screen_reader_tool.dart` | 화면 텍스트 읽기, UI 요소 검색, toolPrompt |
 | NotificationTool | `lib/agent/tools/notification_tool.dart` | 알림 목록/내용 읽기, 앱 필터링, toolPrompt |
 | SmsSenderTool | `lib/agent/tools/sms_sender_tool.dart` | SMS 전송/읽기, toolPrompt |
+| PhoneCallerTool | `lib/agent/tools/phone_caller_tool.dart` | 전화 걸기/다이얼, toolPrompt |
 
 ### P2: State Management (필수)
 

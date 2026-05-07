@@ -72,6 +72,12 @@ void main() {
 
       expect(prompt, contains('sms_sender'));
     });
+
+    test('contains phone_caller examples', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('phone_caller'));
+    });
   });
 
   group('buildToolPrompt', () {
