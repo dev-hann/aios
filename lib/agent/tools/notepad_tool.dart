@@ -22,6 +22,18 @@ class NotePadTool extends AgentTool {
       '"value": "string (for save)"}';
 
   @override
+  String get toolPrompt =>
+      'Manage notes (save, get, list, delete).\n\n'
+      'Parameters: $parameters\n\n'
+      'Rules:\n'
+      '- "action" is required: save, get, list, or delete\n'
+      '- save: requires "key" and "value"\n'
+      '- get: requires "key"\n'
+      '- list: no additional params needed\n'
+      '- delete: requires "key"\n'
+      '- Respond with user language';
+
+  @override
   Future<String> execute(String args) async {
     try {
       final json = _tryParseJson(args);

@@ -98,4 +98,25 @@ void main() {
       expect(tool.description.isNotEmpty, isTrue);
     });
   });
+
+  group('toolPrompt', () {
+    test('toolPrompt_containsActionTypes', () async {
+      expect(tool.toolPrompt, contains('save'));
+      expect(tool.toolPrompt, contains('get'));
+      expect(tool.toolPrompt, contains('list'));
+      expect(tool.toolPrompt, contains('delete'));
+    });
+
+    test('toolPrompt_containsKeyRequirement', () async {
+      expect(tool.toolPrompt, contains('key'));
+    });
+
+    test('toolPrompt_containsValueRequirement', () async {
+      expect(tool.toolPrompt, contains('value'));
+    });
+
+    test('toolPrompt_containsParameters', () async {
+      expect(tool.toolPrompt, contains('Parameters'));
+    });
+  });
 }

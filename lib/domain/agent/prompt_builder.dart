@@ -52,6 +52,14 @@ class PromptBuilder {
         'Action: calculator\n\n'
         'User: calculate (15+7)*3\n'
         'Action: calculator\n\n'
+        'User: 오늘 할 일 적어줘: 장보기, 운동가기\n'
+        'Action: notepad\n\n'
+        'User: 메모 뭐 있어\n'
+        'Action: notepad\n\n'
+        'User: 장보기 메모 지워줘\n'
+        'Action: notepad\n\n'
+        'User: save a note: buy milk tomorrow\n'
+        'Action: notepad\n\n'
         'Rules: Max 5 tool calls. Be concise. Match user language. '
         'NEVER respond with anything except Action: or Answer: format.';
   }
