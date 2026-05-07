@@ -142,13 +142,13 @@ print('[AIOS-{Component}] ERROR: message - $e');
 | `contact_search` | ExtendedTool | `agent/tools/contact_search_tool.dart` | **활성** |
 | `calculator` | BasicTool | `agent/tools/calculator_tool.dart` | **활성** |
 | `notepad` | BasicTool | `agent/tools/notepad_tool.dart` | **활성** |
+| `timer` | BasicTool | `agent/tools/timer_tool.dart` | **활성** |
 
 ### 비활성 Tool (보존, 추후 재활성화)
 
 | Tool | 타입 | 파일 |
 |------|------|------|
 | `device_info` | BasicTool | `agent/tools/device_info_tool.dart` |
-| `timer` | BasicTool | `agent/tools/timer_tool.dart` |
 
 ### 2-Phase ReAct 구조
 
@@ -165,7 +165,7 @@ User Input → ReactStrategy.execute()
 
 ### 테스트
 
-- **742 테스트** 전체 통과
+- **760 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 필요)
 
 ### Tool 추가 시 체크리스트

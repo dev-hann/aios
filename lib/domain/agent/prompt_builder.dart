@@ -60,6 +60,16 @@ class PromptBuilder {
         'Action: notepad\n\n'
         'User: save a note: buy milk tomorrow\n'
         'Action: notepad\n\n'
+        'User: 5분 타이머 설정해줘\n'
+        'Action: timer\n\n'
+        'User: 타이머 남은 시간 알려줘\n'
+        'Action: timer\n\n'
+        'User: 타이머 취소해줘\n'
+        'Action: timer\n\n'
+        'User: set a timer for 2 minutes\n'
+        'Action: timer\n\n'
+        'User: 30초 타이머\n'
+        'Action: timer\n\n'
         'Rules: Max 5 tool calls. Be concise. Match user language. '
         'NEVER respond with anything except Action: or Answer: format.';
   }

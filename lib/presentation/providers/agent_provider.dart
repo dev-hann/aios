@@ -7,6 +7,7 @@ import 'package:aios/agent/tools/phone_caller_tool.dart';
 import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/agent/tools/screen_reader_tool.dart';
 import 'package:aios/agent/tools/sms_sender_tool.dart';
+import 'package:aios/agent/tools/timer_tool.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
@@ -23,10 +24,12 @@ final agentProvider = Provider<AgentStrategy>((ref) {
   final llmRepo = ref.watch(llmRepositoryProvider);
   final toolContext = ref.watch(toolContextProvider);
   final notes = <String, String>{};
+  final timers = <String, TimerEntry>{};
 
   final basicTools = <String, AgentTool>{
     'calculator': CalculatorTool(),
     'notepad': NotePadTool(notes),
+    'timer': TimerTool(timers),
   };
 
   final extendedTools = <String, ExtendedTool>{

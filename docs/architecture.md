@@ -90,8 +90,8 @@ UI와 상태 관리. Riverpod으로 Domain/Data 계층 사용.
 | `contact_search_tool.dart` | ExtendedTool | **활성** | 연락처 검색 (이름/전화/이메일) |
 | `calculator_tool.dart` | BasicTool | **활성** | 수학 계산 (사칙연산, 괄호) |
 | `notepad_tool.dart` | BasicTool | **활성** | 메모 작성/조회/목록/삭제 |
+| `timer_tool.dart` | BasicTool | **활성** | 타이머 설정/확인/취소/목록 |
 | `device_info_tool.dart` | BasicTool | 비활성 | 기기 정보 조회 |
-| `timer_tool.dart` | BasicTool | 비활성 | 타이머 설정 |
 
 ### Core Layer (`lib/core/`)
 

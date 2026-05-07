@@ -2,32 +2,126 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/agent_tool.dart';
 
+class TimerEntry {
+  TimerEntry({required this.startedAt, required this.durationSeconds});
+
+  final DateTime startedAt;
+  final int durationSeconds;
+
+  int get remainingSeconds {
+    final elapsed = DateTime.now().difference(startedAt).inSeconds;
+    final remaining = durationSeconds - elapsed;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  bool get isExpired => remainingSeconds <= 0;
+}
+
 class TimerTool extends AgentTool {
+  TimerTool(this._timers);
+
   static const _tag = 'AIOS-TimerTool';
+
+  final Map<String, TimerEntry> _timers;
 
   @override
   String get name => 'timer';
 
   @override
-  String get description => 'Set a countdown timer. Args: {seconds: int}';
+  String get description =>
+      'Set/check/cancel countdown timers. Args: {action, seconds, name}';
 
   @override
   String get parameters =>
-      '{"seconds": "integer, number of seconds to wait"}';
+      '{"action": "set|check|cancel|list", "seconds": "int 1-300", '
+      '"name": "string (optional timer name)"}';
+
+  @override
+  String get toolPrompt =>
+      'Manage countdown timers (max 300 seconds).\n\n'
+      'Parameters: $parameters\n\n'
+      'Actions:\n'
+      '- set: start a timer. Requires "seconds" (1-300). '
+      'Optional "name".\n'
+      '- check: show remaining time. Optional "name".\n'
+      '- cancel: stop a timer. Optional "name".\n'
+      '- list: show all active timers.\n\n'
+      'Rules:\n'
+      '- Korean time conversion: "X분" = X*60 seconds, '
+      '"X초" = X seconds\n'
+      '- "5분 타이머" → {"action":"set","seconds":300}\n'
+      '- "30초 타이머" → {"action":"set","seconds":30}\n'
+      '- Default timer name is "default" if not specified\n'
+      '- Max duration is 300 seconds (5 minutes)\n'
+      '- Respond with user language';
 
   @override
   Future<String> execute(String args) async {
     try {
       final json = _tryParseJson(args);
-      final secs = _parseInt(json['seconds']) ?? 0;
-      if (secs <= 0 || secs > 300) {
-        return "Error: 'seconds' must be 1-300";
-      }
-      return 'Timer requested: ${secs}s. '
-          'Note: timer execution requires async context.';
+      final action = json['action']?.toString().toLowerCase() ?? '';
+      return switch (action) {
+        'set' => _set(json),
+        'check' => _check(json),
+        'cancel' => _cancel(json),
+        'list' => _list(),
+        '' => "Error: 'action' required. "
+            'Use set, check, cancel, or list.',
+        _ => "Error: Unknown action '$action'. "
+            'Use set, check, cancel, or list.',
+      };
     } on Object catch (e) {
+      print('[$_tag] ERROR: $e');
       return 'Error: $e';
     }
+  }
+
+  String _set(Map<String, dynamic> json) {
+    final secs = _parseInt(json['seconds']) ?? 0;
+    if (secs <= 0 || secs > 300) {
+      return "Error: 'seconds' must be 1-300";
+    }
+    final name = json['name']?.toString() ?? 'default';
+    _timers[name] = TimerEntry(
+      startedAt: DateTime.now(),
+      durationSeconds: secs,
+    );
+    return 'Timer "$name" set for $secs seconds';
+  }
+
+  String _check(Map<String, dynamic> json) {
+    final name = json['name']?.toString() ?? 'default';
+    final timer = _timers[name];
+    if (timer == null) return 'Error: No timer found';
+    if (timer.isExpired) {
+      _timers.remove(name);
+      return 'Timer "$name" has expired';
+    }
+    return 'Timer "$name": ${timer.remainingSeconds} seconds remaining';
+  }
+
+  String _cancel(Map<String, dynamic> json) {
+    final name = json['name']?.toString() ?? 'default';
+    if (_timers.remove(name) != null) {
+      return 'Cancelled timer "$name"';
+    }
+    return 'Error: No timer found';
+  }
+
+  String _list() {
+    final expired = <String>[];
+    for (final entry in _timers.entries) {
+      if (entry.value.isExpired) expired.add(entry.key);
+    }
+    for (final name in expired) {
+      _timers.remove(name);
+    }
+    if (_timers.isEmpty) return 'No active timers';
+    return _timers.entries
+        .map((e) =>
+            '- ${e.key}: ${e.value.remainingSeconds}s remaining '
+            '(${e.value.durationSeconds}s total)')
+        .join('\n');
   }
 
   int? _parseInt(dynamic value) {
