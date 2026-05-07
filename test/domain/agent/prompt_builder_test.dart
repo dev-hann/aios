@@ -90,6 +90,22 @@ void main() {
 
       expect(prompt, contains('calculator'));
     });
+
+    test('contains chaining examples', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('연락처에서'));
+      expect(prompt, contains('찾아서'));
+    });
+
+    test('contains chaining rule', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(
+        prompt,
+        contains('previous'),
+      );
+    });
   });
 
   group('buildToolPrompt', () {

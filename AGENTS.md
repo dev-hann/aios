@@ -164,7 +164,7 @@ User Input → ReactStrategy.execute()
 
 ### 테스트
 
-- **760 테스트** 전체 통과
+- **776 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 필요)
 
 ### Tool 추가 시 체크리스트

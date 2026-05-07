@@ -16,6 +16,7 @@ class _MockLlmRepository implements LlmRepository {
   final _progressController = StreamController<double>.broadcast();
 
   List<String> tokensToEmit = [];
+  List<List<String>> responseQueue = [];
   bool shouldThrowOnSend = false;
   String? lastUserMessage;
   List<ChatMessage>? lastHistory;
@@ -67,7 +68,9 @@ class _MockLlmRepository implements LlmRepository {
       throw Exception('LLM error');
     }
     _stateController.add(ServiceState.generating);
-    for (final token in tokensToEmit) {
+    final tokens =
+        responseQueue.isNotEmpty ? responseQueue.removeAt(0) : tokensToEmit;
+    for (final token in tokens) {
       _tokenController.add(token);
     }
     _stateController.add(ServiceState.ready);
@@ -485,6 +488,169 @@ void main() {
 
         final result = await strategy.execute('task2');
         expect(result.steps.any((s) => s.type == 'answer'), isTrue);
+      });
+    });
+
+    group('multiToolChaining', () {
+      test('chains two basic tools sequentially', () async {
+        final calcTool = _FakeBasicTool('calculator', '42');
+        final noteTool = _FakeBasicTool('notepad', 'Note saved');
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {
+            'calculator': calcTool,
+            'notepad': noteTool,
+          },
+        );
+
+        llmRepo.responseQueue = [
+          ['Action: calculator'],
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Action: notepad'],
+          ['Action: notepad\nArgs: {"action": "save", '
+              '"content": "42"}'],
+          ['Answer: Saved 42 to notes.'],
+        ];
+
+        final result = await strategy.execute(
+          '2+2 계산해서 메모해줘',
+        );
+
+        expect(result.success, isTrue);
+        expect(calcTool.executeCount, greaterThanOrEqualTo(1));
+        expect(noteTool.executeCount, greaterThanOrEqualTo(1));
+        expect(
+          result.steps.any((s) => s.type == 'answer'),
+          isTrue,
+        );
+      });
+
+      test('chains three safe tools sequentially', () async {
+        final calcTool = _FakeBasicTool('calculator', '385');
+        final noteTool = _FakeBasicTool('notepad', 'Note saved');
+        final timerTool = _FakeBasicTool('timer', 'Timer set');
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {
+            'calculator': calcTool,
+            'notepad': noteTool,
+            'timer': timerTool,
+          },
+        );
+
+        llmRepo.responseQueue = [
+          ['Action: calculator'],
+          ['Action: calculator\nArgs: {"expression": "385"}'],
+          ['Action: notepad'],
+          ['Action: notepad\nArgs: {"action": "save", '
+              '"content": "385"}'],
+          ['Action: timer'],
+          ['Action: timer\nArgs: {"action": "start", '
+              '"seconds": "60"}'],
+          ['Answer: Done.'],
+        ];
+
+        final result = await strategy.execute(
+          '385 계산하고 메모하고 60초 타이머 설정해줘',
+          maxIterations: 8,
+        );
+
+        expect(result.success, isTrue);
+        expect(calcTool.executeCount, greaterThanOrEqualTo(1));
+        expect(noteTool.executeCount, greaterThanOrEqualTo(1));
+        expect(timerTool.executeCount, greaterThanOrEqualTo(1));
+      });
+
+      test('phase2 includes all observations', () async {
+        final calcTool = _FakeBasicTool('calculator', '42');
+        final noteTool = _FakeBasicTool('notepad', 'Note saved');
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {
+            'calculator': calcTool,
+            'notepad': noteTool,
+          },
+        );
+
+        llmRepo.responseQueue = [
+          ['Action: calculator'],
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Action: notepad'],
+          ['Action: notepad\nArgs: {"action": "save", '
+              '"content": "42"}'],
+          ['Answer: done'],
+        ];
+
+        await strategy.execute('2+2 계산해서 메모해줘');
+
+        final history = strategy.getConversationHistory();
+        final observations = history
+            .where((m) =>
+                m.role == 'user' &&
+                m.content.startsWith('Observation'))
+            .toList();
+        expect(observations.length, greaterThanOrEqualTo(2));
+      });
+
+      test('chains with direct args skips phase2', () async {
+        final calcTool = _FakeBasicTool('calculator', '4');
+        final noteTool = _FakeBasicTool('notepad', 'Note saved');
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {
+            'calculator': calcTool,
+            'notepad': noteTool,
+          },
+        );
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Action: notepad\nArgs: {"action": "save", '
+              '"content": "result is 4"}'],
+          ['Answer: Saved result.'],
+        ];
+
+        final result = await strategy.execute(
+          '2+2 계산해서 메모해줘',
+        );
+
+        expect(result.success, isTrue);
+        expect(calcTool.executeCount, 1);
+        expect(noteTool.executeCount, 1);
+      });
+
+      test('loop detector prevents infinite chaining', () async {
+        final tool = _FakeBasicTool('calculator', '42');
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': tool},
+        );
+
+        final endlessResponses = List.generate(
+          20,
+          (_) => [
+            'Action: calculator\nArgs: {"expression": "1+1"}'
+          ],
+        );
+        llmRepo.responseQueue = endlessResponses;
+
+        final result = await strategy.execute(
+          'keep calculating',
+          maxIterations: 10,
+        );
+
+        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
+        expect(tool.executeCount, lessThan(10));
       });
     });
   });

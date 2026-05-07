@@ -82,7 +82,17 @@ class PromptBuilder {
         'Action: device_info\n\n'
         'User: how much storage is left\n'
         'Action: device_info\n\n'
+        'User: 연락처에서 홍길동 찾아서 전화해줘\n'
+        'Action: contact_search\n\n'
+        'User: 2+2 계산해서 메모해줘\n'
+        'Action: calculator\n\n'
+        'User: 화면에서 번호 읽어서 전화해줘\n'
+        'Action: screen_reader\n\n'
+        'User: 메모 내용 문자로 보내줘\n'
+        'Action: notepad\n\n'
         'Rules: Max 5 tool calls. Be concise. Match user language. '
+        'For multi-step requests, use one tool at a time. '
+        'Use data from previous observations for the next step. '
         'NEVER respond with anything except Action: or Answer: format.';
   }
 

@@ -370,8 +370,9 @@ class ReactStrategy implements AgentStrategy {
 
     if (observations.isEmpty) return originalPrompt;
 
-    final lastObs = observations.last.content;
-    return '$originalPrompt\n\nPrevious result: $lastObs';
+    final allObs =
+        observations.map((m) => m.content).join('\n');
+    return '$originalPrompt\n\nPrevious results:\n$allObs';
   }
 
   List<ChatMessage> _buildChatHistory(

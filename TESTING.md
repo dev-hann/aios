@@ -9,7 +9,7 @@
 
 ## 2. Current Status
 
-- **769 테스트** 전체 통과
+- **776 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
 - 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 
@@ -21,7 +21,7 @@
 |--------|------|-----------|
 | LlmRepositoryImpl | `lib/data/repositories/llm_repository_impl.dart` | 모델 로드/해제, 추론 호출, 에러 처리, 세션 저장/로드 |
 | ChatNotifier | `lib/presentation/providers/chat_notifier.dart` | sendMessage, stopGeneration, loadModel, state 일관성 |
-| ReactStrategy | `lib/domain/agent/react_strategy.dart` | Phase 1/2 흐름, tool 실행, ParseEmpty 넛지, 루프 감지 |
+| ReactStrategy | `lib/domain/agent/react_strategy.dart` | Phase 1/2 흐름, tool 실행, ParseEmpty 넛지, 루프 감지, multi-tool chaining |
 
 ### P1: Agent System (필수)
 

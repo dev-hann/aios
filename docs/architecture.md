@@ -156,10 +156,13 @@ UpdateScreen → UpdateNotifier.checkForUpdates()
 
 Phase 1은 최소 프롬프트(~80 토큰)로 LLM에게 tool 선택만 요청.
 Phase 2는 선택된 tool의 전용 프롬프트 + 컨텍스트로 args 포맷팅.
+Multi-tool chaining: 이전 Observation 결과를 다음 tool 실행에 전달.
 
 ```
 PromptBuilder
   ├─ buildRoutingPrompt(manifest)  → Phase 1 system prompt
+  │   — Multi-tool chaining examples 포함
+  │   — "Use data from previous observations" rule
   └─ buildToolPrompt(name, toolPrompt, extraContext) → Phase 2 system prompt
 
 ReactStrategy
@@ -170,6 +173,7 @@ ReactStrategy
   │   → ParseEmpty → 넛지 후 재시도
   └─ Phase 2: _phase2Execute(toolName)
       → Tool.phaseContext()로 컨텍스트 fetch (예: 앱 리스트)
+      → _buildPhase2UserMessage() — 모든 이전 Observation 포함
       → LLM이 Action + Args 포맷팅
       → _executeTool() 실행
 ```
