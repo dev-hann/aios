@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Environment
+import android.os.StatFs
 import android.provider.ContactsContract
 import android.provider.Settings
 import android.util.Log
@@ -430,6 +432,42 @@ class MainActivity : FlutterActivity() {
                         put("jvm_max_mb", runtime.maxMemory() / 1048576)
                         put("jvm_total_mb", runtime.totalMemory() / 1048576)
                         put("jvm_free_mb", runtime.freeMemory() / 1048576)
+                    }
+                    result.success(info.toString(2))
+                }
+
+                "getBatteryInfo" -> {
+                    val bm = getSystemService(Context.BATTERY_SERVICE)
+                        as android.os.BatteryManager
+                    val level = bm.getIntProperty(
+                        android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY
+                    )
+                    val charging = bm.isCharging
+                    val info = JSONObject().apply {
+                        put("level", level)
+                        put("charging", charging)
+                    }
+                    result.success(info.toString(2))
+                }
+
+                "getStorageInfo" -> {
+                    val statFs = android.os.StatFs(
+                        Environment.getDataDirectory().path
+                    )
+                    val totalBytes = statFs.totalBytes
+                    val availableBytes = statFs.availableBytes
+                    val usedBytes = totalBytes - availableBytes
+                    val info = JSONObject().apply {
+                        put("total_gb",
+                            String.format("%.1f", totalBytes / 1e9))
+                        put("used_gb",
+                            String.format("%.1f", usedBytes / 1e9))
+                        put("available_gb",
+                            String.format("%.1f", availableBytes / 1e9))
+                        put("usage_percent",
+                            if (totalBytes > 0)
+                                ((usedBytes * 100) / totalBytes).toInt()
+                            else 0)
                     }
                     result.success(info.toString(2))
                 }

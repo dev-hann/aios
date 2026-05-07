@@ -70,6 +70,18 @@ class PromptBuilder {
         'Action: timer\n\n'
         'User: 30초 타이머\n'
         'Action: timer\n\n'
+        'User: 내 폰 배터리 몇퍼센트야\n'
+        'Action: device_info\n\n'
+        'User: 내 폰 기종이 뭐야\n'
+        'Action: device_info\n\n'
+        'User: 저장공간 얼마나 남았어\n'
+        'Action: device_info\n\n'
+        'User: 폰 정보 알려줘\n'
+        'Action: device_info\n\n'
+        'User: what is my phone model\n'
+        'Action: device_info\n\n'
+        'User: how much storage is left\n'
+        'Action: device_info\n\n'
         'Rules: Max 5 tool calls. Be concise. Match user language. '
         'NEVER respond with anything except Action: or Answer: format.';
   }

@@ -9,7 +9,7 @@
 
 ## 2. Current Status
 
-- **760 테스트** 전체 통과
+- **769 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
 - 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 

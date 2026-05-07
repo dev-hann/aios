@@ -143,12 +143,11 @@ print('[AIOS-{Component}] ERROR: message - $e');
 | `calculator` | BasicTool | `agent/tools/calculator_tool.dart` | **활성** |
 | `notepad` | BasicTool | `agent/tools/notepad_tool.dart` | **활성** |
 | `timer` | BasicTool | `agent/tools/timer_tool.dart` | **활성** |
+| `device_info` | ExtendedTool | `agent/tools/device_info_tool.dart` | **활성** |
 
 ### 비활성 Tool (보존, 추후 재활성화)
 
-| Tool | 타입 | 파일 |
-|------|------|------|
-| `device_info` | BasicTool | `agent/tools/device_info_tool.dart` |
+(없음)
 
 ### 2-Phase ReAct 구조
 

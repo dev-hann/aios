@@ -1,7 +1,8 @@
 import 'package:aios/agent/tools/app_launcher_tool.dart';
 import 'package:aios/agent/tools/calculator_tool.dart';
-import 'package:aios/agent/tools/notepad_tool.dart';
 import 'package:aios/agent/tools/contact_search_tool.dart';
+import 'package:aios/agent/tools/device_info_tool.dart';
+import 'package:aios/agent/tools/notepad_tool.dart';
 import 'package:aios/agent/tools/notification_tool.dart';
 import 'package:aios/agent/tools/phone_caller_tool.dart';
 import 'package:aios/agent/tools/screen_action_tool.dart';
@@ -41,6 +42,7 @@ final agentProvider = Provider<AgentStrategy>((ref) {
     'sms_sender': SmsSenderTool(),
     'phone_caller': PhoneCallerTool(),
     'contact_search': ContactSearchTool(),
+    'device_info': DeviceInfoTool(),
   };
 
   return ReactStrategy(
