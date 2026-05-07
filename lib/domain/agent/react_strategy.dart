@@ -5,12 +5,14 @@ import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/audit_log.dart';
 import 'package:aios/domain/agent/confirmation_gate.dart';
+import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/loop_detector.dart';
 import 'package:aios/domain/agent/prompt_builder.dart';
 import 'package:aios/domain/agent/response_parser.dart';
 import 'package:aios/domain/agent/risk_classifier.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
@@ -29,6 +31,9 @@ class ReactStrategy implements AgentStrategy {
   final ToolContext? _toolContext;
   final Map<String, AgentTool> _basicTools;
   final Map<String, ExtendedTool> _extendedTools;
+
+  ConversationContext? _conversationContext;
+  ToolPreferenceTracker? _preferenceTracker;
 
   bool _cancelled = false;
 
@@ -91,7 +96,13 @@ class ReactStrategy implements AgentStrategy {
         // ── Phase 1: Routing ──
         final routingManifest = _getRoutingManifest();
         final routingSystem =
-            _promptBuilder.buildRoutingPrompt(routingManifest);
+            _promptBuilder.buildRoutingPrompt(
+          routingManifest,
+          conversationContext:
+              _conversationContext?.toPromptContext(),
+          toolPreferences:
+              _preferenceTracker?.toPromptContext(),
+        );
 
         final phase1Response =
             await _generateResponse(routingSystem, maxTokens);
@@ -228,7 +239,29 @@ class ReactStrategy implements AgentStrategy {
     }
 
     final success = steps.any((s) => s.type == 'answer');
+    _recordTurn(prompt, steps);
     return AgentResult(steps: steps, success: success);
+  }
+
+  void _recordTurn(String userMessage, List<AgentStep> steps) {
+    if (_conversationContext == null) return;
+    final answerStep = steps
+        .where((s) => s.type == 'answer')
+        .lastOrNull;
+    if (answerStep == null) return;
+    final toolSteps = steps
+        .where((s) => s.type == 'action' && s.toolName.isNotEmpty)
+        .toList();
+    final toolUsed =
+        toolSteps.isNotEmpty ? toolSteps.first.toolName : null;
+    _conversationContext!.addTurn(
+      userMessage,
+      answerStep.content,
+      toolUsed: toolUsed,
+    );
+    print('[$_tag] Context turn recorded: '
+        '${_conversationContext!.length} turns, '
+        'tool=${toolUsed ?? "none"}');
   }
 
   Future<String> _generateResponse(
@@ -456,6 +489,7 @@ class ReactStrategy implements AgentStrategy {
     if (basicTool != null) {
       final result = await basicTool.execute(args);
       _auditLog.add(name, args, risk, true, result);
+      _preferenceTracker?.recordToolUse(name);
       return result;
     }
 
@@ -464,6 +498,7 @@ class ReactStrategy implements AgentStrategy {
       if (ctx == null) return _noContextError(name, args, risk);
       final result = await extendedTool.execute(args, ctx);
       _auditLog.add(name, args, risk, true, result);
+      _preferenceTracker?.recordToolUse(name);
       return result;
     }
 
@@ -513,5 +548,15 @@ class ReactStrategy implements AgentStrategy {
   @override
   void clearHistory() {
     _promptBuilder.clearHistory();
+  }
+
+  @override
+  void setConversationContext(ConversationContext? context) {
+    _conversationContext = context;
+  }
+
+  @override
+  void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {
+    _preferenceTracker = tracker;
   }
 }

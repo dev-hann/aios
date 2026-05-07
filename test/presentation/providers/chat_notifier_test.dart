@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:aios/domain/agent/conversation_context.dart';
+import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/service_state.dart';
@@ -206,6 +208,14 @@ class _MockAgentStrategy implements AgentStrategy {
 
   @override
   void clearHistory() {}
+
+  @override
+  void setConversationContext(ConversationContext? context) {}
+
+  @override
+  void setToolPreferenceTracker(
+    ToolPreferenceTracker? tracker,
+  ) {}
 }
 
 void main() {

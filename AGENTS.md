@@ -101,8 +101,7 @@ print('[AIOS-{Component}] ERROR: message - $e');
 | Repository 구현 | `data/repositories/` |
 | Domain entity | `domain/entities/` |
 | Agent 전략/로직 | `domain/agent/` |
-| Tool | `agent/tools/` |
-| Screen | `presentation/screens/` |
+| Tool | `agent/tools/` || Screen | `presentation/screens/` |
 | Widget | `presentation/widgets/` |
 | Provider | `presentation/providers/` |
 | DataSource | `data/datasources/` |
@@ -156,15 +155,30 @@ User Input → ReactStrategy.execute()
   ├─ Phase 1: Routing (최소 프롬프트, ~80 토큰)
   │   → LLM이 "Action: tool_name" 또는 "Answer: text" 응답
   │   → ParseEmpty 시 포맷 넛지와 함께 재시도
+  │   → ConversationContext (이전 대화 맥락) + ToolPreferenceTracker (선호도) 포함
   ├─ Phase 2: Tool-specific execution (args가 비어있을 때만)
   │   → toolPrompt + phaseContext(app 리스트 등)로 LLM이 args 포맷팅
   │   → 응답에서 Action + Args 파싱하여 tool 실행
   └─ Tool 실행 → Observation → 루프 반복 (최대 8회) 또는 Answer 반환
 ```
 
+### Context Awareness
+
+```
+ConversationContext (domain/agent/conversation_context.dart)
+  → 최근 5턴 대화 기록 유지 (user Q + assistant A + tool used)
+  → 응답 길이 제한 (200자)으로 컨텍스트 윈도우 절약
+  → execute() 완료 시 자동 기록
+
+ToolPreferenceTracker (domain/agent/tool_preference_tracker.dart)
+  → Tool 사용 빈도 추적 (top 3)
+  → Routing 프롬프트에 "FREQUENTLY USED TOOLS" 섹션 추가
+  → 자주 쓰는 tool 우선 라우팅 유도
+```
+
 ### 테스트
 
-- **776 테스트** 전체 통과
+- **828 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 필요)
 
 ### Tool 추가 시 체크리스트

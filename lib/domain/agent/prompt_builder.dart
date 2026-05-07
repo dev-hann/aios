@@ -3,9 +3,22 @@ class PromptBuilder {
 
   final List<({String role, String content})> _history = [];
 
-  String buildRoutingPrompt(String routingManifest) {
+  String buildRoutingPrompt(
+    String routingManifest, {
+    String? conversationContext,
+    String? toolPreferences,
+  }) {
+    final contextSection = conversationContext != null &&
+            conversationContext.isNotEmpty
+        ? '\n$conversationContext\n'
+        : '';
+    final prefSection = toolPreferences != null && toolPreferences.isNotEmpty
+        ? '\n$toolPreferences\n'
+        : '';
     return 'You are AIOS, an AI assistant on an Android phone.\n\n'
-        'AVAILABLE TOOLS:\n$routingManifest\n\n'
+        'AVAILABLE TOOLS:\n$routingManifest\n'
+        '$contextSection'
+        '$prefSection'
         'You MUST respond in EXACTLY one of these two formats:\n\n'
         'Format 1 (to use a tool):\n'
         'Action: tool_name\n\n'

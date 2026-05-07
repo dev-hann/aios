@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:aios/domain/agent/agent_tool.dart';
+import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/service_state.dart';
@@ -651,6 +653,234 @@ void main() {
 
         expect(result.steps.any((s) => s.type == 'answer'), isTrue);
         expect(tool.executeCount, lessThan(10));
+      });
+    });
+
+    group('contextAwareness', () {
+      test('records_conversationTurn_afterExecute', () async {
+        final context = ConversationContext();
+        llmRepo.tokensToEmit = ['Answer: Hello!'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        strategy.setConversationContext(context);
+        await strategy.execute('Hi');
+
+        expect(context.length, 1);
+        final turns = context.getRecentTurns();
+        expect(turns.first.userMessage, 'Hi');
+        expect(turns.first.assistantResponse, 'Hello!');
+      });
+
+      test('records_toolUsed_whenToolExecuted', () async {
+        final context = ConversationContext();
+        final calcTool = _FakeBasicTool('calculator', '42');
+
+        llmRepo.tokensToEmit = [
+          'Action: calculator\nArgs: {"expression": "2+2"}',
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': calcTool},
+        );
+        strategy.setConversationContext(context);
+        await strategy.execute('2+2');
+
+        expect(context.length, 1);
+        final turns = context.getRecentTurns();
+        expect(turns.first.toolUsed, 'calculator');
+      });
+
+      test('records_nullToolUsed_whenDirectAnswer', () async {
+        final context = ConversationContext();
+        llmRepo.tokensToEmit = ['Answer: Just a text answer'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        strategy.setConversationContext(context);
+        await strategy.execute('Hello');
+
+        final turns = context.getRecentTurns();
+        expect(turns.first.toolUsed, isNull);
+      });
+
+      test('records_turn_onlyWhenAnswerExists', () async {
+        final context = ConversationContext();
+        llmRepo.tokensToEmit = ['Answer: some answer'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        strategy.setConversationContext(context);
+        await strategy.execute('test');
+
+        expect(context.length, 1);
+      });
+
+      test('records_multipleTurns_acrossExecutions', () async {
+        final context = ConversationContext();
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        strategy.setConversationContext(context);
+
+        llmRepo.tokensToEmit = ['Answer: First'];
+        await strategy.execute('Q1');
+
+        llmRepo.tokensToEmit = ['Answer: Second'];
+        await strategy.execute('Q2');
+
+        llmRepo.tokensToEmit = ['Answer: Third'];
+        await strategy.execute('Q3');
+
+        expect(context.length, 3);
+      });
+
+      test('respects_maxTurns_acrossExecutions', () async {
+        final context = ConversationContext(maxTurns: 2);
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        strategy.setConversationContext(context);
+
+        llmRepo.tokensToEmit = ['Answer: A1'];
+        await strategy.execute('Q1');
+
+        llmRepo.tokensToEmit = ['Answer: A2'];
+        await strategy.execute('Q2');
+
+        llmRepo.tokensToEmit = ['Answer: A3'];
+        await strategy.execute('Q3');
+
+        expect(context.length, 2);
+        final turns = context.getRecentTurns();
+        expect(turns[0].userMessage, 'Q2');
+        expect(turns[1].userMessage, 'Q3');
+      });
+    });
+
+    group('toolPreferenceTracking', () {
+      test('tracks_singleToolUsage', () async {
+        final tracker = ToolPreferenceTracker();
+        final calcTool = _FakeBasicTool('calculator', '42');
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Answer: 42'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': calcTool},
+        );
+        strategy.setToolPreferenceTracker(tracker);
+        await strategy.execute('2+2');
+
+        expect(tracker.getCount('calculator'), greaterThanOrEqualTo(1));
+      });
+
+      test('tracks_multipleToolUsage', () async {
+        final tracker = ToolPreferenceTracker();
+        final calcTool = _FakeBasicTool('calculator', '42');
+        final noteTool = _FakeBasicTool('notepad', 'saved');
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Action: notepad\nArgs: {"action": "save"}'],
+          ['Answer: done'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {
+            'calculator': calcTool,
+            'notepad': noteTool,
+          },
+        );
+        strategy.setToolPreferenceTracker(tracker);
+        await strategy.execute('calc and save');
+
+        expect(tracker.getCount('calculator'), 1);
+        expect(tracker.getCount('notepad'), 1);
+      });
+
+      test('noTracking_whenNoTrackerSet', () async {
+        final calcTool = _FakeBasicTool('calculator', '42');
+
+        llmRepo.responseQueue = [
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Answer: 42'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': calcTool},
+        );
+        await strategy.execute('2+2');
+
+        expect(calcTool.executeCount, greaterThanOrEqualTo(1));
+      });
+
+      test('tracks_extendedToolUsage', () async {
+        final tracker = ToolPreferenceTracker();
+        final extTool =
+            _FakeExtendedTool('app_launcher', 'launched');
+
+        llmRepo.responseQueue = [
+          ['Answer: App launched.'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          extendedTools: {'app_launcher': extTool},
+        );
+        strategy.setToolPreferenceTracker(tracker);
+
+        tracker.recordToolUse('app_launcher');
+
+        expect(tracker.getCount('app_launcher'), 1);
+      });
+    });
+
+    group('setConversationContext', () {
+      test('accepts_null', () async {
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+
+        expect(
+          () => strategy.setConversationContext(null),
+          returnsNormally,
+        );
+      });
+
+      test('accepts_context', () async {
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final context = ConversationContext();
+
+        expect(
+          () => strategy.setConversationContext(context),
+          returnsNormally,
+        );
+      });
+    });
+
+    group('setToolPreferenceTracker', () {
+      test('accepts_null', () async {
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+
+        expect(
+          () => strategy.setToolPreferenceTracker(null),
+          returnsNormally,
+        );
+      });
+
+      test('accepts_tracker', () async {
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final tracker = ToolPreferenceTracker();
+
+        expect(
+          () => strategy.setToolPreferenceTracker(tracker),
+          returnsNormally,
+        );
       });
     });
   });

@@ -46,7 +46,7 @@ AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llama_cpp
 |--------------|------|------|
 | `entities/` | 불변 데이터 모델 (freezed) | `chat_message.dart`, `agent_models.dart`, `model_info.dart` |
 | `repositories/` | Repository 인터페이스 (abstract class) | `llm_repository.dart`, `settings_repository.dart` |
-| `agent/` | 에이전트 전략, 파서, 위험 분류 | `react_strategy.dart`, `response_parser.dart`, `risk_classifier.dart` |
+| `agent/` | 에이전트 전략, 파서, 위험 분류 | `react_strategy.dart`, `response_parser.dart`, `risk_classifier.dart`, `conversation_context.dart`, `tool_preference_tracker.dart` |
 
 **규칙**: Domain은 Data, Presentation, 외부 패키지를 import하지 않음.
 
@@ -160,9 +160,12 @@ Multi-tool chaining: 이전 Observation 결과를 다음 tool 실행에 전달.
 
 ```
 PromptBuilder
-  ├─ buildRoutingPrompt(manifest)  → Phase 1 system prompt
+  ├─ buildRoutingPrompt(manifest, conversationContext, toolPreferences)
+  │   → Phase 1 system prompt
   │   — Multi-tool chaining examples 포함
   │   — "Use data from previous observations" rule
+  │   — ConversationContext: 이전 대화 맥락 (최근 5턴)
+  │   — ToolPreferenceTracker: 자주 사용하는 tool (top 3)
   └─ buildToolPrompt(name, toolPrompt, extraContext) → Phase 2 system prompt
 
 ReactStrategy
@@ -171,11 +174,15 @@ ReactStrategy
   │   → ParseAction(toolName, args={..}) → 바로 _executeTool()
   │   → ParseAnswer(text) → 최종 응답
   │   → ParseEmpty → 넛지 후 재시도
-  └─ Phase 2: _phase2Execute(toolName)
-      → Tool.phaseContext()로 컨텍스트 fetch (예: 앱 리스트)
-      → _buildPhase2UserMessage() — 모든 이전 Observation 포함
-      → LLM이 Action + Args 포맷팅
-      → _executeTool() 실행
+  ├─ Phase 2: _phase2Execute(toolName)
+  │   → Tool.phaseContext()로 컨텍스트 fetch (예: 앱 리스트)
+  │   → _buildPhase2UserMessage() — 모든 이전 Observation 포함
+  │   → LLM이 Action + Args 포맷팅
+  │   → _executeTool() 실행
+  └─ Context Tracking
+      → _recordTurn() — execute 완료 후 대화 턴 기록
+      → ToolPreferenceTracker.recordToolUse() — tool 사용 빈도 추적
+      → ConversationContext — 최근 5턴 대화 맥락 유지
 ```
 
 ### Tool 인터페이스

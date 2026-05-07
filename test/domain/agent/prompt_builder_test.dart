@@ -281,6 +281,75 @@ void main() {
     });
   });
 
+  group('buildRoutingPrompt with context', () {
+    test('with conversationContext_includesHistory', () {
+      final prompt = builder.buildRoutingPrompt(
+        '- test: desc',
+        conversationContext:
+            'CONVERSATION HISTORY:\nUser: Hello\nAssistant: Hi',
+      );
+
+      expect(prompt, contains('CONVERSATION HISTORY'));
+      expect(prompt, contains('User: Hello'));
+      expect(prompt, contains('Assistant: Hi'));
+    });
+
+    test('with toolPreferences_includesPreferences', () {
+      final prompt = builder.buildRoutingPrompt(
+        '- test: desc',
+        toolPreferences:
+            'FREQUENTLY USED TOOLS:\n- calculator (5 uses)',
+      );
+
+      expect(prompt, contains('FREQUENTLY USED TOOLS'));
+      expect(prompt, contains('calculator'));
+    });
+
+    test('with both_contextAndPreferences_includesBoth', () {
+      final prompt = builder.buildRoutingPrompt(
+        '- test: desc',
+        conversationContext:
+            'CONVERSATION HISTORY:\nUser: Q\nAssistant: A',
+        toolPreferences:
+            'FREQUENTLY USED TOOLS:\n- timer (3 uses)',
+      );
+
+      expect(prompt, contains('CONVERSATION HISTORY'));
+      expect(prompt, contains('FREQUENTLY USED TOOLS'));
+    });
+
+    test('without_context_noExtraSections', () {
+      final prompt = builder.buildRoutingPrompt('- test: desc');
+
+      expect(prompt, isNot(contains('CONVERSATION HISTORY')));
+      expect(prompt, isNot(contains('FREQUENTLY USED TOOLS')));
+    });
+
+    test('with empty_context_noExtraSections', () {
+      final prompt = builder.buildRoutingPrompt(
+        '- test: desc',
+        conversationContext: '',
+        toolPreferences: '',
+      );
+
+      expect(prompt, isNot(contains('CONVERSATION HISTORY')));
+      expect(prompt, isNot(contains('FREQUENTLY USED TOOLS')));
+    });
+
+    test('context_appearsBefore_formatInstructions', () {
+      final prompt = builder.buildRoutingPrompt(
+        '- test: desc',
+        conversationContext:
+            'CONVERSATION HISTORY:\nUser: Q\nAssistant: A',
+      );
+
+      final contextIndex = prompt.indexOf('CONVERSATION HISTORY');
+      final formatIndex =
+          prompt.indexOf('You MUST respond');
+      expect(contextIndex, lessThan(formatIndex));
+    });
+  });
+
   group('getConversationContext', () {
     test('empty returns empty', () {
       final context = builder.getConversationContext();
