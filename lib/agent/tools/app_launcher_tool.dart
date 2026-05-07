@@ -24,6 +24,27 @@ class AppLauncherTool extends ExtendedTool {
       '"url": "string", "query": "string"}';
 
   @override
+  String get toolPrompt =>
+      'Open apps/URLs or list installed apps.\n\n'
+      'Actions:\n'
+      '- open_app: Open app by package_name\n'
+      '- open_url: Open URL in browser\n'
+      '- list_apps: List apps with optional query\n\n'
+      'Parameters: {"action": "open_app|open_url|list_apps", '
+      '"package_name": "string", "url": "string", '
+      '"query": "string"}\n\n'
+      'Rules: Use exact package_name from app list. '
+      'Never guess or invent a package_name.';
+
+  @override
+  Future<String?> phaseContext(
+    String args,
+    ToolContext toolContext,
+  ) async {
+    return _listApps({'query': ''});
+  }
+
+  @override
   Future<String?> validate(String args, ToolContext toolContext) async {
     final json = _tryParseJson(args);
     final action = json['action']?.toString().toLowerCase() ?? '';
@@ -67,17 +88,6 @@ class AppLauncherTool extends ExtendedTool {
     final packageName = json['package_name']?.toString() ?? '';
     developer.log('openApp: package="$packageName"', name: _tag);
     if (packageName.isEmpty) return "Error: 'package_name' required";
-
-    final exists = await _packageExists(packageName);
-    if (!exists) {
-      developer.log(
-        'openApp: package "$packageName" not found on device',
-        name: _tag,
-      );
-      return 'Error: Package "$packageName" is not installed. '
-          'Call list_apps with a query to find the correct '
-          'package_name.';
-    }
 
     final result = await toolContext.invokeMethod(
           'openApp',

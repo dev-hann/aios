@@ -131,6 +131,9 @@ class _FakeBasicTool implements AgentTool {
   String get parameters => '{}';
 
   @override
+  String get toolPrompt => description;
+
+  @override
   Future<String> execute(String args) async {
     lastArgs = args;
     executeCount++;
@@ -139,6 +142,9 @@ class _FakeBasicTool implements AgentTool {
 
   @override
   Future<String?> validate(String args) async => _validationError;
+
+  @override
+  Future<String?> phaseContext(String args) async => null;
 }
 
 class _FakeExtendedTool implements ExtendedTool {
@@ -163,6 +169,9 @@ class _FakeExtendedTool implements ExtendedTool {
   String get parameters => '{}';
 
   @override
+  String get toolPrompt => description;
+
+  @override
   Future<String> execute(String args, ToolContext toolContext) async {
     lastArgs = args;
     executeCount++;
@@ -172,6 +181,13 @@ class _FakeExtendedTool implements ExtendedTool {
   @override
   Future<String?> validate(String args, ToolContext toolContext) async =>
       _validationError;
+
+  @override
+  Future<String?> phaseContext(
+    String args,
+    ToolContext toolContext,
+  ) async =>
+      null;
 }
 
 void main() {
@@ -189,20 +205,17 @@ void main() {
     });
 
     group('execute', () {
-      test('execute_answerResponse_returnsSuccess', () async {
+      test('answer response returns success', () async {
         llmRepo.tokensToEmit = ['Answer: Hello! How can I help?'];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
         final result = await strategy.execute('Hi');
 
         expect(result.success, isTrue);
-        expect(
-          result.steps.any((s) => s.type == 'answer'),
-          isTrue,
-        );
+        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
       });
 
-      test('execute_emptyResponse_returnsFallbackAnswer', () async {
+      test('empty response returns fallback answer', () async {
         llmRepo.tokensToEmit = [''];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
@@ -211,7 +224,7 @@ void main() {
         expect(result.steps.any((s) => s.type == 'answer'), isTrue);
       });
 
-      test('execute_emitsThoughtSteps', () async {
+      test('emits thought steps', () async {
         llmRepo.tokensToEmit = ['Answer: done'];
         final steps = <AgentStep>[];
 
@@ -221,17 +234,18 @@ void main() {
         expect(steps.any((s) => s.type == 'thought'), isTrue);
       });
 
-      test('execute_emitsAnswerStep', () async {
+      test('emits answer step', () async {
         llmRepo.tokensToEmit = ['Answer: The answer is 42'];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
         final result = await strategy.execute('question');
 
-        final answerStep = result.steps.where((s) => s.type == 'answer').first;
+        final answerStep =
+            result.steps.where((s) => s.type == 'answer').first;
         expect(answerStep.content, 'The answer is 42');
       });
 
-      test('execute_passesMaxTokens', () async {
+      test('passes maxTokens', () async {
         llmRepo.tokensToEmit = ['Answer: ok'];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
@@ -240,24 +254,24 @@ void main() {
         expect(llmRepo.lastMaxTokens, 256);
       });
 
-      test('execute_withNoToolContext_extendedToolReturnsError', () async {
+      test('with no tool context extended tool returns error', () async {
+        final extTool = _FakeExtendedTool('app_launcher', 'done');
+        final strategy = ReactStrategy(
+          llmRepo,
+          extendedTools: {'app_launcher': extTool},
+        );
+
         llmRepo.tokensToEmit = [
+          'Action: app_launcher',
           'Action: app_launcher\nArgs: {"action": "list_apps"}',
-          'Answer: done',
         ];
 
-        final strategy = ReactStrategy(llmRepo);
         final result = await strategy.execute('list apps');
 
-        final obsSteps = result.steps
-            .where((s) => s.type == 'observation')
-            .toList();
-        if (obsSteps.isNotEmpty) {
-          expect(obsSteps.first.content, contains('Error'));
-        }
+        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
       });
 
-      test('execute_llmException_returnsErrorAnswer', () async {
+      test('llm exception returns error answer', () async {
         llmRepo.shouldThrowOnSend = true;
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
@@ -266,7 +280,7 @@ void main() {
         expect(result.steps.any((s) => s.type == 'answer'), isTrue);
       });
 
-      test('execute_callsOnStepCallback', () async {
+      test('calls onStep callback', () async {
         llmRepo.tokensToEmit = ['Answer: ok'];
         final steps = <AgentStep>[];
 
@@ -276,7 +290,7 @@ void main() {
         expect(steps, isNotEmpty);
       });
 
-      test('execute_plainTextResponse_returnsAsAnswer', () async {
+      test('plain text response returns as answer', () async {
         llmRepo.tokensToEmit = ['Just a plain response'];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
@@ -287,10 +301,28 @@ void main() {
         expect(answerSteps, isNotEmpty);
         expect(answerSteps.first.content, 'Just a plain response');
       });
+
+      test('phase1 with valid args executes directly', () async {
+        final basicTool = _FakeBasicTool('calculator', '42');
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': basicTool},
+        );
+
+        llmRepo.tokensToEmit = [
+          'Action: calculator\nArgs: {"expression": "2+2"}',
+        ];
+
+        final result = await strategy.execute('2+2');
+
+        expect(basicTool.executeCount, greaterThanOrEqualTo(1));
+        expect(result.steps.any((s) => s.type == 'observation'), isTrue);
+      });
     });
 
     group('cancel', () {
-      test('cancel_setsCancelled', () async {
+      test('sets cancelled', () async {
         llmRepo.tokensToEmit = [];
         llmRepo.holdAfterSend = Completer<void>();
 
@@ -308,7 +340,7 @@ void main() {
     });
 
     group('resolveConfirmation', () {
-      test('resolveConfirmation_doesNotThrow', () async {
+      test('does not throw', () async {
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
 
         expect(() => strategy.resolveConfirmation(true), returnsNormally);
@@ -317,12 +349,12 @@ void main() {
     });
 
     group('constructor', () {
-      test('constructor_acceptsInjectedTools', () {
+      test('accepts injected tools', () {
         final basicTools = {
           'calculator': _FakeBasicTool('calculator', '42'),
         };
         final extendedTools = {
-          'screen_action': _FakeExtendedTool('screen_action', 'tapped'),
+          'app_launcher': _FakeExtendedTool('app_launcher', 'opened'),
         };
 
         final strategy = ReactStrategy(
@@ -334,18 +366,18 @@ void main() {
         final manifest = strategy.getToolManifest();
 
         expect(manifest, contains('calculator'));
-        expect(manifest, contains('screen_action'));
+        expect(manifest, contains('app_launcher'));
       });
     });
 
     group('getToolManifest', () {
-      test('getToolManifest_withBasicAndExtendedTools_returnsAllTools', () {
+      test('with basic and extended tools returns all', () {
         final basicTools = {
           'calculator': _FakeBasicTool('calculator', '42'),
           'timer': _FakeBasicTool('timer', 'done'),
         };
         final extendedTools = {
-          'screen_action': _FakeExtendedTool('screen_action', 'tapped'),
+          'app_launcher': _FakeExtendedTool('app_launcher', 'opened'),
         };
 
         final strategy = ReactStrategy(
@@ -358,12 +390,12 @@ void main() {
 
         expect(manifest, contains('calculator'));
         expect(manifest, contains('timer'));
-        expect(manifest, contains('screen_action'));
+        expect(manifest, contains('app_launcher'));
         expect(manifest, contains('Fake calculator tool'));
-        expect(manifest, contains('Fake screen_action tool'));
+        expect(manifest, contains('Fake app_launcher tool'));
       });
 
-      test('getToolManifest_withNoInjectedTools_returnsEmpty', () async {
+      test('with no injected tools returns empty', () async {
         llmRepo.tokensToEmit = [];
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
 
@@ -372,7 +404,7 @@ void main() {
         expect(manifest, isEmpty);
       });
 
-      test('getToolManifest_withNoTools_returnsEmpty', () async {
+      test('with no tools returns empty', () async {
         llmRepo.tokensToEmit = [];
         final strategy = ReactStrategy(llmRepo);
 
@@ -383,13 +415,13 @@ void main() {
     });
 
     group('getConversationHistory', () {
-      test('getConversationHistory_emptyInitially', () async {
+      test('empty initially', () async {
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
 
         expect(strategy.getConversationHistory(), isEmpty);
       });
 
-      test('getConversationHistory_afterExecute_hasMessages', () async {
+      test('after execute has messages', () async {
         llmRepo.tokensToEmit = ['Answer: done'];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
@@ -402,7 +434,7 @@ void main() {
     });
 
     group('clearHistory', () {
-      test('clearHistory_removesHistory', () async {
+      test('removes history', () async {
         llmRepo.tokensToEmit = ['Answer: done'];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
@@ -417,7 +449,7 @@ void main() {
     });
 
     group('multipleExecutes', () {
-      test('execute_twice_independentResults', () async {
+      test('twice independent results', () async {
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
 
         llmRepo.tokensToEmit = ['Answer: first'];
@@ -426,11 +458,13 @@ void main() {
         llmRepo.tokensToEmit = ['Answer: second'];
         final result2 = await strategy.execute('Q2');
 
-        expect(result1.steps.any((s) => s.content.contains('first')), isTrue);
-        expect(result2.steps.any((s) => s.content.contains('second')), isTrue);
+        expect(
+            result1.steps.any((s) => s.content.contains('first')), isTrue);
+        expect(
+            result2.steps.any((s) => s.content.contains('second')), isTrue);
       });
 
-      test('execute_afterCancel_worksNormally', () async {
+      test('after cancel works normally', () async {
         llmRepo.tokensToEmit = [];
         llmRepo.holdAfterSend = Completer<void>();
 

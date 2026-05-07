@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:aios/domain/agent/agent_strategy.dart';
@@ -57,9 +58,6 @@ class ReactStrategy implements AgentStrategy {
     _cancelled = false;
     _loopDetector.reset();
     final steps = <AgentStep>[];
-    final systemPrompt = _promptBuilder.buildSystemPrompt(
-      getToolManifest(),
-    );
 
     developer.log(
       'Agent run: prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", '
@@ -95,27 +93,57 @@ class ReactStrategy implements AgentStrategy {
         onStep?.call(steps.last);
         onStep?.call(const AgentStep('thinking_start', ''));
 
-        final response = await _generateResponse(
-          systemPrompt,
-          maxTokens,
-        );
+        // ── Phase 1: Routing ──
+        final routingManifest = _getRoutingManifest();
+        final routingSystem =
+            _promptBuilder.buildRoutingPrompt(routingManifest);
+
+        final phase1Response =
+            await _generateResponse(routingSystem, maxTokens);
 
         developer.log(
-          'Iteration $i LLM: ${response.substring(0, response.length > 200 ? 200 : response.length)}',
+          'Phase1 iter$i: ${phase1Response.substring(0, phase1Response.length > 200 ? 200 : phase1Response.length)}',
           name: _tag,
         );
 
         onStep?.call(const AgentStep('thinking_end', ''));
 
-        _promptBuilder.addAssistantMessage(response);
+        _promptBuilder.addAssistantMessage(phase1Response);
 
-        final parsed = _responseParser.parse(response);
+        final parsed = _responseParser.parse(phase1Response);
+
+        if (parsed is ParseAnswer) {
+          steps.add(AgentStep('answer', parsed.text));
+          onStep?.call(steps.last);
+          break;
+        }
 
         if (parsed is ParseAction) {
-          developer.log(
-            'tool=${parsed.toolName} args=${parsed.args}',
-            name: _tag,
-          );
+          final String observation;
+
+          if (_hasValidArgs(parsed.args)) {
+            developer.log(
+              'Phase1 direct execute: tool=${parsed.toolName}',
+              name: _tag,
+            );
+            observation = await _executeTool(
+              parsed.toolName,
+              parsed.args,
+              onStep,
+            );
+          } else {
+            developer.log(
+              'Phase2: tool=${parsed.toolName}',
+              name: _tag,
+            );
+            observation = await _phase2Execute(
+              parsed.toolName,
+              prompt,
+              maxTokens,
+              onStep,
+            );
+          }
+
           steps.add(
             AgentStep(
               'action',
@@ -125,12 +153,6 @@ class ReactStrategy implements AgentStrategy {
             ),
           );
           onStep?.call(steps.last);
-
-          final observation = await _executeTool(
-            parsed.toolName,
-            parsed.args,
-            onStep,
-          );
 
           steps.add(
             AgentStep(
@@ -172,19 +194,16 @@ class ReactStrategy implements AgentStrategy {
               'If you have enough information, provide your final Answer now.',
             );
           }
-        } else if (parsed is ParseAnswer) {
-          steps.add(AgentStep('answer', parsed.text));
-          onStep?.call(steps.last);
-          break;
         } else {
-          final directAnswer = response.trim();
+          final directAnswer = phase1Response.trim();
           if (directAnswer.isNotEmpty) {
             steps.add(AgentStep('answer', directAnswer));
             onStep?.call(steps.last);
           } else if (i >= maxIterations - 1) {
             steps.add(AgentStep(
               'answer',
-              '\uBAA8\uB378\uC774 \uBE48 \uC751\uB2F5\uC744 \uC0DD\uC131\uD588\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
+              '\uBAA8\uB378\uC774 \uBE48 \uC751\uB2F5\uC744 \uC0DD\uC131\uD588\uC2B5\uB2C8\uB2E4. '
+              '\uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
             ));
           }
           break;
@@ -199,8 +218,10 @@ class ReactStrategy implements AgentStrategy {
             ? lastObs.substring(0, 200)
             : lastObs;
         final summary = truncated != null
-            ? '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB9C8\uC9C0\uB9C9 \uAD00\uCC30 \uACB0\uACFC: $truncated'
-            : '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.';
+            ? '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. '
+                '\uB9C8\uC9C0\uB9C9 \uAD00\uCC30 \uACB0\uACFC: $truncated'
+            : '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. '
+                '\uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.';
         steps.add(AgentStep('answer', summary));
         onStep?.call(steps.last);
       }
@@ -228,29 +249,12 @@ class ReactStrategy implements AgentStrategy {
     int maxTokens,
   ) async {
     final history = _promptBuilder.getHistory();
-    final chatHistory = <ChatMessage>[
-      ChatMessage(
-        id: 'system_${DateTime.now().millisecondsSinceEpoch}',
-        role: 'system',
-        content: systemPrompt,
-        createdAt: DateTime.now(),
-      ),
-      ...history.map(
-        (m) => ChatMessage(
-          id: '${m.role}_${DateTime.now().millisecondsSinceEpoch}',
-          role: m.role,
-          content: m.content,
-          createdAt: DateTime.now(),
-        ),
-      ),
-    ];
+    final chatHistory = _buildChatHistory(systemPrompt, history);
 
     final responseBuffer = StringBuffer();
 
     final tokenSub = _llmRepository.tokenStream.listen(
-      (token) {
-        responseBuffer.write(token);
-      },
+      (token) => responseBuffer.write(token),
       onError: (Object e) {
         developer.log(
           'Token stream error: $e',
@@ -266,7 +270,6 @@ class ReactStrategy implements AgentStrategy {
         userMessage: history.last.content,
         maxTokens: maxTokens,
       );
-
       await Future<void>.delayed(Duration.zero);
     } on Object catch (e) {
       developer.log(
@@ -283,6 +286,166 @@ class ReactStrategy implements AgentStrategy {
     return response;
   }
 
+  Future<String> _phase2Execute(
+    String toolName,
+    String originalPrompt,
+    int maxTokens,
+    void Function(AgentStep)? onStep,
+  ) async {
+    final basicTool = _basicTools[toolName];
+    final extendedTool = _extendedTools[toolName];
+    if (basicTool == null && extendedTool == null) {
+      return "Error: Unknown tool '$toolName'";
+    }
+
+    final String toolPromptText;
+    String? extraContext;
+
+    if (extendedTool != null) {
+      toolPromptText = extendedTool.toolPrompt;
+      if (_toolContext != null) {
+        extraContext =
+            await extendedTool.phaseContext('', _toolContext!);
+      }
+    } else {
+      toolPromptText = basicTool!.toolPrompt;
+      extraContext = await basicTool.phaseContext('');
+    }
+
+    final toolSystem = _promptBuilder.buildToolPrompt(
+      toolName,
+      toolPromptText,
+      extraContext: extraContext,
+    );
+
+    final phase2UserMessage = _buildPhase2UserMessage(originalPrompt);
+
+    final phase2History = <ChatMessage>[
+      ChatMessage(
+        id: 'system_p2_${DateTime.now().millisecondsSinceEpoch}',
+        role: 'system',
+        content: toolSystem,
+        createdAt: DateTime.now(),
+      ),
+      ChatMessage(
+        id: 'user_p2_${DateTime.now().millisecondsSinceEpoch}',
+        role: 'user',
+        content: phase2UserMessage,
+        createdAt: DateTime.now(),
+      ),
+    ];
+
+    final phase2Response = await _generateResponseFromPrompt(
+      phase2History,
+      phase2UserMessage,
+      maxTokens,
+    );
+
+    developer.log('Phase2 response="$phase2Response"', name: _tag);
+
+    final parsed = _responseParser.parse(phase2Response);
+    if (parsed is ParseAction) {
+      return _executeTool(parsed.toolName, parsed.args, onStep);
+    }
+
+    return "Error: Could not execute $toolName";
+  }
+
+  Future<String> _generateResponseFromPrompt(
+    List<ChatMessage> chatHistory,
+    String userMessage,
+    int maxTokens,
+  ) async {
+    final responseBuffer = StringBuffer();
+
+    final tokenSub = _llmRepository.tokenStream.listen(
+      (token) => responseBuffer.write(token),
+      onError: (Object e) {
+        developer.log(
+          'Stream error: $e',
+          name: _tag,
+          level: 1000,
+        );
+      },
+    );
+
+    try {
+      await _llmRepository.sendMessage(
+        chatHistory,
+        userMessage: userMessage,
+        maxTokens: maxTokens,
+      );
+      await Future<void>.delayed(Duration.zero);
+    } on Object catch (e) {
+      developer.log(
+        'Generate error: $e',
+        name: _tag,
+        level: 1000,
+      );
+    } finally {
+      await tokenSub.cancel();
+    }
+
+    return responseBuffer.toString();
+  }
+
+  String _buildPhase2UserMessage(String originalPrompt) {
+    final history = _promptBuilder.getHistory();
+    final observations = history
+        .where((m) =>
+            m.role == 'user' &&
+            m.content.startsWith('Observation'))
+        .toList();
+
+    if (observations.isEmpty) return originalPrompt;
+
+    final lastObs = observations.last.content;
+    return '$originalPrompt\n\nPrevious result: $lastObs';
+  }
+
+  List<ChatMessage> _buildChatHistory(
+    String systemPrompt,
+    List<({String role, String content})> history,
+  ) {
+    return <ChatMessage>[
+      ChatMessage(
+        id: 'system_${DateTime.now().millisecondsSinceEpoch}',
+        role: 'system',
+        content: systemPrompt,
+        createdAt: DateTime.now(),
+      ),
+      ...history.map(
+        (m) => ChatMessage(
+          id: '${m.role}_${DateTime.now().millisecondsSinceEpoch}',
+          role: m.role,
+          content: m.content,
+          createdAt: DateTime.now(),
+        ),
+      ),
+    ];
+  }
+
+  bool _hasValidArgs(String args) {
+    if (args.isEmpty || args == '{}') return false;
+    try {
+      final decoded = jsonDecode(args);
+      return decoded is Map<String, dynamic> && decoded.isNotEmpty;
+    } on Object {
+      return false;
+    }
+  }
+
+  String _getRoutingManifest() {
+    final lines = <String>[];
+    for (final tool in _basicTools.values) {
+      lines.add('- ${tool.name}: ${tool.description}');
+    }
+    for (final tool in _extendedTools.values) {
+      lines.add('- ${tool.name}: ${tool.description}');
+    }
+    return lines.join('\n');
+  }
+
   Future<String> _executeTool(
     String name,
     String args,
@@ -291,12 +454,13 @@ class ReactStrategy implements AgentStrategy {
     final risk = _riskClassifier.classify(name, args);
 
     final basicTool = _basicTools[name];
+    final extendedTool = _extendedTools[name];
+
     if (basicTool != null) {
       final validationError = await basicTool.validate(args);
       if (validationError != null) return validationError;
     }
 
-    final extendedTool = _extendedTools[name];
     if (extendedTool != null) {
       final ctx = _toolContext;
       if (ctx == null) return _noContextError(name, args, risk);
@@ -325,9 +489,7 @@ class ReactStrategy implements AgentStrategy {
 
     if (extendedTool != null) {
       final ctx = _toolContext;
-      if (ctx == null) {
-        return _noContextError(name, args, risk);
-      }
+      if (ctx == null) return _noContextError(name, args, risk);
       final result = await extendedTool.execute(args, ctx);
       _auditLog.add(name, args, risk, true, result);
       return result;

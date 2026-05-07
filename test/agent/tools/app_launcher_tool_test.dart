@@ -58,14 +58,19 @@ void main() {
       expect(result, contains("'package_name' required"));
     });
 
-    test('execute_openAppNonExistentPackage_returnsNotInstalledError',
-        () async {
+    test('execute_openAppNonExistentPackage_usesValidate', () async {
+      final validateResult = await tool.validate(
+        '{"action": "open_app", "package_name": "com.nonexistent.app"}',
+        mockContext,
+      );
+      expect(validateResult, isNotNull);
+      expect(validateResult, contains('not installed'));
+
       final result = await tool.execute(
         '{"action": "open_app", "package_name": "com.nonexistent.app"}',
         mockContext,
       );
-      expect(result, contains('not installed'));
-      expect(result, contains('list_apps'));
+      expect(result, contains('Opened'));
     });
   });
 

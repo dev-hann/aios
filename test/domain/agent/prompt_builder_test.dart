@@ -8,57 +8,93 @@ void main() {
     builder = PromptBuilder();
   });
 
-  group('buildSystemPrompt', () {
-    test('buildSystemPrompt_containsToolManifest', () {
-      final prompt = builder.buildSystemPrompt('- calculator: do math');
+  group('buildRoutingPrompt', () {
+    test('contains tool manifest', () {
+      final prompt =
+          builder.buildRoutingPrompt('- app_launcher: open apps');
 
-      expect(prompt, contains('calculator'));
-      expect(prompt, contains('do math'));
+      expect(prompt, contains('app_launcher'));
+      expect(prompt, contains('open apps'));
       expect(prompt, contains('TOOLS:'));
     });
 
-    test('buildSystemPrompt_containsFormatInstructions', () {
-      final prompt = builder.buildSystemPrompt('');
+    test('contains format instructions', () {
+      final prompt = builder.buildRoutingPrompt('');
 
       expect(prompt, contains('Action:'));
-      expect(prompt, contains('Args:'));
       expect(prompt, contains('Answer:'));
     });
 
-    test('buildSystemPrompt_containsMandatoryRules', () {
-      final prompt = builder.buildSystemPrompt('');
-
-      expect(prompt, contains('MANDATORY RULES'));
-      expect(prompt, contains('list_apps before open_app'));
-      expect(prompt, contains('NEVER guess'));
-      expect(prompt, contains('Max 5 tool calls'));
-    });
-
-    test('buildSystemPrompt_containsRoleDescription', () {
-      final prompt = builder.buildSystemPrompt('');
+    test('contains role description', () {
+      final prompt = builder.buildRoutingPrompt('');
 
       expect(prompt, contains('AIOS'));
       expect(prompt, contains('AI assistant'));
     });
 
-    test('buildSystemPrompt_withEmptyManifest_stillContainsStructure', () {
-      final prompt = builder.buildSystemPrompt('');
+    test('contains rules', () {
+      final prompt = builder.buildRoutingPrompt('');
 
-      expect(prompt, contains('FORMAT:'));
-      expect(prompt, contains('RULES'));
+      expect(prompt, contains('Max 5 tool calls'));
+      expect(prompt, contains('Match user language'));
     });
 
-    test('buildSystemPrompt_withLongManifest_includesFullText', () {
-      final manifest = List.generate(50, (i) => '- tool$i: desc$i').join('\n');
-      final prompt = builder.buildSystemPrompt(manifest);
+    test('with empty manifest still contains structure', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('TOOLS:'));
+      expect(prompt, contains('Rules:'));
+    });
+
+    test('with long manifest includes full text', () {
+      final manifest =
+          List.generate(50, (i) => '- tool$i: desc$i').join('\n');
+      final prompt = builder.buildRoutingPrompt(manifest);
 
       expect(prompt, contains('tool0'));
       expect(prompt, contains('tool49'));
     });
   });
 
+  group('buildToolPrompt', () {
+    test('contains tool detail', () {
+      final prompt = builder.buildToolPrompt(
+        'app_launcher',
+        'Open apps. Parameters: {action, package_name}',
+      );
+
+      expect(prompt, contains('app_launcher'));
+      expect(prompt, contains('Open apps'));
+      expect(prompt, contains('Parameters:'));
+    });
+
+    test('contains format instruction', () {
+      final prompt = builder.buildToolPrompt('app_launcher', 'detail');
+
+      expect(prompt, contains('Action: app_launcher'));
+      expect(prompt, contains('Args:'));
+    });
+
+    test('without extra context has no app list', () {
+      final prompt = builder.buildToolPrompt('app_launcher', 'detail');
+
+      expect(prompt, isNot(contains('Installed apps:')));
+    });
+
+    test('with extra context includes app list', () {
+      final prompt = builder.buildToolPrompt(
+        'app_launcher',
+        'detail',
+        extraContext: '1. YouTube (com.google.youtube)',
+      );
+
+      expect(prompt, contains('Installed apps:'));
+      expect(prompt, contains('YouTube'));
+    });
+  });
+
   group('addUserMessage', () {
-    test('addUserMessage_addsToHistory', () {
+    test('adds to history', () {
       builder.addUserMessage('Hello');
 
       final history = builder.getHistory();
@@ -67,7 +103,7 @@ void main() {
       expect(history.first.content, 'Hello');
     });
 
-    test('addUserMessage_multipleMessages_maintainsOrder', () {
+    test('multiple messages maintain order', () {
       builder.addUserMessage('First');
       builder.addUserMessage('Second');
       builder.addUserMessage('Third');
@@ -79,7 +115,7 @@ void main() {
       expect(history[2].content, 'Third');
     });
 
-    test('addUserMessage_emptyString_addsToHistory', () {
+    test('empty string adds to history', () {
       builder.addUserMessage('');
 
       final history = builder.getHistory();
@@ -89,7 +125,7 @@ void main() {
   });
 
   group('addAssistantMessage', () {
-    test('addAssistantMessage_addsToHistory', () {
+    test('adds to history', () {
       builder.addAssistantMessage('Response');
 
       final history = builder.getHistory();
@@ -98,7 +134,7 @@ void main() {
       expect(history.first.content, 'Response');
     });
 
-    test('addAssistantMessage_interleavedWithUser', () {
+    test('interleaved with user', () {
       builder.addUserMessage('Q1');
       builder.addAssistantMessage('A1');
       builder.addUserMessage('Q2');
@@ -112,7 +148,7 @@ void main() {
   });
 
   group('addObservation', () {
-    test('addObservation_addsAsUserRole', () {
+    test('adds as user role', () {
       builder.addObservation('Screen text: Home');
 
       final history = builder.getHistory();
@@ -121,7 +157,7 @@ void main() {
       expect(history.first.content, 'Screen text: Home');
     });
 
-    test('addObservation_mixedWithMessages_maintainsOrder', () {
+    test('mixed with messages maintains order', () {
       builder.addUserMessage('Read screen');
       builder.addAssistantMessage('Action: screen_reader');
       builder.addObservation('Observation: Home Screen');
@@ -133,11 +169,11 @@ void main() {
   });
 
   group('getHistory', () {
-    test('getHistory_empty_returnsEmptyList', () {
+    test('empty returns empty list', () {
       expect(builder.getHistory(), isEmpty);
     });
 
-    test('getHistory_afterMessages_returnsAllInOrder', () {
+    test('after messages returns all in order', () {
       builder.addUserMessage('Hello');
       builder.addAssistantMessage('Action: calculator');
       builder.addObservation('Observation: 42');
@@ -146,22 +182,24 @@ void main() {
 
       expect(history, hasLength(3));
       expect(history[0], (role: 'user', content: 'Hello'));
-      expect(history[1], (role: 'assistant', content: 'Action: calculator'));
+      expect(
+          history[1], (role: 'assistant', content: 'Action: calculator'));
       expect(history[2], (role: 'user', content: 'Observation: 42'));
     });
 
-    test('getHistory_returnsUnmodifiableList', () {
+    test('returns unmodifiable list', () {
       builder.addUserMessage('test');
 
       final history = builder.getHistory();
 
-      expect(() => history.add((role: 'hacker', content: 'injected')),
+      expect(
+          () => history.add((role: 'hacker', content: 'injected')),
           throwsA(isA<UnsupportedError>()));
     });
   });
 
   group('clearHistory', () {
-    test('clearHistory_removesAllEntries', () {
+    test('removes all entries', () {
       builder.addUserMessage('First');
       builder.addAssistantMessage('Second');
       builder.addObservation('Third');
@@ -173,7 +211,7 @@ void main() {
       expect(builder.getHistory(), isEmpty);
     });
 
-    test('clearHistory_allowsNewEntries', () {
+    test('allows new entries', () {
       builder.addUserMessage('Old');
       builder.clearHistory();
       builder.addUserMessage('New');
@@ -183,7 +221,7 @@ void main() {
       expect(history.first.content, 'New');
     });
 
-    test('clearHistory_idempotent', () {
+    test('idempotent', () {
       builder.clearHistory();
       builder.clearHistory();
 
@@ -192,13 +230,13 @@ void main() {
   });
 
   group('getConversationContext', () {
-    test('getConversationContext_empty_returnsEmpty', () {
+    test('empty returns empty', () {
       final context = builder.getConversationContext();
 
       expect(context, isEmpty);
     });
 
-    test('getConversationContext_formatsSingleMessage', () {
+    test('formats single message', () {
       builder.addUserMessage('Hello');
 
       final context = builder.getConversationContext();
@@ -206,7 +244,7 @@ void main() {
       expect(context, contains('user: Hello'));
     });
 
-    test('getConversationContext_formatsMultipleMessages', () {
+    test('formats multiple messages', () {
       builder.addUserMessage('Question');
       builder.addAssistantMessage('Answer');
 
@@ -216,7 +254,7 @@ void main() {
       expect(context, contains('assistant: Answer'));
     });
 
-    test('getConversationContext_preservesOrder', () {
+    test('preserves order', () {
       builder.addUserMessage('First');
       builder.addAssistantMessage('Second');
 
@@ -227,7 +265,7 @@ void main() {
       expect(firstIndex, lessThan(secondIndex));
     });
 
-    test('getConversationContext_withLongContent', () {
+    test('with long content', () {
       final longContent = 'A' * 10000;
       builder.addUserMessage(longContent);
 
@@ -236,7 +274,7 @@ void main() {
       expect(context, contains(longContent));
     });
 
-    test('getConversationContext_withMultilineContent', () {
+    test('with multiline content', () {
       builder.addUserMessage('Line 1\nLine 2\nLine 3');
 
       final context = builder.getConversationContext();
