@@ -18,7 +18,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     this._settingsRepository,
     this._llmRepository,
     this._modelRepository,
-  ) : super(SettingsState.initial());
+  ) : super(SettingsState.initial()) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    await loadSettings();
+    await _autoLoadLastModel();
+  }
 
   Future<void> loadSettings() async {
     try {
@@ -38,6 +45,23 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       developer.log('loadSettings failed',
           name: _tag, error: e, level: 1000);
     }
+  }
+
+  Future<void> _autoLoadLastModel() async {
+    final path = _settingsRepository.lastModelPath;
+    if (path == null) return;
+    final models = state.availableModels;
+    final exists = models.any((m) => m.path == path);
+    if (!exists) {
+      developer.log(
+        'Last model not found: $path',
+        name: _tag,
+        level: 900,
+      );
+      return;
+    }
+    developer.log('Auto-loading last model: $path', name: _tag);
+    await loadModel(path);
   }
 
   Future<void> updateTemperature(double value) async {
