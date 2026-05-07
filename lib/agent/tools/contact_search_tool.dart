@@ -18,6 +18,16 @@ class ContactSearchTool extends ExtendedTool {
       '{"query": "string", "limit": "integer (default 10)"}';
 
   @override
+  String get toolPrompt =>
+      'Search contacts by name, phone number, or email.\n\n'
+      'Parameters: $parameters\n\n'
+      'Rules:\n'
+      '- "query" is required (name, phone number, or email)\n'
+      '- Use "limit" to control max results (default 10)\n'
+      '- Supports partial match (e.g. "Kim" finds "Kim Minsoo")\n'
+      '- Respond with user language';
+
+  @override
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);

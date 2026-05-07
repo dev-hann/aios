@@ -78,6 +78,12 @@ void main() {
 
       expect(prompt, contains('phone_caller'));
     });
+
+    test('contains contact_search examples', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('contact_search'));
+    });
   });
 
   group('buildToolPrompt', () {

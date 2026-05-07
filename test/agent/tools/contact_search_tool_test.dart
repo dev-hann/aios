@@ -63,4 +63,26 @@ void main() {
       expect(tool.description.isNotEmpty, isTrue);
     });
   });
+
+  group('toolPrompt', () {
+    test('toolPrompt_containsQuery', () {
+      expect(tool.toolPrompt, contains('query'));
+    });
+
+    test('toolPrompt_containsLimit', () {
+      expect(tool.toolPrompt, contains('limit'));
+    });
+
+    test('toolPrompt_isNotEmpty', () {
+      expect(tool.toolPrompt.isNotEmpty, isTrue);
+    });
+
+    test('toolPrompt_containsRules', () {
+      expect(tool.toolPrompt, contains('Rules'));
+    });
+
+    test('toolPrompt_containsSearchDescription', () {
+      expect(tool.toolPrompt, contains('Search'));
+    });
+  });
 }
