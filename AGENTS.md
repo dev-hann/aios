@@ -136,6 +136,7 @@ print('[AIOS-{Component}] ERROR: message - $e');
 | `screen_action` | ExtendedTool | `agent/tools/screen_action_tool.dart` | **활성** |
 | `screen_reader` | ExtendedTool | `agent/tools/screen_reader_tool.dart` | **활성** |
 | `screen_find` | ExtendedTool | `agent/tools/screen_reader_tool.dart` | **활성** |
+| `notification_reader` | ExtendedTool | `agent/tools/notification_tool.dart` | **활성** |
 
 ### 비활성 Tool (보존, 추후 재활성화)
 
@@ -146,7 +147,6 @@ print('[AIOS-{Component}] ERROR: message - $e');
 | `device_info` | BasicTool | `agent/tools/device_info_tool.dart` |
 | `notepad` | BasicTool | `agent/tools/notepad_tool.dart` |
 | `timer` | BasicTool | `agent/tools/timer_tool.dart` |
-| `notification` | ExtendedTool | `agent/tools/notification_tool.dart` |
 | `phone_caller` | ExtendedTool | `agent/tools/phone_caller_tool.dart` |
 | `sms_sender` | ExtendedTool | `agent/tools/sms_sender_tool.dart` |
 
@@ -165,7 +165,7 @@ User Input → ReactStrategy.execute()
 
 ### 테스트
 
-- **698 테스트** 전체 통과
+- **714 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 필요)
 
 ### Tool 추가 시 체크리스트

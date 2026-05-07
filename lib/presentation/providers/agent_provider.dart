@@ -1,4 +1,5 @@
 import 'package:aios/agent/tools/app_launcher_tool.dart';
+import 'package:aios/agent/tools/notification_tool.dart';
 import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/agent/tools/screen_reader_tool.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
@@ -21,6 +22,7 @@ final agentProvider = Provider<AgentStrategy>((ref) {
     'screen_action': ScreenActionTool(),
     'screen_reader': ScreenReaderTool(),
     'screen_find': ScreenFindTool(),
+    'notification_reader': NotificationTool(),
   };
 
   return ReactStrategy(

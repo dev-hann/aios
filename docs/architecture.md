@@ -84,7 +84,7 @@ UI와 상태 관리. Riverpod으로 Domain/Data 계층 사용.
 | `app_launcher_tool.dart` | ExtendedTool | **활성** | 앱 실행, URL 열기, 앱 목록 조회 |
 | `screen_action_tool.dart` | ExtendedTool | **활성** | 화면 탭, 스와이프, 텍스트 입력 |
 | `screen_reader_tool.dart` | ExtendedTool | **활성** | 화면 텍스트 읽기, UI 요소 검색 |
-| `notification_tool.dart` | ExtendedTool | 비활성 | 알림 읽기 |
+| `notification_tool.dart` | ExtendedTool | **활성** | 알림 목록/내용 읽기 |
 | `sms_sender_tool.dart` | ExtendedTool | 비활성 | SMS 전송 |
 | `phone_caller_tool.dart` | ExtendedTool | 비활성 | 전화 걸기 |
 | `calculator_tool.dart` | BasicTool | 비활성 | 수학 계산 |
