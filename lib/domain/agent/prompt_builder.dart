@@ -59,16 +59,16 @@ class PromptBuilder {
     String toolPrompt, {
     String? extraContext,
   }) {
-    final base = 'Execute the $toolName tool.\n\n'
-        '$toolPrompt\n\n'
-        'Respond EXACTLY:\n'
+    final base = '$toolPrompt\n\n'
+        'You MUST respond with exactly 2 lines:\n'
         'Action: $toolName\n'
-        'Args: {"param": "value"}';
+        'Args: {JSON object}\n\n'
+        'Example for opening Firefox:\n'
+        'Action: app_launcher\n'
+        'Args: {"action": "open_app", "package_name": "org.mozilla.firefox"}';
 
     if (extraContext != null) {
-      return '$base\n\nInstalled apps '
-          '(use open_app with package_name from this list):\n'
-          '$extraContext';
+      return '$base\n\nInstalled apps:\n$extraContext';
     }
     return base;
   }

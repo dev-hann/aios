@@ -31,7 +31,7 @@ android {
 
     defaultConfig {
         applicationId = "com.agent.aios"
-        minSdk = 26
+        minSdk = 31
         targetSdk = 35
         versionCode = flutterVersionCode
         versionName = flutterVersionName
@@ -69,5 +69,5 @@ android {
 }
 
 dependencies {
-    implementation(files("libs/llama-cpp-dart.aar"))
+    implementation(files("libs/llama-cpp-dart-hexagon.aar"))
 }

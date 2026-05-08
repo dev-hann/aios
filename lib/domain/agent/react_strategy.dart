@@ -540,6 +540,8 @@ class ReactStrategy implements AgentStrategy {
       if (_toolContext != null) {
         extraContext =
             await extendedTool.phaseContext(originalPrompt, _toolContext!);
+        print('[$_tag] Phase2 extraContext length='
+            '${extraContext?.length ?? 0}');
       }
     } else {
       toolPromptText = basicTool!.toolPrompt;
@@ -561,7 +563,8 @@ class ReactStrategy implements AgentStrategy {
           : '$phase2UserMessage\n\n'
               'FORMAT: Respond with:\n'
               'Action: $toolName\n'
-              'Args: {"param": "value"}';
+              'Args: {"action": "open_app", '
+              '"package_name": "org.example.app"}';
 
       final phase2History = <ChatMessage>[
         ChatMessage(
@@ -586,7 +589,8 @@ class ReactStrategy implements AgentStrategy {
       );
 
       print('[$_tag] Phase2 attempt=$attempt '
-          'response="$phase2Response"');
+          'response="$phase2Response" '
+          'len=${phase2Response.length}');
 
       final parsed = _responseParser.parse(phase2Response);
       if (parsed is ParseAction &&
