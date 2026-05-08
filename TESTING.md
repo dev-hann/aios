@@ -9,7 +9,7 @@
 
 ## 2. Current Status
 
-- **934 테스트** 전체 통과
+- **958 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
 - 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 
@@ -196,3 +196,40 @@ dev_dependencies:
 - Integration 테스트: `flutter test integration_test/`
 - 정적 분석: `flutter analyze`
 - 테스트 실패 시 작업 중단, 다음 단계로 넘어가지 않음
+
+## 12. On-Device UI Testing (UIAutomator)
+
+기기에 설치된 앱을 ADB UIAutomator로 자동 테스트.
+자동화 스크립트: `scripts/device_test.sh`
+
+### 실행
+
+```bash
+./scripts/device_test.sh -d <DEVICE_SERIAL>            # 전체 테스트
+./scripts/device_test.sh -d <DEVICE_SERIAL> -s chat_hello  # 개별 테스트
+./scripts/device_test.sh -d <DEVICE_SERIAL> -s             # 빌드/설치 스킵
+```
+
+### 사용 가능한 테스트
+
+| 이름 | 설명 |
+|------|------|
+| `onboarding` | 온보딩 4페이지 자동 완료 |
+| `model` | 설정 → 모델 Load |
+| `chat_hello` | "hello" → CONVERSATION 분류 확인 |
+| `chat_open_firefox` | "open firefox" → TASK/app_launcher 분류 확인 |
+| `chat_calculator` | "2+2" → TASK/calculator 분류 확인 |
+| `all` | 위 전체 실행 (기본값) |
+
+### UIAutomator 제약사항
+
+- Flutter 앱은 네이티브 뷰로 렌더링되어 `resource-id` 없음 → `text`나 `bounds`로 요소 식별
+- `uiautomator dump` 실행 시 앱이 1-2초 멈춤
+- 다른 앱(Termux 등) 오버레이 시 UI 덤프에 해당 앱 요소가 포함될 수 있음
+- 스페이스 입력: `input text "open%1firefox"` (`%1` = URL 인코딩된 스페이스)
+
+### 주의사항
+
+- 삼성 FreecessHandler가 앱을 freeze시키면 UI 덤프 불가 → `am force-stop` 후 재시작
+- 온보딩 완료 상태는 SharedPreferences(`onboarding_completed`)에 저장
+- 모델 로드 완료 로그: `[AIOS-LlmRepo] Model loaded` (logcat에서 확인)

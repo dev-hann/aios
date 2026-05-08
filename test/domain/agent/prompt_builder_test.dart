@@ -8,6 +8,69 @@ void main() {
     builder = PromptBuilder();
   });
 
+  group('buildIntentPrompt', () {
+    test('contains classification instructions', () {
+      final prompt = builder.buildIntentPrompt(
+        '- app_launcher: open apps',
+      );
+
+      expect(prompt, contains('TASK'));
+      expect(prompt, contains('CONVERSATION'));
+    });
+
+    test('contains tool manifest', () {
+      final prompt = builder.buildIntentPrompt(
+        '- app_launcher: open apps\n- timer: set timers',
+      );
+
+      expect(prompt, contains('app_launcher'));
+      expect(prompt, contains('timer'));
+    });
+
+    test('contains reply instruction', () {
+      final prompt = builder.buildIntentPrompt('');
+
+      expect(
+        prompt,
+        contains('Reply ONLY'),
+      );
+    });
+
+    test('contains doubt rule', () {
+      final prompt = builder.buildIntentPrompt('');
+
+      expect(prompt, contains('doubt'));
+    });
+
+    test('is concise (under 400 chars with manifest)', () {
+      final manifest =
+          '- app_launcher: open apps\n- timer: set timers';
+      final prompt = builder.buildIntentPrompt(manifest);
+
+      expect(prompt.length, lessThan(600));
+    });
+  });
+
+  group('buildAnswerPrompt', () {
+    test('contains AIOS identity', () {
+      final prompt = builder.buildAnswerPrompt();
+
+      expect(prompt, contains('AIOS'));
+    });
+
+    test('contains conciseness instruction', () {
+      final prompt = builder.buildAnswerPrompt();
+
+      expect(prompt, contains('concisely'));
+    });
+
+    test('is concise (under 200 chars)', () {
+      final prompt = builder.buildAnswerPrompt();
+
+      expect(prompt.length, lessThan(200));
+    });
+  });
+
   group('buildRoutingPrompt', () {
     test('contains tool manifest', () {
       final prompt =
@@ -15,7 +78,7 @@ void main() {
 
       expect(prompt, contains('app_launcher'));
       expect(prompt, contains('open apps'));
-      expect(prompt, contains('TOOLS:'));
+      expect(prompt, contains('Tools:'));
     });
 
     test('contains format instructions', () {
@@ -29,21 +92,28 @@ void main() {
       final prompt = builder.buildRoutingPrompt('');
 
       expect(prompt, contains('AIOS'));
-      expect(prompt, contains('AI assistant'));
     });
 
-    test('contains rules', () {
+    test('contains answer examples for greetings', () {
       final prompt = builder.buildRoutingPrompt('');
 
-      expect(prompt, contains('Max 5 tool calls'));
-      expect(prompt, contains('Match user language'));
+      expect(prompt, contains('안녕하세요'));
+      expect(prompt, contains('고마워'));
+    });
+
+    test('contains action examples for tools', () {
+      final prompt = builder.buildRoutingPrompt('');
+
+      expect(prompt, contains('app_launcher'));
+      expect(prompt, contains('screen_action'));
+      expect(prompt, contains('device_info'));
     });
 
     test('with empty manifest still contains structure', () {
       final prompt = builder.buildRoutingPrompt('');
 
-      expect(prompt, contains('TOOLS:'));
-      expect(prompt, contains('Rules:'));
+      expect(prompt, contains('Tools:'));
+      expect(prompt, contains('Action:'));
     });
 
     test('with long manifest includes full text', () {
@@ -55,56 +125,11 @@ void main() {
       expect(prompt, contains('tool49'));
     });
 
-    test('contains screen_action examples', () {
+    test('contains important routing rule', () {
       final prompt = builder.buildRoutingPrompt('');
 
-      expect(prompt, contains('screen_action'));
-    });
-
-    test('contains screen_reader examples', () {
-      final prompt = builder.buildRoutingPrompt('');
-
-      expect(prompt, contains('screen_reader'));
-    });
-
-    test('contains sms_sender examples', () {
-      final prompt = builder.buildRoutingPrompt('');
-
-      expect(prompt, contains('sms_sender'));
-    });
-
-    test('contains phone_caller examples', () {
-      final prompt = builder.buildRoutingPrompt('');
-
-      expect(prompt, contains('phone_caller'));
-    });
-
-    test('contains contact_search examples', () {
-      final prompt = builder.buildRoutingPrompt('');
-
-      expect(prompt, contains('contact_search'));
-    });
-
-    test('contains calculator examples', () {
-      final prompt = builder.buildRoutingPrompt('');
-
-      expect(prompt, contains('calculator'));
-    });
-
-    test('contains chaining examples', () {
-      final prompt = builder.buildRoutingPrompt('');
-
-      expect(prompt, contains('연락처에서'));
-      expect(prompt, contains('찾아서'));
-    });
-
-    test('contains chaining rule', () {
-      final prompt = builder.buildRoutingPrompt('');
-
-      expect(
-        prompt,
-        contains('previous'),
-      );
+      expect(prompt, contains('IMPORTANT'));
+      expect(prompt, contains('greetings'));
     });
   });
 
@@ -345,7 +370,7 @@ void main() {
 
       final contextIndex = prompt.indexOf('CONVERSATION HISTORY');
       final formatIndex =
-          prompt.indexOf('You MUST respond');
+          prompt.indexOf('Respond ONLY');
       expect(contextIndex, lessThan(formatIndex));
     });
   });

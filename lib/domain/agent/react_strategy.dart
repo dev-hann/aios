@@ -55,6 +55,10 @@ class ReactStrategy implements AgentStrategy {
       ResponseParser(_allToolNames);
 
   static const _tag = 'AIOS-React';
+  static const _phase0MaxRetries = 1;
+  static const _phase1MaxRetries = 2;
+  static const _phase2MaxRetries = 2;
+  static const _answerMaxRetries = 1;
 
   @override
   Future<AgentResult> execute(
@@ -68,7 +72,9 @@ class ReactStrategy implements AgentStrategy {
     _errorRecovery.reset();
     final steps = <AgentStep>[];
 
-    print('[$_tag] Agent run: prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", maxIter=$maxIterations');
+    print('[$_tag] Agent run: '
+        'prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", '
+        'maxIter=$maxIterations');
 
     final runStartTime = DateTime.now();
     const maxRunDuration = Duration(seconds: 120);
@@ -79,6 +85,37 @@ class ReactStrategy implements AgentStrategy {
 
       _promptBuilder.addUserMessage(prompt);
 
+      final routingManifest = _getRoutingManifest();
+
+      // ── Phase 0: Intent Classification ──
+      final isConversation = await _classifyIntent(
+        prompt,
+        maxTokens,
+        onStep,
+        steps,
+        routingManifest,
+      );
+      if (_cancelled) {
+        steps.add(const AgentStep('answer', '작업이 취소되었습니다.'));
+        onStep?.call(steps.last);
+        _recordTurn(prompt, steps);
+        return AgentResult(steps: steps, success: false);
+      }
+
+      if (isConversation) {
+        final answer = await _generateAnswer(
+          prompt,
+          maxTokens,
+          onStep,
+          steps,
+        );
+        steps.add(AgentStep('answer', answer));
+        onStep?.call(steps.last);
+        _recordTurn(prompt, steps);
+        return AgentResult(steps: steps, success: true);
+      }
+
+      // ── TASK: Phase 1/2 Loop ──
       for (var i = 0; i < maxIterations; i++) {
         if (_cancelled) break;
 
@@ -99,7 +136,6 @@ class ReactStrategy implements AgentStrategy {
         onStep?.call(const AgentStep('thinking_start', ''));
 
         // ── Phase 1: Routing ──
-        final routingManifest = _getRoutingManifest();
         final routingSystem =
             _promptBuilder.buildRoutingPrompt(
           routingManifest,
@@ -112,7 +148,8 @@ class ReactStrategy implements AgentStrategy {
         final phase1Response =
             await _generateResponse(routingSystem, maxTokens);
 
-        print('[$_tag] Phase1 iter$i: ${phase1Response.substring(0, phase1Response.length > 200 ? 200 : phase1Response.length)}');
+        print('[$_tag] Phase1 iter$i: '
+            '${phase1Response.substring(0, phase1Response.length > 200 ? 200 : phase1Response.length)}');
 
         onStep?.call(const AgentStep('thinking_end', ''));
 
@@ -130,7 +167,8 @@ class ReactStrategy implements AgentStrategy {
           final String observation;
 
           if (_hasValidArgs(parsed.args)) {
-            print('[$_tag] Phase1 direct execute: tool=${parsed.toolName}');
+            print('[$_tag] Phase1 direct execute: '
+                'tool=${parsed.toolName}');
             observation = await _executeTool(
               parsed.toolName,
               parsed.args,
@@ -194,7 +232,8 @@ class ReactStrategy implements AgentStrategy {
             final nudge =
                 'WARNING: You have called \'${parsed.toolName}\' '
                 '${loopResult.count} times with similar arguments. '
-                'Provide your final Answer now, or try a different approach.';
+                'Provide your final Answer now, '
+                'or try a different approach.';
             _promptBuilder.addObservation(nudge);
           } else if (loopResult is LoopForceBreak) {
             _promptBuilder.addObservation(
@@ -207,27 +246,42 @@ class ReactStrategy implements AgentStrategy {
           )) {
             _promptBuilder.addObservation(
               'Reminder: ${i + 1} steps completed. '
-              'If you have enough information, provide your final Answer now.',
+              'If you have enough information, '
+              'provide your final Answer now.',
             );
           }
         } else {
-          print('[$_tag] WARN: ParseEmpty iter$i, adding format nudge');
-          _promptBuilder.addObservation(
-            'IMPORTANT: You must respond with ONLY '
-            '"Action: tool_name" or "Answer: your text". '
-            'Do not write anything else. '
-            'Try again.',
-          );
-          if (i >= maxIterations - 1) {
+          final retryCount = steps
+              .where((s) => s.type == 'phase1_retry')
+              .length;
+          print('[$_tag] WARN: ParseEmpty iter$i '
+              '(retry=$retryCount/$_phase1MaxRetries)');
+
+          if (retryCount < _phase1MaxRetries) {
+            final nudge = retryCount == 0
+                ? 'FORMAT ERROR: Respond ONLY '
+                    '"Action: tool_name" or "Answer: text".'
+                : 'CRITICAL: You MUST respond '
+                    '"Answer: [your response]". '
+                    'You have failed format twice. Answer now.';
             steps.add(AgentStep(
-              'answer',
-              '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. '
-              '\uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
+              'phase1_retry',
+              'Format retry ${retryCount + 1}/$_phase1MaxRetries',
+              phase: 'routing',
+              retryAttempt: retryCount + 1,
+              maxRetries: _phase1MaxRetries,
             ));
             onStep?.call(steps.last);
-            break;
+            _promptBuilder.addObservation(nudge);
+            continue;
           }
-          continue;
+
+          steps.add(AgentStep(
+            'answer',
+            '요청을 처리하지 못했습니다. 다시 시도해주세요.',
+          ));
+          onStep?.call(steps.last);
+          break;
         }
       }
 
@@ -239,10 +293,9 @@ class ReactStrategy implements AgentStrategy {
             ? lastObs.substring(0, 200)
             : lastObs;
         final summary = truncated != null
-            ? '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. '
-                '\uB9C8\uC9C0\uB9C9 \uAD00\uCC30 \uACB0\uACFC: $truncated'
-            : '\uC791\uC5C5\uC744 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. '
-                '\uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.';
+            ? '작업을 완료하지 못했습니다. '
+                '마지막 관찰 결과: $truncated'
+            : '작업을 완료하지 못했습니다. 다시 시도해주세요.';
         steps.add(AgentStep('answer', summary));
         onStep?.call(steps.last);
       }
@@ -260,6 +313,156 @@ class ReactStrategy implements AgentStrategy {
     final success = steps.any((s) => s.type == 'answer');
     _recordTurn(prompt, steps);
     return AgentResult(steps: steps, success: success);
+  }
+
+  Future<bool> _classifyIntent(
+    String prompt,
+    int maxTokens,
+    void Function(AgentStep)? onStep,
+    List<AgentStep> steps,
+    String routingManifest,
+  ) async {
+    for (var attempt = 0; attempt <= _phase0MaxRetries; attempt++) {
+      if (_cancelled) return false;
+
+      steps.add(AgentStep(
+        'phase0_classifying',
+        '의도 분석 중...',
+        phase: 'intent',
+        retryAttempt: attempt,
+        maxRetries: _phase0MaxRetries,
+      ));
+      onStep?.call(steps.last);
+
+      final intentSystem =
+          _promptBuilder.buildIntentPrompt(routingManifest);
+      final response = await _generateResponseFromPrompt(
+        [
+          ChatMessage(
+            id: 'sys_p0_${DateTime.now().millisecondsSinceEpoch}',
+            role: 'system',
+            content: intentSystem,
+            createdAt: DateTime.now(),
+          ),
+          ChatMessage(
+            id: 'usr_p0_${DateTime.now().millisecondsSinceEpoch}',
+            role: 'user',
+            content: prompt,
+            createdAt: DateTime.now(),
+          ),
+        ],
+        prompt,
+        16,
+      );
+
+      final result = _responseParser.parseIntent(response);
+      if (result is ParseIntent) {
+        final isConvo = result.isConversation;
+        steps.add(AgentStep(
+          'phase0_result',
+          isConvo ? '의도: 대화' : '의도: 작업 요청',
+          phase: 'intent',
+        ));
+        onStep?.call(steps.last);
+        print('[$_tag] Phase0: '
+            '${isConvo ? "CONVERSATION" : "TASK"} '
+            '(attempt=$attempt, response="$response")');
+        return isConvo;
+      }
+
+      print('[$_tag] Phase0 retry: '
+          'attempt=$attempt, response="$response"');
+
+      if (attempt < _phase0MaxRetries) {
+        steps.add(AgentStep(
+          'phase0_retry',
+          '의도 분석 재시도... (${attempt + 1}/$_phase0MaxRetries)',
+          phase: 'intent',
+          retryAttempt: attempt + 1,
+          maxRetries: _phase0MaxRetries,
+        ));
+        onStep?.call(steps.last);
+      }
+    }
+
+    print('[$_tag] Phase0 fallback: defaulting to TASK');
+    steps.add(const AgentStep(
+      'phase0_result',
+      '의도: 작업 요청 (기본)',
+      phase: 'intent',
+    ));
+    onStep?.call(steps.last);
+    return false;
+  }
+
+  Future<String> _generateAnswer(
+    String prompt,
+    int maxTokens,
+    void Function(AgentStep)? onStep,
+    List<AgentStep> steps,
+  ) async {
+    for (var attempt = 0; attempt <= _answerMaxRetries; attempt++) {
+      if (_cancelled) return '작업이 취소되었습니다.';
+
+      steps.add(AgentStep(
+        'phase_answer',
+        '응답 생성 중...',
+        phase: 'answer',
+        retryAttempt: attempt,
+        maxRetries: _answerMaxRetries,
+      ));
+      onStep?.call(steps.last);
+
+      final answerSystem = _promptBuilder.buildAnswerPrompt();
+      final response = await _generateResponseFromPrompt(
+        [
+          ChatMessage(
+            id: 'sys_ans_${DateTime.now().millisecondsSinceEpoch}',
+            role: 'system',
+            content: answerSystem,
+            createdAt: DateTime.now(),
+          ),
+          ChatMessage(
+            id: 'usr_ans_${DateTime.now().millisecondsSinceEpoch}',
+            role: 'user',
+            content: prompt,
+            createdAt: DateTime.now(),
+          ),
+        ],
+        prompt,
+        maxTokens,
+      );
+
+      final trimmed = response.trim();
+      if (trimmed.isNotEmpty &&
+          !trimmed.toLowerCase().startsWith('action:') &&
+          !trimmed.toLowerCase().startsWith('answer:')) {
+        print('[$_tag] Answer phase: "$trimmed" '
+            '(attempt=$attempt)');
+        return trimmed;
+      }
+
+      if (trimmed.toLowerCase().startsWith('answer:')) {
+        final text = trimmed.substring(7).trim();
+        if (text.isNotEmpty) return text;
+      }
+
+      print('[$_tag] Answer phase retry: '
+          'attempt=$attempt, response="$trimmed"');
+
+      if (attempt < _answerMaxRetries) {
+        steps.add(AgentStep(
+          'phase_answer_retry',
+          '응답 재시도... (${attempt + 1}/$_answerMaxRetries)',
+          phase: 'answer',
+          retryAttempt: attempt + 1,
+          maxRetries: _answerMaxRetries,
+        ));
+        onStep?.call(steps.last);
+      }
+    }
+
+    return '안녕하세요! 무엇을 도와드릴까요?';
   }
 
   void _recordTurn(String userMessage, List<AgentStep> steps) {
@@ -336,11 +539,11 @@ class ReactStrategy implements AgentStrategy {
       toolPromptText = extendedTool.toolPrompt;
       if (_toolContext != null) {
         extraContext =
-            await extendedTool.phaseContext('', _toolContext!);
+            await extendedTool.phaseContext(originalPrompt, _toolContext!);
       }
     } else {
       toolPromptText = basicTool!.toolPrompt;
-      extraContext = await basicTool.phaseContext('');
+      extraContext = await basicTool.phaseContext(originalPrompt);
     }
 
     final toolSystem = _promptBuilder.buildToolPrompt(
@@ -349,37 +552,58 @@ class ReactStrategy implements AgentStrategy {
       extraContext: extraContext,
     );
 
-    final phase2UserMessage = _buildPhase2UserMessage(originalPrompt);
+    final phase2UserMessage =
+        _buildPhase2UserMessage(originalPrompt);
 
-    final phase2History = <ChatMessage>[
-      ChatMessage(
-        id: 'system_p2_${DateTime.now().millisecondsSinceEpoch}',
-        role: 'system',
-        content: toolSystem,
-        createdAt: DateTime.now(),
-      ),
-      ChatMessage(
-        id: 'user_p2_${DateTime.now().millisecondsSinceEpoch}',
-        role: 'user',
-        content: phase2UserMessage,
-        createdAt: DateTime.now(),
-      ),
-    ];
+    for (var attempt = 0; attempt < _phase2MaxRetries; attempt++) {
+      String userMsg = attempt == 0
+          ? phase2UserMessage
+          : '$phase2UserMessage\n\n'
+              'FORMAT: Respond with:\n'
+              'Action: $toolName\n'
+              'Args: {"param": "value"}';
 
-    final phase2Response = await _generateResponseFromPrompt(
-      phase2History,
-      phase2UserMessage,
-      maxTokens,
-    );
+      final phase2History = <ChatMessage>[
+        ChatMessage(
+          id: 'sys_p2_${DateTime.now().millisecondsSinceEpoch}',
+          role: 'system',
+          content: toolSystem,
+          createdAt: DateTime.now(),
+        ),
+        ChatMessage(
+          id: 'usr_p2_${DateTime.now().millisecondsSinceEpoch}',
+          role: 'user',
+          content: userMsg,
+          createdAt: DateTime.now(),
+        ),
+      ];
 
-    print('[$_tag] Phase2 response="$phase2Response"');
+      final phase2Response =
+          await _generateResponseFromPrompt(
+        phase2History,
+        userMsg,
+        maxTokens,
+      );
 
-    final parsed = _responseParser.parse(phase2Response);
-    if (parsed is ParseAction) {
-      return _executeTool(parsed.toolName, parsed.args, onStep);
+      print('[$_tag] Phase2 attempt=$attempt '
+          'response="$phase2Response"');
+
+      final parsed = _responseParser.parse(phase2Response);
+      if (parsed is ParseAction &&
+          parsed.toolName == toolName &&
+          _hasValidArgs(parsed.args)) {
+        return _executeTool(
+          parsed.toolName,
+          parsed.args,
+          onStep,
+        );
+      }
+
+      print('[$_tag] Phase2 retry: '
+          'attempt=$attempt, parsed=$parsed');
     }
 
-    return "Error: Could not execute $toolName";
+    return "Error: Could not generate valid args for $toolName";
   }
 
   Future<String> _generateResponseFromPrompt(
@@ -488,19 +712,21 @@ class ReactStrategy implements AgentStrategy {
     if (extendedTool != null) {
       final ctx = _toolContext;
       if (ctx == null) return _noContextError(name, args, risk);
-      final validationError = await extendedTool.validate(args, ctx);
+      final validationError =
+          await extendedTool.validate(args, ctx);
       if (validationError != null) return validationError;
     }
 
     if (risk == ToolRisk.high || risk == ToolRisk.critical) {
-      final approved = await _confirmationGate.requestConfirmation(
+      final approved =
+          await _confirmationGate.requestConfirmation(
         risk,
         name,
         args,
         onStep ?? (_) {},
       );
       if (!approved) {
-        _auditLog.add(name, args, risk, false, 'Cancelled by user');
+        _auditLog.add(name, args, risk, false, 'Cancelled');
         return 'Action cancelled by user';
       }
     }
@@ -526,7 +752,13 @@ class ReactStrategy implements AgentStrategy {
   }
 
   String _noContextError(String name, String args, ToolRisk risk) {
-    _auditLog.add(name, args, risk, false, 'ToolContext not initialized');
+    _auditLog.add(
+      name,
+      args,
+      risk,
+      false,
+      'ToolContext not initialized',
+    );
     return 'Error: ToolContext not initialized';
   }
 

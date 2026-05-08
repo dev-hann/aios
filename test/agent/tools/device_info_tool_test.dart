@@ -182,10 +182,10 @@ void main() {
       expect(tool.toolPrompt, contains('memory'));
     });
 
-    test('toolPrompt_containsKoreanExamples', () {
-      expect(tool.toolPrompt, contains('배터리'));
-      expect(tool.toolPrompt, contains('저장공간'));
-      expect(tool.toolPrompt, contains('메모리'));
+    test('toolPrompt_containsRules', () {
+      expect(tool.toolPrompt, contains('Rules'));
+      expect(tool.toolPrompt, contains('defaults to "get_info"'));
+      expect(tool.toolPrompt, contains('Get device info'));
     });
 
     test('toolPrompt_containsParameters', () {

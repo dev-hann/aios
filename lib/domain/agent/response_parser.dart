@@ -20,6 +20,17 @@ class ResponseParser {
     dotAll: true,
   );
 
+  ParseResult parseIntent(String response) {
+    final lower = response.trim().toLowerCase();
+    if (lower.contains('conversation')) {
+      return const ParseIntent(true);
+    }
+    if (lower.contains('task')) {
+      return const ParseIntent(false);
+    }
+    return const ParseIntent(false);
+  }
+
   ParseResult parse(String response) {
     final trimmed = response.trim();
     if (trimmed.isEmpty) return const ParseEmpty();
@@ -101,4 +112,9 @@ class ParseAnswer extends ParseResult {
 
 class ParseEmpty extends ParseResult {
   const ParseEmpty();
+}
+
+class ParseIntent extends ParseResult {
+  final bool isConversation;
+  const ParseIntent(this.isConversation);
 }

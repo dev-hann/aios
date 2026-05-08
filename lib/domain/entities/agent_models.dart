@@ -14,6 +14,9 @@ class AgentStep with _$AgentStep {
     @Default('') String toolArgs,
     @Default('') String toolResult,
     @Default('') String riskLevel,
+    @Default('') String phase,
+    @Default(0) int retryAttempt,
+    @Default(0) int maxRetries,
   }) = _AgentStep;
 
   factory AgentStep.fromJson(Map<String, dynamic> json) =>

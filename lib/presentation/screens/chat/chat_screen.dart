@@ -186,6 +186,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: AppColors.textPrimary),
+            tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
         ],
@@ -373,7 +374,7 @@ class _MessageListState extends State<_MessageList> {
 
         final stepIndex = index - messages.length;
         if (stepIndex < agentSteps.length) {
-          return _AgentStepCard(step: agentSteps[stepIndex]);
+          return _SystemAnnotation(step: agentSteps[stepIndex]);
         }
 
         return const _ThinkingIndicator();
@@ -382,171 +383,100 @@ class _MessageListState extends State<_MessageList> {
   }
 }
 
-class _AgentStepCard extends StatelessWidget {
-  const _AgentStepCard({required this.step});
+class _SystemAnnotation extends StatelessWidget {
+  const _SystemAnnotation({required this.step});
 
   final AgentStep step;
 
+  static const _hiddenTypes = {
+    'thought',
+    'thinking_start',
+    'thinking_end',
+  };
+
+  bool get _isHidden => _hiddenTypes.contains(step.type);
+
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.85,
+    if (_isHidden) return const SizedBox.shrink();
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 24,
+          vertical: 2,
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.assistantBubble,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(AppRadius.md),
-            topRight: Radius.circular(AppRadius.md),
-            bottomRight: Radius.circular(AppRadius.md),
-          ),
-          border: _stepBorder(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_icon, size: 12, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                _annotationText,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
-        child: _buildContent(),
       ),
     );
   }
 
-  BoxBorder? _stepBorder() {
-    if (step.type == 'action') {
-      return Border.all(color: AppColors.secondary.withOpacity(0.3));
-    }
-    if (step.type == 'confirmation_required') {
-      return Border.all(
-        color: step.riskLevel == 'critical'
-            ? AppColors.error.withOpacity(0.5)
-            : AppColors.warning.withOpacity(0.5),
-      );
-    }
-    return null;
-  }
+  IconData get _icon => switch (step.type) {
+        'phase0_classifying' => Icons.search,
+        'phase0_result' => Icons.check_circle_outline,
+        'phase0_retry' => Icons.refresh,
+        'phase1_retry' => Icons.refresh,
+        'phase_answer' => Icons.chat_bubble_outline,
+        'phase_answer_retry' => Icons.refresh,
+        'action' => Icons.build_outlined,
+        'observation' => Icons.check_circle_outline,
+        'confirmation_required' => Icons.shield_outlined,
+        _ => Icons.circle,
+      };
 
-  Widget _buildContent() {
-    return switch (step.type) {
-      'thought' => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.secondary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                step.content,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
-      'thinking_start' || 'thinking_end' => const SizedBox.shrink(),
-      'action' => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.build,
-                  size: 14,
-                  color: AppColors.secondary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  step.toolName,
-                  style: const TextStyle(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            if (step.toolArgs.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                step.toolArgs,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ],
-        ),
-      'confirmation_required' => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              step.riskLevel == 'critical'
-                  ? Icons.warning
-                  : Icons.shield,
-              size: 14,
-              color: step.riskLevel == 'critical'
-                  ? AppColors.error
-                  : AppColors.warning,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                'Waiting for confirmation...',
-                style: TextStyle(
-                  color: step.riskLevel == 'critical'
-                      ? AppColors.error
-                      : AppColors.warning,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
-      'observation' => Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceModal,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Result',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                step.content,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                ),
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      _ => const SizedBox.shrink(),
-    };
+  String get _annotationText {
+    switch (step.type) {
+      case 'phase0_classifying':
+        return '의도 분석 중...';
+      case 'phase0_result':
+        return step.content;
+      case 'phase0_retry':
+        return '의도 분석 재시도... '
+            '(${step.retryAttempt}/${step.maxRetries})';
+      case 'phase1_retry':
+        return '작업 분석 재시도... '
+            '(${step.retryAttempt}/${step.maxRetries})';
+      case 'phase_answer':
+        return '응답 생성 중...';
+      case 'phase_answer_retry':
+        return '응답 재시도... '
+            '(${step.retryAttempt}/${step.maxRetries})';
+      case 'action':
+        final name = step.toolName.isNotEmpty
+            ? step.toolName
+            : 'tool';
+        return '$name 실행 중...';
+      case 'observation':
+        final result = step.toolResult;
+        if (result.isEmpty) return '결과: (empty)';
+        final summary = result.length > 50
+            ? '${result.substring(0, 50)}...'
+            : result;
+        final isError = summary.trimLeft().startsWith('Error:');
+        return isError ? '실패: $summary' : '결과: $summary';
+      case 'confirmation_required':
+        return '사용자 확인 대기 중...';
+      default:
+        return step.content;
+    }
   }
 }
 

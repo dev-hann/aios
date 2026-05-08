@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:flutter/foundation.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -26,27 +27,45 @@ class AppLauncherTool extends ExtendedTool {
   String get toolPrompt =>
       'Open apps or URLs.\n\n'
       'Actions:\n'
-      '- open_app: Open an installed app (ALWAYS prefer this for app names)\n'
-      '- open_url: Open a URL (ONLY when user gives http/https link)\n'
-      '- list_apps: List apps (ONLY when you cannot find the app)\n\n'
+      '- open_app: Open app (prefer for app names)\n'
+      '- open_url: Open URL (ONLY for http/https links)\n'
+      '- list_apps: List apps (when app not found)\n\n'
       'Parameters: {"action": "open_app|open_url|list_apps", '
       '"package_name": "string", "url": "string", '
       '"query": "string"}\n\n'
-      'CRITICAL RULES:\n'
-      '- "open youtube" = open_app with package_name from app list\n'
-      '- "open firefox" = open_app with package_name from app list\n'
-      '- "open google.com" = open_url with url "https://google.com"\n'
-      '- Find the package_name from the Installed apps list below\n'
-      '- NEVER use open_url for app names like youtube, firefox, kakao\n'
-      '- NEVER guess package_name. Use exact name from app list.';
+      'Rules:\n'
+      '- Find package_name from the Installed apps list\n'
+      '- NEVER use open_url for app names\n'
+      '- NEVER guess package_name';
 
   @override
   Future<String?> phaseContext(
     String args,
     ToolContext toolContext,
   ) async {
-    return _listApps({'query': ''});
+    final query = _extractAppQuery(args);
+    final result = await _listApps({'query': query});
+    if (query.isNotEmpty && result.startsWith('No apps')) {
+      return _listApps({'query': ''});
+    }
+    return result;
   }
+
+  String _extractAppQuery(String prompt) {
+    final lower = prompt.toLowerCase();
+    final patterns = [
+      RegExp(r'(?:open|launch|start|run)\s+(\w+)'),
+      RegExp(r'(?:열어|실행|시작|켜)\s*(\S+)'),
+    ];
+    for (final p in patterns) {
+      final m = p.firstMatch(lower);
+      if (m != null) return m.group(1)!;
+    }
+    return '';
+  }
+
+  @visibleForTesting
+  String testExtractAppQuery(String prompt) => _extractAppQuery(prompt);
 
   @override
   Future<String?> validate(String args, ToolContext toolContext) async {

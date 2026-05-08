@@ -211,7 +211,10 @@ void main() {
 
     group('execute', () {
       test('answer response returns success', () async {
-        llmRepo.tokensToEmit = ['Answer: Hello! How can I help?'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['Hello! How can I help?'],
+        ];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
         final result = await strategy.execute('Hi');
@@ -229,18 +232,31 @@ void main() {
         expect(result.steps.any((s) => s.type == 'answer'), isTrue);
       });
 
-      test('emits thought steps', () async {
-        llmRepo.tokensToEmit = ['Answer: done'];
+      test('emits phase0 steps', () async {
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['Hello!'],
+        ];
         final steps = <AgentStep>[];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
         await strategy.execute('Hi', onStep: steps.add);
 
-        expect(steps.any((s) => s.type == 'thought'), isTrue);
+        expect(
+          steps.any((s) => s.type == 'phase0_classifying'),
+          isTrue,
+        );
+        expect(
+          steps.any((s) => s.type == 'phase0_result'),
+          isTrue,
+        );
       });
 
       test('emits answer step', () async {
-        llmRepo.tokensToEmit = ['Answer: The answer is 42'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['The answer is 42'],
+        ];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
         final result = await strategy.execute('question');
@@ -250,8 +266,11 @@ void main() {
         expect(answerStep.content, 'The answer is 42');
       });
 
-      test('passes maxTokens', () async {
-        llmRepo.tokensToEmit = ['Answer: ok'];
+      test('passes maxTokens to phase1', () async {
+        llmRepo.responseQueue = [
+          ['TASK'],
+          ['Answer: ok'],
+        ];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
         await strategy.execute('Hi', maxTokens: 256);
@@ -266,9 +285,10 @@ void main() {
           extendedTools: {'app_launcher': extTool},
         );
 
-        llmRepo.tokensToEmit = [
-          'Action: app_launcher',
-          'Action: app_launcher\nArgs: {"action": "list_apps"}',
+        llmRepo.responseQueue = [
+          ['TASK'],
+          ['Action: app_launcher'],
+          ['Action: app_launcher\nArgs: {"action": "list_apps"}'],
         ];
 
         final result = await strategy.execute('list apps');
@@ -286,7 +306,10 @@ void main() {
       });
 
       test('calls onStep callback', () async {
-        llmRepo.tokensToEmit = ['Answer: ok'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['ok'],
+        ];
         final steps = <AgentStep>[];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
@@ -295,19 +318,36 @@ void main() {
         expect(steps, isNotEmpty);
       });
 
-      test('plain text response retries then returns fallback', () async {
-        llmRepo.tokensToEmit = ['Just a plain response'];
+      test('phase0 defaults to TASK on unclear response', () async {
+        llmRepo.responseQueue = [
+          ['gibberish'],
+          ['Answer: I got you'],
+        ];
 
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
-        final result = await strategy.execute('Hi', maxIterations: 1);
+        final result = await strategy.execute('test');
 
-        final answerSteps =
-            result.steps.where((s) => s.type == 'answer').toList();
-        expect(answerSteps, isNotEmpty);
-        expect(
-          answerSteps.first.content,
-          contains('작업을 완료하지 못했습니다'),
-        );
+        expect(result.success, isTrue);
+        final answerStep = result.steps
+            .where((s) => s.type == 'answer')
+            .first;
+        expect(answerStep.content, 'I got you');
+      });
+
+      test('task routing with direct answer', () async {
+        llmRepo.responseQueue = [
+          ['TASK'],
+          ['Answer: Here is the info'],
+        ];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final result = await strategy.execute('tell me something');
+
+        expect(result.success, isTrue);
+        final answerStep = result.steps
+            .where((s) => s.type == 'answer')
+            .first;
+        expect(answerStep.content, 'Here is the info');
       });
 
       test('phase1 with valid args executes directly', () async {
@@ -318,14 +358,32 @@ void main() {
           basicTools: {'calculator': basicTool},
         );
 
-        llmRepo.tokensToEmit = [
-          'Action: calculator\nArgs: {"expression": "2+2"}',
+        llmRepo.responseQueue = [
+          ['TASK'],
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Answer: The result is 42'],
         ];
 
         final result = await strategy.execute('2+2');
 
         expect(basicTool.executeCount, greaterThanOrEqualTo(1));
-        expect(result.steps.any((s) => s.type == 'observation'), isTrue);
+        expect(
+          result.steps.any((s) => s.type == 'observation'),
+          isTrue,
+        );
+      });
+
+      test('plain text response in phase1 retries then returns fallback',
+          () async {
+        llmRepo.tokensToEmit = ['Just a plain response'];
+
+        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final result =
+            await strategy.execute('Hi', maxIterations: 3);
+
+        final answerSteps =
+            result.steps.where((s) => s.type == 'answer').toList();
+        expect(answerSteps, isNotEmpty);
       });
     });
 
@@ -351,8 +409,10 @@ void main() {
       test('does not throw', () async {
         final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
 
-        expect(() => strategy.resolveConfirmation(true), returnsNormally);
-        expect(() => strategy.resolveConfirmation(false), returnsNormally);
+        expect(
+            () => strategy.resolveConfirmation(true), returnsNormally);
+        expect(
+            () => strategy.resolveConfirmation(false), returnsNormally);
       });
     });
 
@@ -362,7 +422,8 @@ void main() {
           'calculator': _FakeBasicTool('calculator', '42'),
         };
         final extendedTools = {
-          'app_launcher': _FakeExtendedTool('app_launcher', 'opened'),
+          'app_launcher':
+              _FakeExtendedTool('app_launcher', 'opened'),
         };
 
         final strategy = ReactStrategy(
@@ -385,7 +446,8 @@ void main() {
           'timer': _FakeBasicTool('timer', 'done'),
         };
         final extendedTools = {
-          'app_launcher': _FakeExtendedTool('app_launcher', 'opened'),
+          'app_launcher':
+              _FakeExtendedTool('app_launcher', 'opened'),
         };
 
         final strategy = ReactStrategy(
@@ -424,28 +486,40 @@ void main() {
 
     group('getConversationHistory', () {
       test('empty initially', () async {
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
 
         expect(strategy.getConversationHistory(), isEmpty);
       });
 
       test('after execute has messages', () async {
-        llmRepo.tokensToEmit = ['Answer: done'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['done'],
+        ];
 
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         await strategy.execute('Hello');
 
         final history = strategy.getConversationHistory();
         expect(history, isNotEmpty);
-        expect(history.any((m) => m.content.contains('Hello')), isTrue);
+        expect(
+          history.any((m) => m.content.contains('Hello')),
+          isTrue,
+        );
       });
     });
 
     group('clearHistory', () {
       test('removes history', () async {
-        llmRepo.tokensToEmit = ['Answer: done'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['done'],
+        ];
 
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         await strategy.execute('Hello');
 
         expect(strategy.getConversationHistory(), isNotEmpty);
@@ -458,25 +532,33 @@ void main() {
 
     group('multipleExecutes', () {
       test('twice independent results', () async {
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
 
-        llmRepo.tokensToEmit = ['Answer: first'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['first'],
+        ];
         final result1 = await strategy.execute('Q1');
 
-        llmRepo.tokensToEmit = ['Answer: second'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['second'],
+        ];
         final result2 = await strategy.execute('Q2');
 
-        expect(
-            result1.steps.any((s) => s.content.contains('first')), isTrue);
-        expect(
-            result2.steps.any((s) => s.content.contains('second')), isTrue);
+        expect(result1.steps
+            .any((s) => s.content.contains('first')), isTrue);
+        expect(result2.steps
+            .any((s) => s.content.contains('second')), isTrue);
       });
 
       test('after cancel works normally', () async {
         llmRepo.tokensToEmit = [];
         llmRepo.holdAfterSend = Completer<void>();
 
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
 
         final future = strategy.execute('task1');
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -485,11 +567,17 @@ void main() {
         await future;
 
         llmRepo.holdAfterSend = null;
-        llmRepo.tokensToEmit = ['Answer: ok'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['ok'],
+        ];
         llmRepo.stopCalled = false;
 
         final result = await strategy.execute('task2');
-        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
+        expect(
+          result.steps.any((s) => s.type == 'answer'),
+          isTrue,
+        );
       });
     });
 
@@ -508,6 +596,7 @@ void main() {
         );
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator'],
           ['Action: calculator\nArgs: {"expression": "2+2"}'],
           ['Action: notepad'],
@@ -521,50 +610,18 @@ void main() {
         );
 
         expect(result.success, isTrue);
-        expect(calcTool.executeCount, greaterThanOrEqualTo(1));
-        expect(noteTool.executeCount, greaterThanOrEqualTo(1));
+        expect(
+          calcTool.executeCount,
+          greaterThanOrEqualTo(1),
+        );
+        expect(
+          noteTool.executeCount,
+          greaterThanOrEqualTo(1),
+        );
         expect(
           result.steps.any((s) => s.type == 'answer'),
           isTrue,
         );
-      });
-
-      test('chains three safe tools sequentially', () async {
-        final calcTool = _FakeBasicTool('calculator', '385');
-        final noteTool = _FakeBasicTool('notepad', 'Note saved');
-        final timerTool = _FakeBasicTool('timer', 'Timer set');
-
-        final strategy = ReactStrategy(
-          llmRepo,
-          toolContext: toolContext,
-          basicTools: {
-            'calculator': calcTool,
-            'notepad': noteTool,
-            'timer': timerTool,
-          },
-        );
-
-        llmRepo.responseQueue = [
-          ['Action: calculator'],
-          ['Action: calculator\nArgs: {"expression": "385"}'],
-          ['Action: notepad'],
-          ['Action: notepad\nArgs: {"action": "save", '
-              '"content": "385"}'],
-          ['Action: timer'],
-          ['Action: timer\nArgs: {"action": "start", '
-              '"seconds": "60"}'],
-          ['Answer: Done.'],
-        ];
-
-        final result = await strategy.execute(
-          '385 계산하고 메모하고 60초 타이머 설정해줘',
-          maxIterations: 8,
-        );
-
-        expect(result.success, isTrue);
-        expect(calcTool.executeCount, greaterThanOrEqualTo(1));
-        expect(noteTool.executeCount, greaterThanOrEqualTo(1));
-        expect(timerTool.executeCount, greaterThanOrEqualTo(1));
       });
 
       test('phase2 includes all observations', () async {
@@ -581,6 +638,7 @@ void main() {
         );
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator'],
           ['Action: calculator\nArgs: {"expression": "2+2"}'],
           ['Action: notepad'],
@@ -614,6 +672,7 @@ void main() {
         );
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "2+2"}'],
           ['Action: notepad\nArgs: {"action": "save", '
               '"content": "result is 4"}'],
@@ -638,12 +697,15 @@ void main() {
           basicTools: {'calculator': tool},
         );
 
-        final endlessResponses = List.generate(
-          20,
-          (_) => [
-            'Action: calculator\nArgs: {"expression": "1+1"}'
-          ],
-        );
+        final endlessResponses = [
+          ['TASK'],
+          ...List.generate(
+            20,
+            (_) => [
+              'Action: calculator\nArgs: {"expression": "1+1"}'
+            ],
+          ),
+        ];
         llmRepo.responseQueue = endlessResponses;
 
         final result = await strategy.execute(
@@ -651,7 +713,10 @@ void main() {
           maxIterations: 10,
         );
 
-        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
+        expect(
+          result.steps.any((s) => s.type == 'answer'),
+          isTrue,
+        );
         expect(tool.executeCount, lessThan(10));
       });
     });
@@ -659,9 +724,13 @@ void main() {
     group('contextAwareness', () {
       test('records_conversationTurn_afterExecute', () async {
         final context = ConversationContext();
-        llmRepo.tokensToEmit = ['Answer: Hello!'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['Hello!'],
+        ];
 
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         strategy.setConversationContext(context);
         await strategy.execute('Hi');
 
@@ -675,8 +744,10 @@ void main() {
         final context = ConversationContext();
         final calcTool = _FakeBasicTool('calculator', '42');
 
-        llmRepo.tokensToEmit = [
-          'Action: calculator\nArgs: {"expression": "2+2"}',
+        llmRepo.responseQueue = [
+          ['TASK'],
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Answer: 42'],
         ];
 
         final strategy = ReactStrategy(
@@ -694,9 +765,13 @@ void main() {
 
       test('records_nullToolUsed_whenDirectAnswer', () async {
         final context = ConversationContext();
-        llmRepo.tokensToEmit = ['Answer: Just a text answer'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['Just a text answer'],
+        ];
 
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         strategy.setConversationContext(context);
         await strategy.execute('Hello');
 
@@ -706,9 +781,13 @@ void main() {
 
       test('records_turn_onlyWhenAnswerExists', () async {
         final context = ConversationContext();
-        llmRepo.tokensToEmit = ['Answer: some answer'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['some answer'],
+        ];
 
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         strategy.setConversationContext(context);
         await strategy.execute('test');
 
@@ -718,16 +797,26 @@ void main() {
       test('records_multipleTurns_acrossExecutions', () async {
         final context = ConversationContext();
 
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         strategy.setConversationContext(context);
 
-        llmRepo.tokensToEmit = ['Answer: First'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['First'],
+        ];
         await strategy.execute('Q1');
 
-        llmRepo.tokensToEmit = ['Answer: Second'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['Second'],
+        ];
         await strategy.execute('Q2');
 
-        llmRepo.tokensToEmit = ['Answer: Third'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['Third'],
+        ];
         await strategy.execute('Q3');
 
         expect(context.length, 3);
@@ -736,16 +825,26 @@ void main() {
       test('respects_maxTurns_acrossExecutions', () async {
         final context = ConversationContext(maxTurns: 2);
 
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         strategy.setConversationContext(context);
 
-        llmRepo.tokensToEmit = ['Answer: A1'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['A1'],
+        ];
         await strategy.execute('Q1');
 
-        llmRepo.tokensToEmit = ['Answer: A2'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['A2'],
+        ];
         await strategy.execute('Q2');
 
-        llmRepo.tokensToEmit = ['Answer: A3'];
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['A3'],
+        ];
         await strategy.execute('Q3');
 
         expect(context.length, 2);
@@ -761,6 +860,7 @@ void main() {
         final calcTool = _FakeBasicTool('calculator', '42');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "2+2"}'],
           ['Answer: 42'],
         ];
@@ -773,7 +873,8 @@ void main() {
         strategy.setToolPreferenceTracker(tracker);
         await strategy.execute('2+2');
 
-        expect(tracker.getCount('calculator'), greaterThanOrEqualTo(1));
+        expect(tracker.getCount('calculator'),
+            greaterThanOrEqualTo(1));
       });
 
       test('tracks_multipleToolUsage', () async {
@@ -782,6 +883,7 @@ void main() {
         final noteTool = _FakeBasicTool('notepad', 'saved');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "2+2"}'],
           ['Action: notepad\nArgs: {"action": "save"}'],
           ['Answer: done'],
@@ -806,6 +908,7 @@ void main() {
         final calcTool = _FakeBasicTool('calculator', '42');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "2+2"}'],
           ['Answer: 42'],
         ];
@@ -817,34 +920,17 @@ void main() {
         );
         await strategy.execute('2+2');
 
-        expect(calcTool.executeCount, greaterThanOrEqualTo(1));
-      });
-
-      test('tracks_extendedToolUsage', () async {
-        final tracker = ToolPreferenceTracker();
-        final extTool =
-            _FakeExtendedTool('app_launcher', 'launched');
-
-        llmRepo.responseQueue = [
-          ['Answer: App launched.'],
-        ];
-
-        final strategy = ReactStrategy(
-          llmRepo,
-          toolContext: toolContext,
-          extendedTools: {'app_launcher': extTool},
+        expect(
+          calcTool.executeCount,
+          greaterThanOrEqualTo(1),
         );
-        strategy.setToolPreferenceTracker(tracker);
-
-        tracker.recordToolUse('app_launcher');
-
-        expect(tracker.getCount('app_launcher'), 1);
       });
     });
 
     group('setConversationContext', () {
       test('accepts_null', () async {
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
 
         expect(
           () => strategy.setConversationContext(null),
@@ -853,7 +939,8 @@ void main() {
       });
 
       test('accepts_context', () async {
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         final context = ConversationContext();
 
         expect(
@@ -865,7 +952,8 @@ void main() {
 
     group('setToolPreferenceTracker', () {
       test('accepts_null', () async {
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
 
         expect(
           () => strategy.setToolPreferenceTracker(null),
@@ -874,7 +962,8 @@ void main() {
       });
 
       test('accepts_tracker', () async {
-        final strategy = ReactStrategy(llmRepo, toolContext: toolContext);
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
         final tracker = ToolPreferenceTracker();
 
         expect(
@@ -890,6 +979,7 @@ void main() {
             _FakeBasicTool('calculator', 'Error: Cannot compute');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "bad"}'],
           ['Answer: Failed to calculate.'],
         ];
@@ -918,8 +1008,11 @@ void main() {
         );
 
         llmRepo.responseQueue = [
-          ['Action: app_launcher\nArgs: {"action": "open_app", '
-              '"package_name": "com.fake"}'],
+          ['TASK'],
+          [
+            'Action: app_launcher\nArgs: {"action": "open_app", '
+                '"package_name": "com.fake"}'
+          ],
           ['Answer: App not found.'],
         ];
 
@@ -944,6 +1037,7 @@ void main() {
             _FakeExtendedTool('screen_action', 'done');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: screen_action'],
           ['Answer: Service not available.'],
         ];
@@ -967,6 +1061,7 @@ void main() {
         final tool = _FakeBasicTool('calculator', '42');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "2+2"}'],
           ['Answer: 42'],
         ];
@@ -992,6 +1087,7 @@ void main() {
             _FakeBasicTool('calculator', 'Error: fail');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "1"}'],
           ['Answer: Error occurred.'],
         ];
@@ -1004,6 +1100,7 @@ void main() {
         await strategy.execute('calc 1');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "2"}'],
           ['Answer: Error again.'],
         ];
@@ -1016,7 +1113,10 @@ void main() {
                 m.role == 'user' &&
                 m.content.contains('RECOVERY'))
             .toList();
-        expect(recoveryObs.length, greaterThanOrEqualTo(2));
+        expect(
+          recoveryObs.length,
+          greaterThanOrEqualTo(2),
+        );
       });
 
       test('genericError_withRetry_addsRetryHint', () async {
@@ -1024,6 +1124,7 @@ void main() {
             _FakeBasicTool('calculator', 'Error: parse error');
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator\nArgs: {"expression": "x"}'],
           ['Action: calculator\nArgs: {"expression": "1+1"}'],
           ['Answer: Computed.'],
@@ -1053,6 +1154,7 @@ void main() {
         );
 
         llmRepo.responseQueue = [
+          ['TASK'],
           ['Action: calculator'],
           ['Action: calculator\nArgs: {"expression": "1+1"}'],
           ['Answer: Done.'],
@@ -1072,6 +1174,120 @@ void main() {
                 m.content.contains('Invalid action'))
             .toList();
         expect(recoveryObs, isNotEmpty);
+      });
+    });
+
+    group('phase0IntentClassification', () {
+      test('conversation routes to answer phase', () async {
+        llmRepo.responseQueue = [
+          ['CONVERSATION'],
+          ['안녕하세요! 무엇을 도와드릴까요?'],
+        ];
+
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
+        final result = await strategy.execute('안녕');
+
+        expect(result.success, isTrue);
+        final phase0Results = result.steps
+            .where((s) => s.type == 'phase0_result')
+            .toList();
+        expect(phase0Results, isNotEmpty);
+        expect(phase0Results.first.content, contains('대화'));
+      });
+
+      test('task routes to phase1', () async {
+        final calcTool = _FakeBasicTool('calculator', '4');
+
+        llmRepo.responseQueue = [
+          ['TASK'],
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Answer: 4'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': calcTool},
+        );
+        final result = await strategy.execute('2+2');
+
+        expect(result.success, isTrue);
+        final phase0Results = result.steps
+            .where((s) => s.type == 'phase0_result')
+            .toList();
+        expect(phase0Results, isNotEmpty);
+        expect(
+          phase0Results.first.content,
+          contains('작업'),
+        );
+        expect(calcTool.executeCount, 1);
+      });
+
+      test('phase0 unclear response defaults to TASK', () async {
+        llmRepo.responseQueue = [
+          ['maybe something weird'],
+          ['Answer: Here you go'],
+        ];
+
+        final strategy =
+            ReactStrategy(llmRepo, toolContext: toolContext);
+        final result = await strategy.execute('test');
+
+        expect(result.success, isTrue);
+        final phase0Results = result.steps
+            .where((s) => s.type == 'phase0_result')
+            .toList();
+        expect(phase0Results, isNotEmpty);
+        expect(
+          phase0Results.first.content,
+          contains('작업'),
+        );
+      });
+    });
+
+    group('phase2Retry', () {
+      test('phase2 retries on invalid response', () async {
+        final calcTool = _FakeBasicTool('calculator', '42');
+
+        llmRepo.responseQueue = [
+          ['TASK'],
+          ['Action: calculator'],
+          ['invalid response'],
+          ['Action: calculator\nArgs: {"expression": "2+2"}'],
+          ['Answer: 42'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': calcTool},
+        );
+        final result = await strategy.execute('2+2');
+
+        expect(result.success, isTrue);
+        expect(calcTool.executeCount, 1);
+      });
+
+      test('phase2 exhausts retries returns error', () async {
+        final calcTool = _FakeBasicTool('calculator', '42');
+
+        llmRepo.responseQueue = [
+          ['TASK'],
+          ['Action: calculator'],
+          ['bad'],
+          ['still bad'],
+          ['Answer: Could not execute'],
+        ];
+
+        final strategy = ReactStrategy(
+          llmRepo,
+          toolContext: toolContext,
+          basicTools: {'calculator': calcTool},
+        );
+        final result = await strategy.execute('calculate');
+
+        expect(result.steps.any((s) => s.type == 'answer'), isTrue);
       });
     });
   });

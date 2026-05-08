@@ -3,6 +3,21 @@ class PromptBuilder {
 
   final List<({String role, String content})> _history = [];
 
+  String buildIntentPrompt(String routingManifest) {
+    return 'Classify: does the user request match any tool?\n\n'
+        'Tools:\n$routingManifest\n\n'
+        'TASK = request matches a tool above\n'
+        'CONVERSATION = greetings, chat, general knowledge\n'
+        'When in doubt, reply TASK.\n'
+        'Reply ONLY "TASK" or "CONVERSATION".';
+  }
+
+  String buildAnswerPrompt() {
+    return 'You are AIOS, an on-device phone assistant.\n'
+        'Respond concisely in the user\'s language (1-2 sentences).\n'
+        'Be friendly and helpful.';
+  }
+
   String buildRoutingPrompt(
     String routingManifest, {
     String? conversationContext,
@@ -15,98 +30,28 @@ class PromptBuilder {
     final prefSection = toolPreferences != null && toolPreferences.isNotEmpty
         ? '\n$toolPreferences\n'
         : '';
-    return 'You are AIOS, an AI assistant on an Android phone.\n\n'
-        'AVAILABLE TOOLS:\n$routingManifest\n'
+    return 'You are AIOS, a phone assistant. '
+        'Select a tool or answer directly.\n\n'
+        'Tools:\n$routingManifest\n'
         '$contextSection'
         '$prefSection'
-        'You MUST respond in EXACTLY one of these two formats:\n\n'
-        'Format 1 (to use a tool):\n'
-        'Action: tool_name\n\n'
-        'Format 2 (to answer directly):\n'
-        'Answer: your text response\n\n'
+        'IMPORTANT: For greetings, chat, general questions '
+        '-> Answer directly.\n'
+        'For device actions -> use Action format.\n\n'
         'Examples:\n'
         'User: open youtube\n'
         'Action: app_launcher\n\n'
-        'User: open firefox\n'
-        'Action: app_launcher\n\n'
-        'User: open https://google.com\n'
-        'Action: app_launcher\n\n'
-        'User: 화면에서 확인 버튼 눌러줘\n'
+        'User: 안녕하세요\n'
+        'Answer: 안녕하세요! 무엇을 도와드릴까요?\n\n'
+        'User: 배터리 몇퍼센트야\n'
+        'Action: device_info\n\n'
+        'User: 고마워\n'
+        'Answer: 천만에요! 더 필요한 거 있으면 말씀해주세요.\n\n'
+        'User: 화면에서 확인 눌러줘\n'
         'Action: screen_action\n\n'
-        'User: 뒤로 가줘\n'
-        'Action: screen_action\n\n'
-        'User: 위로 스크롤해줘\n'
-        'Action: screen_action\n\n'
-        'User: 지금 화면에 뭐 보여\n'
-        'Action: screen_reader\n\n'
-        'User: 화면에서 설정 버튼 찾아줘\n'
-        'Action: screen_find\n\n'
-        'User: 알림 뭐왔어\n'
-        'Action: notification_reader\n\n'
-        'User: 카톡 알림 읽어줘\n'
-        'Action: notification_reader\n\n'
-        'User: 01012345678으로 안부 문자 보내줘\n'
-        'Action: sms_sender\n\n'
-        'User: 문자 뭐왔어\n'
-        'Action: sms_sender\n\n'
-        'User: 엄마한테 전화해줘\n'
-        'Action: phone_caller\n\n'
-        'User: 01012345678로 전화 걸어줘\n'
-        'Action: phone_caller\n\n'
-        'User: 홍길동 전화번호 알려줘\n'
-        'Action: contact_search\n\n'
-        'User: 김씨 연락처 찾아줘\n'
-        'Action: contact_search\n\n'
-        'User: what is 2+2\n'
-        'Action: calculator\n\n'
-        'User: 385 곱하기 22 얼마야\n'
-        'Action: calculator\n\n'
-        'User: 1000 나누기 3은\n'
-        'Action: calculator\n\n'
-        'User: calculate (15+7)*3\n'
-        'Action: calculator\n\n'
-        'User: 오늘 할 일 적어줘: 장보기, 운동가기\n'
-        'Action: notepad\n\n'
-        'User: 메모 뭐 있어\n'
-        'Action: notepad\n\n'
-        'User: 장보기 메모 지워줘\n'
-        'Action: notepad\n\n'
-        'User: save a note: buy milk tomorrow\n'
-        'Action: notepad\n\n'
-        'User: 5분 타이머 설정해줘\n'
-        'Action: timer\n\n'
-        'User: 타이머 남은 시간 알려줘\n'
-        'Action: timer\n\n'
-        'User: 타이머 취소해줘\n'
-        'Action: timer\n\n'
-        'User: set a timer for 2 minutes\n'
-        'Action: timer\n\n'
-        'User: 30초 타이머\n'
-        'Action: timer\n\n'
-        'User: 내 폰 배터리 몇퍼센트야\n'
-        'Action: device_info\n\n'
-        'User: 내 폰 기종이 뭐야\n'
-        'Action: device_info\n\n'
-        'User: 저장공간 얼마나 남았어\n'
-        'Action: device_info\n\n'
-        'User: 폰 정보 알려줘\n'
-        'Action: device_info\n\n'
-        'User: what is my phone model\n'
-        'Action: device_info\n\n'
-        'User: how much storage is left\n'
-        'Action: device_info\n\n'
-        'User: 연락처에서 홍길동 찾아서 전화해줘\n'
-        'Action: contact_search\n\n'
-        'User: 2+2 계산해서 메모해줘\n'
-        'Action: calculator\n\n'
-        'User: 화면에서 번호 읽어서 전화해줘\n'
-        'Action: screen_reader\n\n'
-        'User: 메모 내용 문자로 보내줘\n'
-        'Action: notepad\n\n'
-        'Rules: Max 5 tool calls. Be concise. Match user language. '
-        'For multi-step requests, use one tool at a time. '
-        'Use data from previous observations for the next step. '
-        'NEVER respond with anything except Action: or Answer: format.';
+        'User: 누구세요?\n'
+        'Answer: 저는 AIOS, 휴대폰 AI 비서입니다.\n\n'
+        'Respond ONLY "Action: tool_name" or "Answer: text".';
   }
 
   String buildToolPrompt(
@@ -114,18 +59,16 @@ class PromptBuilder {
     String toolPrompt, {
     String? extraContext,
   }) {
-    final base = 'You are AIOS. Execute the $toolName tool.\n\n'
+    final base = 'Execute the $toolName tool.\n\n'
         '$toolPrompt\n\n'
-        'You MUST respond in EXACTLY this format:\n'
+        'Respond EXACTLY:\n'
         'Action: $toolName\n'
-        'Args: {"param": "value"}\n\n'
-        'Example:\n'
-        'Action: $toolName\n'
-        'Args: {"action": "open_app", "package_name": "com.example.app"}';
+        'Args: {"param": "value"}';
 
     if (extraContext != null) {
-      return '$base\n\nInstalled apps (use open_app with package_name '
-          'from this list):\n$extraContext';
+      return '$base\n\nInstalled apps '
+          '(use open_app with package_name from this list):\n'
+          '$extraContext';
     }
     return base;
   }

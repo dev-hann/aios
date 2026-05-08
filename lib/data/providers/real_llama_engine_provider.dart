@@ -97,7 +97,7 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
 
       _engine = await LlamaEngine.spawn(
         libraryPath: 'libllama.so',
-        modelParams: ModelParams(path: path),
+        modelParams: ModelParams(path: path, gpuLayers: 99, useMmap: true),
         contextParams: ContextParams(nCtx: contextSize ?? 2048),
       );
 
@@ -214,10 +214,10 @@ class RealLlamaEngineProvider implements LlamaEngineProvider {
     double? repeatPenalty,
   }) async {
     final sampler = SamplerParams(
-      temperature: temperature ?? 0.8,
+      temperature: temperature ?? 0.7,
       topK: topK ?? 40,
-      topP: topP ?? 0.95,
-      repeatPenalty: repeatPenalty ?? 1.0,
+      topP: topP ?? 0.9,
+      repeatPenalty: repeatPenalty ?? 1.1,
     );
 
     if (_isGemma4 && _session != null) {

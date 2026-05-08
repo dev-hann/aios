@@ -20,20 +20,15 @@ class DeviceInfoTool extends ExtendedTool {
 
   @override
   String get toolPrompt =>
-      'Get device hardware and system information.\n\n'
+      'Get device info.\n\n'
       'Parameters: $parameters\n\n'
       'Actions:\n'
-      '- get_info: device model, manufacturer, Android version\n'
-      '- battery: battery level (%) and charging status\n'
-      '- storage: total/used/available storage (GB)\n'
-      '- memory: JVM memory usage (MB)\n\n'
+      '- get_info: model, manufacturer, Android version\n'
+      '- battery: level (%) and charging status\n'
+      '- storage: total/used/available (GB)\n'
+      '- memory: JVM memory (MB)\n\n'
       'Rules:\n'
-      '- "action" defaults to "get_info" if not specified\n'
-      '- Respond with user language\n'
-      '- "내 폰 배터리" → {"action":"battery"}\n'
-      '- "내 폰 정보" → {"action":"get_info"}\n'
-      '- "저장공간 얼마나 남았어" → {"action":"storage"}\n'
-      '- "메모리 상태" → {"action":"memory"}';
+      '- "action" defaults to "get_info" if not specified';
 
   @override
   Future<String> execute(String args, ToolContext toolContext) async {

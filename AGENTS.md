@@ -148,23 +148,52 @@ print('[AIOS-{Component}] ERROR: message - $e');
 
 (없음)
 
-### 2-Phase ReAct 구조
+### 3-Phase ReAct 구조
 
 ```
 User Input → ReactStrategy.execute()
-  ├─ Phase 1: Routing (최소 프롬프트, ~80 토큰)
+  ├─ Phase 0: Intent Classification (~30 토큰, LLM)
+  │   → "CONVERSATION" 또는 "TASK" 한 단어 응답
+  │   → CONVERSATION → Answer Phase (직접 응답)
+  │   → TASK → Phase 1으로 진행
+  │   → 재시도: max 1회, 폴백 시 TASK로 간주
+  │   → Step types: phase0_classifying, phase0_result, phase0_retry
+  │
+  ├─ Answer Phase (대화 응답, ~30 토큰)
+  │   → buildAnswerPrompt()으로 직접 응답 생성
+  │   → Action:/Answer: 포맷이면 재시도 (max 1회)
+  │   → Step types: phase_answer, phase_answer_retry
+  │
+  ├─ Phase 1: Routing (~80 토큰)
+  │   → 12개 툴 (이름+한줄 설명) + 균형 잡힌 예제 (Action 3 : Answer 3)
   │   → LLM이 "Action: tool_name" 또는 "Answer: text" 응답
-  │   → ParseEmpty 시 포맷 넛지와 함께 재시도
-  │   → ConversationContext (이전 대화 맥락) + ToolPreferenceTracker (선호도) 포함
-  ├─ Phase 2: Tool-specific execution (args가 비어있을 때만)
-  │   → toolPrompt + phaseContext(app 리스트 등)로 LLM이 args 포맷팅
-  │   → 응답에서 Action + Args 파싱하여 tool 실행
+  │   → ParseEmpty 시 점진적 넛지 (max 2회 재시도)
+  │   → ConversationContext + ToolPreferenceTracker 포함
+  │   → Step types: phase1_retry
+  │
+  ├─ Phase 2: Tool-specific execution (~60 토큰, args가 비어있을 때만)
+  │   → toolPrompt로 LLM이 args 포맷팅
+  │   → app_launcher만 설치된 앱 리스트(phaseContext) 주입
+  │   → 재시도: max 2회, 포맷 리마인더와 함께
+  │   → Step types: (기존 action/observation)
+  │
   ├─ Error Recovery
   │   → ErrorRecovery.analyze()로 에러 분류 (8가지 타입)
   │   → 재시도 가능: invalidAction, missingParameter, appNotInstalled, generic
-  │   → 복구 힌트를 프롬프트에 주입 (list_apps 제안 등)
+  │   → 복구 힌트를 프롬프트에 주입
   │   → 실행 간 초기화, 툴별 최대 1회 재시도
+  │
   └─ Tool 실행 → Observation → 루프 반복 (최대 8회) 또는 Answer 반환
+```
+
+### System Annotation (채팅 UI)
+
+```
+_SystemAnnotation (presentation/screens/chat/chat_screen.dart)
+  → 각 Phase/Step을 간략한 주석 형태로 채팅 내 표시
+  → 회색 12sp 이탤릭, 가운데 정렬, 아이콘 포함
+  → 숨김 처리: thought, thinking_start, thinking_end
+  → 표시: phase0_*, phase1_retry, phase_answer*, action, observation, confirmation_required
 ```
 
 ### Context Awareness
@@ -183,7 +212,7 @@ ToolPreferenceTracker (domain/agent/tool_preference_tracker.dart)
 
 ### 테스트
 
-- **934 테스트** 전체 통과
+- **958 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 필요)
 
 ### Tool 추가 시 체크리스트

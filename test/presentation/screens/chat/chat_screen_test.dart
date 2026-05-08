@@ -456,7 +456,7 @@ void main() {
           toolName: 'calculator',
           toolArgs: '{"expression": "2+2"}',
         ),
-        const AgentStep('observation', '4.0000'),
+        const AgentStep('observation', '4.0000', toolResult: '4.0000'),
         const AgentStep('answer', 'The result is 4'),
       ],
     );
@@ -470,10 +470,10 @@ void main() {
 
     expect(
       find.text('User wants to calculate'),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.text('calculator'), findsOneWidget);
-    expect(find.text('4.0000'), findsOneWidget);
+    expect(find.text('calculator 실행 중...'), findsOneWidget);
+    expect(find.text('결과: 4.0000'), findsOneWidget);
 
     agent.completeExecution();
     await tester.pumpAndSettle();
@@ -502,7 +502,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Waiting for confirmation...'),
+      find.text('사용자 확인 대기 중...'),
       findsOneWidget,
     );
     expect(find.text('app_launcher'), findsNothing);
@@ -640,7 +640,7 @@ void main() {
           toolName: 'calculator',
           toolArgs: '{"expression": "2+2"}',
         ),
-        const AgentStep('observation', '4.0000'),
+        const AgentStep('observation', '4.0000', toolResult: '4.0000'),
         const AgentStep('answer', 'The result is 4'),
       ],
     );
@@ -652,9 +652,9 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Calculating...'), findsOneWidget);
-    expect(find.text('calculator'), findsOneWidget);
-    expect(find.text('4.0000'), findsOneWidget);
+    expect(find.text('Calculating...'), findsNothing);
+    expect(find.text('calculator 실행 중...'), findsOneWidget);
+    expect(find.text('결과: 4.0000'), findsOneWidget);
 
     agent.completeExecution();
     await tester.pumpAndSettle();

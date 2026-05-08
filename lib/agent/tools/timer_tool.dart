@@ -38,22 +38,16 @@ class TimerTool extends AgentTool {
 
   @override
   String get toolPrompt =>
-      'Manage countdown timers (max 300 seconds).\n\n'
+      'Manage timers (max 300s).\n\n'
       'Parameters: $parameters\n\n'
       'Actions:\n'
-      '- set: start a timer. Requires "seconds" (1-300). '
-      'Optional "name".\n'
-      '- check: show remaining time. Optional "name".\n'
-      '- cancel: stop a timer. Optional "name".\n'
-      '- list: show all active timers.\n\n'
+      '- set: start timer. Requires "seconds" (1-300)\n'
+      '- check: show remaining time\n'
+      '- cancel: stop timer\n'
+      '- list: show active timers\n\n'
       'Rules:\n'
-      '- Korean time conversion: "X분" = X*60 seconds, '
-      '"X초" = X seconds\n'
-      '- "5분 타이머" → {"action":"set","seconds":300}\n'
-      '- "30초 타이머" → {"action":"set","seconds":30}\n'
-      '- Default timer name is "default" if not specified\n'
-      '- Max duration is 300 seconds (5 minutes)\n'
-      '- Respond with user language';
+      '- Korean: "X분" = X*60s, "X초" = Xs\n'
+      '- Default name is "default"';
 
   @override
   Future<String> execute(String args) async {
