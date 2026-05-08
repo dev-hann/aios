@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'mock_tool_context.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late AppLauncherTool tool;
   late MockToolContext mockContext;
 
@@ -12,90 +13,55 @@ void main() {
     mockContext = MockToolContext()..setInvokeResult('Opened com.test');
   });
 
-  group('validate_openApp', () {
-    test('validate_nonExistentPackage_returnsError', () async {
-      final result = await tool.validate(
-        '{"action": "open_app", "package_name": "com.nonexistent.app"}',
-        mockContext,
-      );
+  group('validate', () {
+    test('validate_emptyTarget_returnsError', () async {
+      final result = await tool.validate('{}', mockContext);
       expect(result, isNotNull);
-      expect(result, contains('not installed'));
-      expect(result, contains('list_apps'));
+      expect(result, contains("'target' required"));
     });
 
-    test('validate_listAppsAction_returnsNull', () async {
+    test('validate_withTarget_returnsNull', () async {
       final result = await tool.validate(
-        '{"action": "list_apps", "query": "youtube"}',
+        '{"target": "youtube"}',
         mockContext,
       );
       expect(result, isNull);
-    });
-
-    test('validate_openUrlAction_returnsNull', () async {
-      final result = await tool.validate(
-        '{"action": "open_url", "url": "https://example.com"}',
-        mockContext,
-      );
-      expect(result, isNull);
-    });
-
-    test('validate_openAppWithoutPackageName_returnsError', () async {
-      final result = await tool.validate(
-        '{"action": "open_app"}',
-        mockContext,
-      );
-      expect(result, isNotNull);
-      expect(result, contains("'package_name' required"));
     });
   });
 
   group('execute_openApp', () {
-    test('execute_openAppWithoutPackageName_returnsError', () async {
+    test('execute_packageName_opensApp', () async {
       final result = await tool.execute(
-        '{"action": "open_app"}',
-        mockContext,
-      );
-      expect(result, contains("'package_name' required"));
-    });
-
-    test('execute_openAppNonExistentPackage_usesValidate', () async {
-      final validateResult = await tool.validate(
-        '{"action": "open_app", "package_name": "com.nonexistent.app"}',
-        mockContext,
-      );
-      expect(validateResult, isNotNull);
-      expect(validateResult, contains('not installed'));
-
-      final result = await tool.execute(
-        '{"action": "open_app", "package_name": "com.nonexistent.app"}',
+        '{"target": "com.test"}',
         mockContext,
       );
       expect(result, contains('Opened'));
     });
-  });
 
-  group('execute_unknownAction', () {
-    test('execute_unknownAction_returnsError', () async {
-      final result = await tool.execute(
-        '{"action": "unknown"}',
-        mockContext,
-      );
-      expect(result, contains("Error: Unknown action 'unknown'"));
-    });
-
-    test('execute_emptyAction_returnsError', () async {
+    test('execute_emptyTarget_returnsError', () async {
       final result = await tool.execute('{}', mockContext);
-      expect(result, contains('Error: Unknown action'));
+      expect(result, contains("'target' required"));
     });
   });
 
-  group('execute_caseInsensitive', () {
-    test('execute_upperCaseAction_treatedAsOpenApp', () async {
-      final result = await tool.execute(
-        '{"action": "OPEN_APP", "package_name": "com.test"}',
-        mockContext,
+  group('execute_urlDetection', () {
+    test('execute_httpsUrl_detectedAsUrl', () {
+      expect(tool.testLooksLikeUrl('https://google.com'), isTrue);
+    });
+
+    test('execute_domainOnly_detectedAsUrl', () {
+      expect(tool.testLooksLikeUrl('naver.com'), isFalse);
+    });
+
+    test('execute_appName_notDetectedAsUrl', () {
+      expect(tool.testLooksLikeUrl('youtube'), isFalse);
+    });
+
+    test('execute_packageName_notDetectedAsUrl', () {
+      expect(
+        tool.testLooksLikeUrl('com.google.android.youtube'),
+        isFalse,
       );
-      expect(result, isNot(contains('Unknown action')));
     });
   });
 

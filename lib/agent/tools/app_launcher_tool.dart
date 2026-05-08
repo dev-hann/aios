@@ -9,46 +9,38 @@ import 'package:url_launcher/url_launcher.dart';
 class AppLauncherTool extends ExtendedTool {
   static const _tag = 'AIOS-AppLauncher';
 
+  List<dynamic>? _appsCache;
+  DateTime? _cacheTime;
+
   @override
   String get name => 'app_launcher';
 
   @override
   String get description =>
-      'Open app/URL or list installed apps. '
-      'Args: {action, package_name, url, query}';
+      'Open an app or URL. Args: {"target": "app name or URL"}';
 
   @override
-  String get parameters =>
-      '{"action": "open_app|open_url|list_apps", '
-      '"package_name": "string", '
-      '"url": "string", "query": "string"}';
+  String get parameters => '{"target": "string (app name or URL)"}';
 
   @override
   String get toolPrompt =>
-      'Open apps or URLs.\n\n'
-      'Actions:\n'
-      '- open_app: Open app (prefer for app names)\n'
-      '- open_url: Open URL (ONLY for http/https links)\n'
-      '- list_apps: List apps (when app not found)\n\n'
-      'Parameters: {"action": "open_app|open_url|list_apps", '
-      '"package_name": "string", "url": "string", '
-      '"query": "string"}\n\n'
+      'Open an app or URL.\n\n'
+      'Parameter: {"target": "app name or URL"}\n\n'
+      'Examples:\n'
+      '- {"target": "youtube"} → opens YouTube app\n'
+      '- {"target": "firefox"} → opens Firefox app\n'
+      '- {"target": "https://google.com"} → opens browser\n'
+      '- {"target": "naver.com"} → opens browser\n\n'
       'Rules:\n'
-      '- Find package_name from the Installed apps list\n'
-      '- NEVER use open_url for app names\n'
-      '- NEVER guess package_name';
+      '- Use app name for apps (e.g. "youtube", "카카오톡")\n'
+      '- Use URL only for web pages (e.g. "https://google.com")';
 
   @override
   Future<String?> phaseContext(
     String args,
     ToolContext toolContext,
   ) async {
-    final query = _extractAppQuery(args);
-    final result = await _listApps({'query': query});
-    if (query.isNotEmpty && result.startsWith('No apps')) {
-      return _listApps({'query': ''});
-    }
-    return result;
+    return null;
   }
 
   String _extractAppQuery(String prompt) {
@@ -67,22 +59,17 @@ class AppLauncherTool extends ExtendedTool {
   @visibleForTesting
   String testExtractAppQuery(String prompt) => _extractAppQuery(prompt);
 
+  @visibleForTesting
+  bool testLooksLikeUrl(String s) => _looksLikeUrl(s);
+
+  @visibleForTesting
+  Map<String, dynamic> testTryParseJson(String args) => _tryParseJson(args);
+
   @override
   Future<String?> validate(String args, ToolContext toolContext) async {
     final json = _tryParseJson(args);
-    final action = json['action']?.toString().toLowerCase() ?? '';
-
-    if (action != 'open_app') return null;
-
-    final packageName = json['package_name']?.toString() ?? '';
-    if (packageName.isEmpty) return "Error: 'package_name' required";
-
-    final exists = await _packageExists(packageName);
-    if (!exists) {
-      return 'Error: Package "$packageName" is not installed. '
-          'Call list_apps with a query to find the correct '
-          'package_name.';
-    }
+    final target = json['target']?.toString() ?? '';
+    if (target.isEmpty) return "Error: 'target' required";
     return null;
   }
 
@@ -90,27 +77,53 @@ class AppLauncherTool extends ExtendedTool {
   Future<String> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);
-      final action = json['action']?.toString().toLowerCase() ?? '';
+      final target = json['target']?.toString() ?? '';
 
-      return switch (action) {
-        'open_app' => _openApp(json, toolContext),
-        'open_url' => _openUrl(json),
-        'list_apps' => _listApps(json),
-        _ => "Error: Unknown action '$action'. "
-            'Use open_app, open_url, or list_apps.',
-      };
+      if (target.isEmpty) return "Error: 'target' required";
+
+      if (_looksLikeUrl(target)) {
+        return _openUrl(target);
+      }
+
+      return _openApp(target, toolContext);
     } on Object catch (e) {
       return 'Error: $e';
     }
   }
 
+  bool _looksLikeUrl(String s) {
+    final lower = s.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return true;
+    }
+    return false;
+  }
+
   Future<String> _openApp(
-    Map<String, dynamic> json,
+    String input,
     ToolContext toolContext,
   ) async {
-    final packageName = json['package_name']?.toString() ?? '';
-    print('[$_tag] openApp: package="$packageName"');
-    if (packageName.isEmpty) return "Error: 'package_name' required";
+    print('[$_tag] openApp: input="$input"');
+
+    var packageName = input;
+
+    if (!input.contains('.')) {
+      final resolved = await _resolveAppName(input);
+      if (resolved == null) {
+        final suggestions = await _searchApps(input);
+        return "Error: '$input' 앱을 찾을 수 없습니다.\n"
+            '$suggestions';
+      }
+      if (resolved.startsWith('MULTIPLE_MATCH:')) {
+        final candidates =
+            resolved.substring('MULTIPLE_MATCH:'.length);
+        return "'$input'과(와) 일치하는 앱이 여러 개입니다:\n"
+            '$candidates\n\n'
+            '사용자에게 어느 앱을 원하는지 물어보세요.';
+      }
+      packageName = resolved;
+      print('[$_tag] Resolved to: $packageName');
+    }
 
     final result = await toolContext.invokeMethod(
           'openApp',
@@ -121,63 +134,106 @@ class AppLauncherTool extends ExtendedTool {
     return result;
   }
 
-  Future<bool> _packageExists(String packageName) async {
-    try {
-      final info = await InstalledApps.getAppInfo(packageName);
-      return info != null;
-    } on Object catch (e) {
-      print('[$_tag] WARN: Package check error: $e');
-      return false;
-    }
+  Future<String?> _resolveAppName(String name) async {
+    final apps = await _getCachedApps();
+    if (apps == null) return null;
+
+    final query = name.toLowerCase().trim();
+
+    final exact = apps
+        .where((a) => a.name.toLowerCase() == query)
+        .toList();
+    if (exact.length == 1) return exact.first.packageName;
+    if (exact.length > 1) return _multiMatchResponse(exact);
+
+    final startsWith = apps
+        .where((a) => a.name.toLowerCase().startsWith(query))
+        .toList();
+    if (startsWith.length == 1) return startsWith.first.packageName;
+    if (startsWith.length > 1) return _multiMatchResponse(startsWith);
+
+    final contains = apps
+        .where((a) => a.name.toLowerCase().contains(query))
+        .toList();
+    if (contains.length == 1) return contains.first.packageName;
+    if (contains.length > 1) return _multiMatchResponse(contains);
+
+    final pkgContains = apps
+        .where(
+          (a) => a.packageName.toLowerCase().contains(query),
+        )
+        .toList();
+    if (pkgContains.length == 1) return pkgContains.first.packageName;
+    if (pkgContains.length > 1) return _multiMatchResponse(pkgContains);
+
+    return null;
   }
 
-  Future<String> _openUrl(Map<String, dynamic> json) async {
-    final url = json['url']?.toString() ?? '';
-    if (url.isEmpty) return "Error: 'url' required";
-    final uri = Uri.tryParse(url);
-    if (uri == null) return 'Error: Invalid URL';
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return 'Opened $url';
-    }
-    return 'Error: Cannot open URL';
+  String _multiMatchResponse(List<dynamic> matches) {
+    final list = matches.take(5).toList().asMap().entries.map(
+          (e) =>
+              '${e.key + 1}. ${e.value.name} (${e.value.packageName})',
+        ).join('\n');
+    return 'MULTIPLE_MATCH:$list';
   }
 
-  Future<String> _listApps(Map<String, dynamic> json) async {
-    final query = json['query']?.toString().toLowerCase() ?? '';
-    print('[$_tag] listApps: query="$query"');
+  Future<String> _searchApps(String query) async {
+    final apps = await _getCachedApps();
+    if (apps == null || apps.isEmpty) return 'No apps found';
+
+    final q = query.toLowerCase();
+    final filtered = apps
+        .where(
+          (a) =>
+              a.name.toLowerCase().contains(q) ||
+              a.packageName.toLowerCase().contains(q),
+        )
+        .toList()
+      ..sort(
+        (a, b) =>
+            a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
+
+    if (filtered.isEmpty) return "No apps found matching '$query'";
+
+    return filtered.take(10).toList().asMap().entries.map(
+      (e) => '${e.key + 1}. ${e.value.name} (${e.value.packageName})',
+    ).join('\n');
+  }
+
+  Future<List<dynamic>?> _getCachedApps() async {
+    if (_appsCache != null &&
+        _cacheTime != null &&
+        DateTime.now().difference(_cacheTime!) <
+            const Duration(minutes: 5)) {
+      return _appsCache;
+    }
     try {
-      final apps = await InstalledApps.getInstalledApps(
+      _appsCache = await InstalledApps.getInstalledApps(
         excludeSystemApps: true,
         excludeNonLaunchableApps: true,
         withIcon: false,
       );
-      if (apps == null || apps.isEmpty) return 'No apps found';
-
-      var filtered = apps;
-      if (query.isNotEmpty) {
-        filtered = apps
-            .where(
-              (a) =>
-                  a.name.toLowerCase().contains(query) ||
-                  a.packageName.toLowerCase().contains(query),
-            )
-            .toList();
-      }
-
-      filtered.sort(
-        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-      );
-
-      if (filtered.isEmpty) return "No apps found matching '$query'";
-
-      final result = filtered.take(30).toList().asMap().entries.map(
-        (e) => '${e.key + 1}. ${e.value.name} (${e.value.packageName})',
-      ).join('\n');
-      return result;
+      _cacheTime = DateTime.now();
+      return _appsCache;
     } on Object catch (e) {
-      return 'Error: $e';
+      print('[$_tag] WARN: getInstalledApps error: $e');
+      return null;
     }
+  }
+
+  Future<String> _openUrl(String url) async {
+    var finalUrl = url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      finalUrl = 'https://$url';
+    }
+    final uri = Uri.tryParse(finalUrl);
+    if (uri == null) return 'Error: Invalid URL';
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return 'Opened $finalUrl';
+    }
+    return 'Error: Cannot open URL';
   }
 
   Map<String, dynamic> _tryParseJson(String args) {
