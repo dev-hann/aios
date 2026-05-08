@@ -6,8 +6,15 @@ AI는 기기가 연결되면 사용자 개입 없이 아래 루프를 반복한�
 
 ```
 코드 수정 → flutter test → flutter build apk --debug →
-adb 설치 → 스크린샷 확인 → logcat 확인 → 문제 파악 → 수정 → 반복
+adb 설치 → 스모크 테스트 → logcat 확인 → 문제 파악 → 수정 → 반복
 ```
+
+### 테스트 의무
+
+- 코드 변경 후 **반드시 `flutter test` 전체 실행** (일부만 실행 금지)
+- **모든 테스트가 통과해야** 다음 단계(빌드/커밋)로 진행
+- 에러 케이스는 **모두 해결** (테스트 삭제/건너뛰기/`// ignore` 금지)
+- 기기 테스트 시 **TESTING.md §12** 스모크 테스트 전부 수행
 
 ### 기기 명령어
 
@@ -18,9 +25,6 @@ adb 설치 → 스크린샷 확인 → logcat 확인 → 문제 파악 → 수�
 | 스크린샷 읽기 | `read` 도구로 `/tmp/screen.png` 열기 |
 | 로그 수집 | `adb -s {DEVICE} logcat -d \| grep "\[AIOS-"` |
 | 로그 초기화 | `adb -s {DEVICE} logcat -c` |
-| 텍스트 입력 | `adb -s {DEVICE} shell input text "message"` |
-| 탭 | `adb -s {DEVICE} shell input tap X Y` |
-| 엔터 | `adb -s {DEVICE} shell input keyevent 66` |
 | APK 설치 | `adb -s {DEVICE} uninstall com.agent.aios && adb -s {DEVICE} install build/app/outputs/flutter-apk/app-debug.apk` |
 | 앱 실행 | `adb -s {DEVICE} shell am start -n com.agent.aios/.MainActivity` |
 
@@ -101,7 +105,8 @@ print('[AIOS-{Component}] ERROR: message - $e');
 | Repository 구현 | `data/repositories/` |
 | Domain entity | `domain/entities/` |
 | Agent 전략/로직 | `domain/agent/` |
-| Tool | `agent/tools/` || Screen | `presentation/screens/` |
+| Tool | `agent/tools/` |
+| Screen | `presentation/screens/` |
 | Widget | `presentation/widgets/` |
 | Provider | `presentation/providers/` |
 | DataSource | `data/datasources/` |
@@ -131,7 +136,7 @@ print('[AIOS-{Component}] ERROR: message - $e');
 
 | Tool | 타입 | 파일 | 상태 |
 |------|------|------|------|
-| `app_launcher` | ExtendedTool | `agent/tools/app_launcher_tool.dart` | **활성** |
+| `app_launcher` | ExtendedTool | `agent/tools/app_launcher_tool.dart` | **활성** - 단일 `open` 액션, 퍼지 매칭 |
 | `screen_action` | ExtendedTool | `agent/tools/screen_action_tool.dart` | **활성** |
 | `screen_reader` | ExtendedTool | `agent/tools/screen_reader_tool.dart` | **활성** |
 | `screen_find` | ExtendedTool | `agent/tools/screen_reader_tool.dart` | **활성** |
@@ -173,7 +178,6 @@ User Input → ReactStrategy.execute()
   │
   ├─ Phase 2: Tool-specific execution (~60 토큰, args가 비어있을 때만)
   │   → toolPrompt로 LLM이 args 포맷팅
-  │   → app_launcher만 설치된 앱 리스트(phaseContext) 주입
   │   → 재시도: max 2회, 포맷 리마인더와 함께
   │   → Step types: (기존 action/observation)
   │
@@ -218,11 +222,6 @@ ToolPreferenceTracker (domain/agent/tool_preference_tracker.dart)
   → Routing 프롬프트에 "FREQUENTLY USED TOOLS" 섹션 추가
   → 자주 쓰는 tool 우선 라우팅 유도
 ```
-
-### 테스트
-
-- **945 테스트** 전체 통과
-- 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 필요)
 
 ### 세션 관리 (Session Management)
 

@@ -18,7 +18,7 @@ import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/model_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
-import 'package:aios/presentation/screens/onboarding/onboarding_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -373,10 +373,8 @@ void main() {
 
   Widget _buildAppWithRouter({
     required AgentStrategy agent,
-    bool onboardingCompleted = true,
   }) {
-    final settingsRepo =
-        _MockSettingsRepository(onboardingCompleted: onboardingCompleted);
+    final settingsRepo = _MockSettingsRepository();
     final modelRepo = _MockModelRepository();
 
     return ProviderScope(
@@ -394,10 +392,6 @@ void main() {
             GoRoute(
               path: '/',
               builder: (_, __) => const ChatScreen(),
-            ),
-            GoRoute(
-              path: '/onboarding',
-              builder: (_, __) => const OnboardingScreen(),
             ),
           ],
         ),
@@ -427,23 +421,11 @@ void main() {
     llmRepo.dispose();
   });
 
-  group('E2E: Onboarding to Chat', () {
-    testWidgets('onboardingNotCompleted_redirectsToOnboarding', (tester) async {
+  group('E2E: Chat screen shows on launch', () {
+    testWidgets('showsChatScreen', (tester) async {
       final agent = _CompletableAgent(stepsToEmit: []);
       await tester.pumpWidget(_buildAppWithRouter(
         agent: agent,
-        onboardingCompleted: false,
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Welcome to AIOS'), findsOneWidget);
-    });
-
-    testWidgets('onboardingCompleted_showsChatScreen', (tester) async {
-      final agent = _CompletableAgent(stepsToEmit: []);
-      await tester.pumpWidget(_buildAppWithRouter(
-        agent: agent,
-        onboardingCompleted: true,
       ));
       await tester.pumpAndSettle();
 

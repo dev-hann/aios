@@ -1,5 +1,15 @@
 # AIOS Testing Policy
 
+## 테스트별 참고 섹션
+
+| 상황 | 참고 섹션 |
+|------|-----------|
+| 단위 테스트 작성 | §1 원칙, §3 스코프, §5-6 네이밍/커버리지, §9 패턴 |
+| 기기 테스트 실행 | §12 스모크 테스트 + adb 패턴 |
+| 통합 테스트 | §3 P4, §4 카테고리 |
+| TDD 워크플로우 | §8 TDD, §7 회귀 테스트 |
+| Tool 추가 시 | §8 Tool 체크리스트 |
+
 ## 1. Principles
 
 - 모든 **public 함수**는 최소 1개 이상의 단위 테스트를 가져야 함
@@ -9,7 +19,7 @@
 
 ## 2. Current Status
 
-- **958 테스트** 전체 통과
+- **817 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
 - 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 
@@ -35,7 +45,7 @@
 | LoopDetector | `lib/domain/agent/loop_detector.dart` | 반복 감지, 넛지/강제종료 |
 | ErrorRecovery | `lib/domain/agent/error_recovery.dart` | 에러 분류, 복구 힌트, 재시도 추적, 사용자 메시지 |
 | UserMessageMapper | `lib/domain/agent/user_message_mapper.dart` | 기술적 에러 → 사용자 친화적 메시지 변환 |
-| AppLauncherTool | `lib/agent/tools/app_launcher_tool.dart` | open_app/open_url/list_apps, validate, 에러 처리 |
+| AppLauncherTool | `lib/agent/tools/app_launcher_tool.dart` | 단일 `open` 액션, 퍼지 매칭, URL 감지 |
 | ScreenActionTool | `lib/agent/tools/screen_action_tool.dart` | tap/long_click/type/scroll/swipe/global, 에러 처리 |
 | ScreenReaderTool | `lib/agent/tools/screen_reader_tool.dart` | 화면 텍스트 읽기, UI 요소 검색, toolPrompt |
 | NotificationTool | `lib/agent/tools/notification_tool.dart` | 알림 목록/내용 읽기, 앱 필터링, toolPrompt |
@@ -59,13 +69,12 @@
 | ChatScreen | `lib/presentation/screens/chat/chat_screen.dart` | 메시지 전송, 정지 버튼, 입력바 가시성 |
 | SettingsScreen | `lib/presentation/screens/settings/settings_screen.dart` | 권한 설정, 테마 전환, 고급 옵션 토글 |
 | UpdateScreen | `lib/presentation/screens/update/update_screen.dart` | 상태 전이, 다운로드 진행률 |
-| OnboardingScreen | `lib/presentation/screens/onboarding/onboarding_screen.dart` | 페이지 전환, 시작 가이드 |
 
 ### P4: Integration (기기 필요)
 
 | Module | What to Test |
 |--------|--------------|
-| llama_cpp_dart on-device | 실제 GGUF 모델 로드→추론→해제 |
+| llamadart on-device | 실제 GGUF 모델 로드→추론→해제 |
 | Full Agent Flow | "open youtube" → Phase 1 → Phase 2 → app 실행 |
 | Database | Drift SQLite CRUD, 마이그레이션 |
 | Update | GitHub Release 확인→다운로드→설치 |
@@ -161,14 +170,10 @@ testWidgets('with provider override', (tester) async {
 
 ```dart
 test('phase2 with empty args triggers tool prompt', () async {
-  final llmRepo = _FakeLlmRepository();
-  llmRepo.tokensToEmit = [
-    'Action: app_launcher',
-    'Action: app_launcher\nArgs: {"action":"open_app","package_name":"com.youtube"}',
-  ];
+  final engine = _FakeLlamaEngine();
   final tool = _FakeExtendedTool('app_launcher');
   final strategy = ReactStrategy(
-    llmRepo,
+    engine: engine,
     toolContext: toolContext,
     extendedTools: {'app_launcher': tool},
   );
@@ -197,39 +202,69 @@ dev_dependencies:
 - 정적 분석: `flutter analyze`
 - 테스트 실패 시 작업 중단, 다음 단계로 넘어가지 않음
 
-## 12. On-Device UI Testing (UIAutomator)
+## 12. On-Device Testing
 
-기기에 설치된 앱을 ADB UIAutomator로 자동 테스트.
-자동화 스크립트: `scripts/device_test.sh`
+기기 테스트 시 AGENTS.md §0의 기기 명령어(설치, 실행, 스크린샷, logcat)와
+아래의 테스트용 adb 패턴을 조합하여 유동적으로 수행한다.
 
-### 실행
+### 12.1 스모크 테스트
+
+빌드→설치 후 반드시 확인하는 최소 검증 항목:
+
+| # | 항목 | 입력 | 통과 기준 (logcat) |
+|---|------|------|-------------------|
+| 1 | 앱 실행 | 설치 후 실행 | 크래시 없음, `[AIOS-ChatNotifier] Session initialized` |
+| 2 | 모델 로드 | 설정 → Load | `[AIOS-RealEngine] Model loaded` |
+| 3 | 기본 응답 | "hello" | `[AIOS-React]` + 응답 텍스트 |
+| 4 | 툴 실행 | "2+2" | `[AIOS-React]` + `calculator` 또는 정답 포함 |
+
+### 12.2 테스트용 adb 패턴
+
+#### UI 조작
 
 ```bash
-./scripts/device_test.sh -d <DEVICE_SERIAL>            # 전체 테스트
-./scripts/device_test.sh -d <DEVICE_SERIAL> -s chat_hello  # 개별 테스트
-./scripts/device_test.sh -d <DEVICE_SERIAL> -s             # 빌드/설치 스킵
+# UI XML 덤프
+adb -s {DEVICE} shell uiautomator dump /sdcard/ui.xml
+adb -s {DEVICE} pull /sdcard/ui.xml /tmp/ui.xml
+
+# 텍스트로 요소 찾아서 탭 (bounds 파싱 후 중앙 좌표 계산)
+grep -oP '<node[^>]*text="TARGET"[^>]*bounds="\K[^"]+' /tmp/ui.xml
+# → [x1,y1][x2,y2] → tap ((x1+x2)/2, (y1+y2)/2)
+adb -s {DEVICE} shell input tap X Y
+
+# 텍스트 입력 (스페이스 = %s)
+adb -s {DEVICE} shell input text "hello"
+adb -s {DEVICE} shell input text "calculate%s15%splus%s27"
+
+# 엔터
+adb -s {DEVICE} shell input keyevent 66
+
+# 뒤로가기
+adb -s {DEVICE} shell input keyevent 4
 ```
 
-### 사용 가능한 테스트
+#### 대기 패턴
 
-| 이름 | 설명 |
-|------|------|
-| `onboarding` | 온보딩 4페이지 자동 완료 |
-| `model` | 설정 → 모델 Load |
-| `chat_hello` | "hello" → CONVERSATION 분류 확인 |
-| `chat_open_firefox` | "open firefox" → TASK/app_launcher 분류 확인 |
-| `chat_calculator` | "2+2" → TASK/calculator 분류 확인 |
-| `all` | 위 전체 실행 (기본값) |
+```bash
+# 로그 대기 (최대 N초)
+adb -s {DEVICE} logcat -c  # 로그 초기화
+# ... 액션 수행 ...
+adb -s {DEVICE} logcat -d | grep "패턴"
 
-### UIAutomator 제약사항
+# UI 텍스트 대기 (폴링)
+# 2초 간격으로 uiautomator dump → grep "텍스트" 확인
+```
 
-- Flutter 앱은 네이티브 뷰로 렌더링되어 `resource-id` 없음 → `text`나 `bounds`로 요소 식별
+#### 권한 설정
+
+```bash
+adb -s {DEVICE} shell appops set com.agent.aios MANAGE_EXTERNAL_STORAGE allow
+```
+
+### 12.3 UIAutomator 제약사항
+
+- Flutter 앱은 `resource-id` 없음 → `text`나 `bounds`로 요소 식별
 - `uiautomator dump` 실행 시 앱이 1-2초 멈춤
-- 다른 앱(Termux 등) 오버레이 시 UI 덤프에 해당 앱 요소가 포함될 수 있음
-- 스페이스 입력: `input text "open%1firefox"` (`%1` = URL 인코딩된 스페이스)
-
-### 주의사항
-
-- 삼성 FreecessHandler가 앱을 freeze시키면 UI 덤프 불가 → `am force-stop` 후 재시작
-- 온보딩 완료 상태는 SharedPreferences(`onboarding_completed`)에 저장
-- 모델 로드 완료 로그: `[AIOS-LlmRepo] Model loaded` (logcat에서 확인)
+- 다른 앱 오버레이 시 UI 덤프에 해당 앱 요소 포함 가능
+- 스페이스 입력: `%s` 사용 (예: `input text "open%sfirefox"`)
+- 삼성 FreecessHandler가 앱을 freeze시키면 `am force-stop` 후 재시작

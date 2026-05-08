@@ -26,19 +26,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     Future.microtask(() {
       _initializeSession();
-      _checkOnboarding();
     });
   }
 
   void _initializeSession() {
     ref.read(chatStateProvider.notifier).initializeSession();
-  }
-
-  void _checkOnboarding() {
-    final settings = ref.read(settingsProvider);
-    if (!settings.onboardingCompleted) {
-      Future.microtask(() => context.go('/onboarding'));
-    }
   }
 
   void _showClearChatDialog(BuildContext context, WidgetRef ref) {
