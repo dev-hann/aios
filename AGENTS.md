@@ -194,6 +194,15 @@ _SystemAnnotation (presentation/screens/chat/chat_screen.dart)
   → 회색 12sp 이탤릭, 가운데 정렬, 아이콘 포함
   → 숨김 처리: thought, thinking_start, thinking_end
   → 표시: phase0_*, phase1_retry, phase_answer*, action, observation, confirmation_required
+
+SessionDrawer (presentation/widgets/session_drawer.dart)
+  → 왼쪽 Drawer로 세션 관리
+  → 새 대화 생성, 세션 목록, 세션 전환/삭제
+  → 실시간 업데이트 (watchAllConversations Stream)
+
+AppBar
+  → 세션 제목 표시 (currentConversationTitle)
+  → 햄버거 메뉴 (Drawer 열기), 새 대화, 설정 버튼
 ```
 
 ### Context Awareness
@@ -212,8 +221,34 @@ ToolPreferenceTracker (domain/agent/tool_preference_tracker.dart)
 
 ### 테스트
 
-- **958 테스트** 전체 통과
+- **945 테스트** 전체 통과
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 필요)
+
+### 세션 관리 (Session Management)
+
+```
+ChatScreen
+  ├─ AppBar: 세션 제목 (자동 생성, 첫 메시지 기반 20자)
+  ├─ Drawer (SessionDrawer)
+  │   ├─ 새 대화 생성 버튼
+  │   ├─ 세션 목록 (watchAllConversations Stream, updatedAt DESC)
+  │   │   ├─ 세션 선택 → switchConversation()
+  │   │   └─ 세션 삭제 → deleteConversation() (자동으로 다음 세션으로 전환)
+  │   └─ 설정 버튼
+  └─ 세션 초기화: initializeSession() → 기존 세션 없으면 createConversation()
+
+ConversationRepository (다중 세션 지원)
+  ├─ createConversation() → 새 세션 생성
+  ├─ getAllConversations() → 전체 세션 목록
+  ├─ loadConversation(id) → 특정 세션 메시지 로드
+  ├─ deleteConversation(id) → 세션 + 메시지 삭제
+  ├─ updateConversationTitle(id, title) → 세션 제목 업데이트
+  └─ watchAllConversations() → 실시간 세션 목록 Stream
+
+ChatState
+  ├─ currentConversationId: 현재 활성 세션 ID
+  └─ currentConversationTitle: 현재 세션 제목 (AppBar에 표시)
+```
 
 ### Tool 추가 시 체크리스트
 

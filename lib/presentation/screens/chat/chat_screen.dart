@@ -4,12 +4,11 @@ import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/presentation/providers/chat_providers.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
-import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/widgets/input_bar.dart';
 import 'package:aios/presentation/widgets/loading_indicator.dart';
 import 'package:aios/presentation/widgets/message_bubble.dart';
-import 'package:aios/presentation/widgets/status_bar.dart';
+import 'package:aios/presentation/widgets/session_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,9 +25,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(chatStateProvider.notifier).loadConversation();
+      _initializeSession();
       _checkOnboarding();
     });
+  }
+
+  void _initializeSession() {
+    ref.read(chatStateProvider.notifier).initializeSession();
   }
 
   void _checkOnboarding() {
@@ -151,10 +154,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatStateProvider);
-    final llmRepo = ref.watch(llmRepositoryProvider);
-    final contextUsage = chatState.serviceState == ServiceState.ready
-        ? llmRepo.getContextUsage()
-        : null;
 
     ref.listen<ChatState>(chatStateProvider, (prev, next) {
       if (next.isConfirming && !(prev?.isConfirming ?? false)) {
@@ -169,20 +168,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: const SessionDrawer(),
       appBar: AppBar(
         backgroundColor: AppColors.surface,
-        title: StatusBar(
-          serviceState: chatState.serviceState,
-          contextUsage: contextUsage,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(
+              Icons.menu,
+              color: AppColors.textPrimary,
+            ),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: Text(
+          chatState.currentConversationTitle,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           IconButton(
             icon: const Icon(
-              Icons.delete_outline,
+              Icons.add_comment_outlined,
               color: AppColors.textSecondary,
             ),
-            tooltip: 'Clear chat',
-            onPressed: () => _showClearChatDialog(context, ref),
+            tooltip: '새 대화',
+            onPressed: () =>
+                ref.read(chatStateProvider.notifier).createNewChat(),
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: AppColors.textPrimary),
