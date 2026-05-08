@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
@@ -8,114 +10,187 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:llamadart/llamadart.dart';
 
 class _FakeBasicTool extends AgentTool {
-  @override
-  String get name => 'calculator';
+  final String _name;
+  final String _desc;
+  final String _params;
+  final Future<String> Function(String) _handler;
+
+  _FakeBasicTool(this._name, this._desc, this._params, this._handler);
 
   @override
-  String get description => 'Evaluate math expression. Args: {expression}';
+  String get name => _name;
 
   @override
-  String get parameters => '{"expression": "string"}';
+  String get description => _desc;
 
   @override
-  Future<String> execute(String args) async {
-    return '42';
-  }
+  String get parameters => _params;
+
+  @override
+  Future<String> execute(String args) => _handler(args);
 }
 
 class _FakeExtendedTool extends ExtendedTool {
-  @override
-  String get name => 'app_launcher';
+  final String _name;
+  final String _desc;
+  final String _params;
+  final Future<String> Function(String, ToolContext) _handler;
+
+  _FakeExtendedTool(this._name, this._desc, this._params, this._handler);
 
   @override
-  String get description => 'Open app. Args: {action, package_name}';
+  String get name => _name;
 
   @override
-  String get parameters =>
-      '{"action": "open_app|open_url|list_apps", "package_name": "string"}';
+  String get description => _desc;
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
-    return 'App opened';
-  }
+  String get parameters => _params;
+
+  @override
+  Future<String> execute(String args, ToolContext toolContext) =>
+      _handler(args, toolContext);
+}
+
+class _FakeEngine implements LlamaEngine {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
 }
 
 void main() {
-  group('ReactStrategy', () {
-    test('constructor_createsInstance', () {
+  group('constructor', () {
+    test('constructor_withTools_createsInstance', () {
       final strategy = ReactStrategy(
         engine: _FakeEngine(),
-        basicTools: {'calculator': _FakeBasicTool()},
-        extendedTools: {'app_launcher': _FakeExtendedTool()},
+        basicTools: {
+          'calculator': _FakeBasicTool('calculator', 'Math', '{}', (_) async => '0'),
+        },
+        extendedTools: {
+          'app_launcher': _FakeExtendedTool('app_launcher', 'Open', '{}', (_, __) async => 'ok'),
+        },
       );
       expect(strategy, isNotNull);
     });
 
-    test('getToolManifest_listsAllTools', () {
+    test('constructor_emptyTools_createsInstance', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
+      expect(strategy, isNotNull);
+    });
+  });
+
+  group('getToolManifest', () {
+    test('getToolManifest_basicAndExtended_listsAll', () {
       final strategy = ReactStrategy(
         engine: _FakeEngine(),
-        basicTools: {'calculator': _FakeBasicTool()},
-        extendedTools: {'app_launcher': _FakeExtendedTool()},
+        basicTools: {
+          'calculator': _FakeBasicTool('calculator', 'Calculate', '{}', (_) async => '0'),
+        },
+        extendedTools: {
+          'screen_action': _FakeExtendedTool('screen_action', 'Screen', '{}', (_, __) async => 'ok'),
+        },
       );
       final manifest = strategy.getToolManifest();
       expect(manifest, contains('calculator'));
-      expect(manifest, contains('app_launcher'));
+      expect(manifest, contains('screen_action'));
+      expect(manifest, contains('Calculate'));
+      expect(manifest, contains('Screen'));
     });
 
-    test('cancel_doesNotThrow', () {
+    test('getToolManifest_emptyTools_returnsEmpty', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
+      expect(strategy.getToolManifest(), isEmpty);
+    });
+
+    test('getToolManifest_multipleTools_allListed', () {
       final strategy = ReactStrategy(
         engine: _FakeEngine(),
+        basicTools: {
+          'calculator': _FakeBasicTool('calculator', 'Calc', '{}', (_) async => '0'),
+          'notepad': _FakeBasicTool('notepad', 'Note', '{}', (_) async => 'ok'),
+        },
+        extendedTools: {
+          'app_launcher': _FakeExtendedTool('app_launcher', 'Launch', '{}', (_, __) async => 'ok'),
+        },
       );
+      final manifest = strategy.getToolManifest();
+      expect(manifest, contains('calculator'));
+      expect(manifest, contains('notepad'));
+      expect(manifest, contains('app_launcher'));
+    });
+  });
+
+  group('cancel', () {
+    test('cancel_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
       expect(() => strategy.cancel(), returnsNormally);
     });
 
-    test('clearHistory_doesNotThrow', () {
-      final strategy = ReactStrategy(
-        engine: _FakeEngine(),
-      );
-      expect(() => strategy.clearHistory(), returnsNormally);
+    test('cancel_multipleTimes_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
+      strategy.cancel();
+      strategy.cancel();
+    });
+  });
+
+  group('resolveConfirmation', () {
+    test('resolveConfirmation_true_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
+      expect(() => strategy.resolveConfirmation(true), returnsNormally);
     });
 
-    test('setConversationContext_doesNotThrow', () {
-      final strategy = ReactStrategy(
-        engine: _FakeEngine(),
-      );
+    test('resolveConfirmation_false_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
+      expect(() => strategy.resolveConfirmation(false), returnsNormally);
+    });
+  });
+
+  group('setConversationContext', () {
+    test('setConversationContext_withContext_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
       expect(
         () => strategy.setConversationContext(ConversationContext()),
         returnsNormally,
       );
     });
 
-    test('setToolPreferenceTracker_doesNotThrow', () {
-      final strategy = ReactStrategy(
-        engine: _FakeEngine(),
+    test('setConversationContext_null_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
+      expect(
+        () => strategy.setConversationContext(null),
+        returnsNormally,
       );
+    });
+  });
+
+  group('setToolPreferenceTracker', () {
+    test('setToolPreferenceTracker_withTracker_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
       expect(
         () => strategy.setToolPreferenceTracker(ToolPreferenceTracker()),
         returnsNormally,
       );
     });
 
-    test('resolveConfirmation_doesNotThrow', () {
-      final strategy = ReactStrategy(
-        engine: _FakeEngine(),
-      );
+    test('setToolPreferenceTracker_null_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
       expect(
-        () => strategy.resolveConfirmation(true),
+        () => strategy.setToolPreferenceTracker(null),
         returnsNormally,
       );
     });
+  });
 
+  group('getConversationHistory', () {
     test('getConversationHistory_returnsEmptyList', () {
-      final strategy = ReactStrategy(
-        engine: _FakeEngine(),
-      );
+      final strategy = ReactStrategy(engine: _FakeEngine());
       expect(strategy.getConversationHistory(), isEmpty);
     });
   });
-}
 
-class _FakeEngine implements LlamaEngine {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
+  group('clearHistory', () {
+    test('clearHistory_doesNotThrow', () {
+      final strategy = ReactStrategy(engine: _FakeEngine());
+      expect(() => strategy.clearHistory(), returnsNormally);
+    });
+  });
 }

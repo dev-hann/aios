@@ -347,7 +347,7 @@ void main() {
       expect(agent.lastMaxTokens, 256);
     });
 
-    test('sendMessage_updatesAgentSteps', () async {
+    test('sendMessage_afterCompletion_clearsAgentSteps', () async {
       agent.resultToReturn = AgentResult(
         steps: [
           const AgentStep('thought', 'Thinking...'),
