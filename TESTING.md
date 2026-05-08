@@ -5,10 +5,10 @@
 | 상황 | 참고 섹션 |
 |------|-----------|
 | 단위 테스트 작성 | §1 원칙, §3 스코프, §5-6 네이밍/커버리지, §9 패턴 |
-| 기기 테스트 실행 | §12 스모크 테스트 + adb 패턴 |
 | 통합 테스트 | §3 P4, §4 카테고리 |
 | TDD 워크플로우 | §8 TDD, §7 회귀 테스트 |
 | Tool 추가 시 | §8 Tool 체크리스트 |
+| 기기 테스트 | **TESTING_DEVICE.md** 참고 |
 
 ## 1. Principles
 
@@ -201,70 +201,3 @@ dev_dependencies:
 - Integration 테스트: `flutter test integration_test/`
 - 정적 분석: `flutter analyze`
 - 테스트 실패 시 작업 중단, 다음 단계로 넘어가지 않음
-
-## 12. On-Device Testing
-
-기기 테스트 시 AGENTS.md §0의 기기 명령어(설치, 실행, 스크린샷, logcat)와
-아래의 테스트용 adb 패턴을 조합하여 유동적으로 수행한다.
-
-### 12.1 스모크 테스트
-
-빌드→설치 후 반드시 확인하는 최소 검증 항목:
-
-| # | 항목 | 입력 | 통과 기준 (logcat) |
-|---|------|------|-------------------|
-| 1 | 앱 실행 | 설치 후 실행 | 크래시 없음, `[AIOS-ChatNotifier] Session initialized` |
-| 2 | 모델 로드 | 설정 → Load | `[AIOS-RealEngine] Model loaded` |
-| 3 | 기본 응답 | "hello" | `[AIOS-React]` + 응답 텍스트 |
-| 4 | 툴 실행 | "2+2" | `[AIOS-React]` + `calculator` 또는 정답 포함 |
-
-### 12.2 테스트용 adb 패턴
-
-#### UI 조작
-
-```bash
-# UI XML 덤프
-adb -s {DEVICE} shell uiautomator dump /sdcard/ui.xml
-adb -s {DEVICE} pull /sdcard/ui.xml /tmp/ui.xml
-
-# 텍스트로 요소 찾아서 탭 (bounds 파싱 후 중앙 좌표 계산)
-grep -oP '<node[^>]*text="TARGET"[^>]*bounds="\K[^"]+' /tmp/ui.xml
-# → [x1,y1][x2,y2] → tap ((x1+x2)/2, (y1+y2)/2)
-adb -s {DEVICE} shell input tap X Y
-
-# 텍스트 입력 (스페이스 = %s)
-adb -s {DEVICE} shell input text "hello"
-adb -s {DEVICE} shell input text "calculate%s15%splus%s27"
-
-# 엔터
-adb -s {DEVICE} shell input keyevent 66
-
-# 뒤로가기
-adb -s {DEVICE} shell input keyevent 4
-```
-
-#### 대기 패턴
-
-```bash
-# 로그 대기 (최대 N초)
-adb -s {DEVICE} logcat -c  # 로그 초기화
-# ... 액션 수행 ...
-adb -s {DEVICE} logcat -d | grep "패턴"
-
-# UI 텍스트 대기 (폴링)
-# 2초 간격으로 uiautomator dump → grep "텍스트" 확인
-```
-
-#### 권한 설정
-
-```bash
-adb -s {DEVICE} shell appops set com.agent.aios MANAGE_EXTERNAL_STORAGE allow
-```
-
-### 12.3 UIAutomator 제약사항
-
-- Flutter 앱은 `resource-id` 없음 → `text`나 `bounds`로 요소 식별
-- `uiautomator dump` 실행 시 앱이 1-2초 멈춤
-- 다른 앱 오버레이 시 UI 덤프에 해당 앱 요소 포함 가능
-- 스페이스 입력: `%s` 사용 (예: `input text "open%sfirefox"`)
-- 삼성 FreecessHandler가 앱을 freeze시키면 `am force-stop` 후 재시작

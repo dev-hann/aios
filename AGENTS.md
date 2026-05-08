@@ -14,7 +14,7 @@ adb 설치 → 스모크 테스트 → logcat 확인 → 문제 파악 → 수�
 - 코드 변경 후 **반드시 `flutter test` 전체 실행** (일부만 실행 금지)
 - **모든 테스트가 통과해야** 다음 단계(빌드/커밋)로 진행
 - 에러 케이스는 **모두 해결** (테스트 삭제/건너뛰기/`// ignore` 금지)
-- 기기 테스트 시 **TESTING.md §12** 스모크 테스트 전부 수행
+- 기기 테스트 시 **TESTING_DEVICE.md** 스모크 테스트 전부 수행
 
 ### 기기 명령어
 
@@ -287,7 +287,8 @@ ChatState
 ## 참고 문서
 
 - **[docs/architecture.md](docs/architecture.md)** — 시스템 아키텍처, 모듈 구조, 데이터 흐름, 상세 설계
-- **[TESTING.md](TESTING.md)** — TDD 워크플로우, 테스트 범위, 커버리지 요구사항
+- **[TESTING.md](TESTING.md)** — 단위 테스트 원칙, 스코프, TDD 워크플로우
+- **[TESTING_DEVICE.md](TESTING_DEVICE.md)** — 기기 테스트: 스모크/기능/심화 테스트 + adb 패턴
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — 빌드/개발 명령어, 환경 설정, PR 규칙, 릴리즈
 - **[ROADMAP.md](ROADMAP.md)** — 기능 목록, 마일스톤, 프로젝트 목표
 - **[.opencode/skills/aios-dev/SKILL.md](.opencode/skills/aios-dev/SKILL.md)** — 자율 개발 스킬 정의
