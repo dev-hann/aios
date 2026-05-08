@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:aios/data/repositories/conversation_repository_impl.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
+import 'package:aios/domain/entities/conversation.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
@@ -60,6 +62,18 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     await _conversationRepository.appendMessage(userMessage);
+
+    if (state.currentConversationTitle == '새 대화' &&
+        state.messages.where((m) => m.role == 'user').length == 1) {
+      final title = text.trim().length > 20
+          ? '${text.trim().substring(0, 20)}...'
+          : text.trim();
+      final convId = state.currentConversationId;
+      if (convId != null) {
+        await _conversationRepository.updateConversationTitle(convId, title);
+        state = state.copyWith(currentConversationTitle: title);
+      }
+    }
 
     try {
       final result = await _agent.execute(
@@ -157,6 +171,111 @@ class ChatNotifier extends StateNotifier<ChatState> {
       }
     } on Object catch (e) {
       print('[$_tag] ERROR: loadConversation failed - $e');
+    }
+  }
+
+  Future<void> initializeSession() async {
+    try {
+      final conversations = await _conversationRepository.getAllConversations();
+      if (conversations.isEmpty) {
+        final conv = await _conversationRepository.createConversation();
+        if (!mounted) return;
+        state = state.copyWith(
+          currentConversationId: conv.id,
+          currentConversationTitle: conv.title,
+        );
+      } else {
+        final active = conversations.first;
+        final messages =
+            await _conversationRepository.loadConversation(active.id);
+        if (!mounted) return;
+        state = state.copyWith(
+          currentConversationId: active.id,
+          currentConversationTitle: active.title,
+          messages: messages,
+        );
+      }
+      print('[$_tag] Session initialized: ${state.currentConversationId}');
+    } on Object catch (e) {
+      print('[$_tag] ERROR: initializeSession failed - $e');
+      await loadConversation();
+    }
+  }
+
+  Future<void> createNewChat() async {
+    try {
+      final conv = await _conversationRepository.createConversation();
+      _agent.clearHistory();
+      if (!mounted) return;
+      state = state.copyWith(
+        messages: [],
+        currentResponse: '',
+        isGenerating: false,
+        errorMessage: null,
+        agentSteps: [],
+        isConfirming: false,
+        currentConversationId: conv.id,
+        currentConversationTitle: conv.title,
+      );
+      print('[$_tag] Created new conversation: ${conv.id}');
+    } on Object catch (e) {
+      print('[$_tag] ERROR: createNewChat failed - $e');
+    }
+  }
+
+  Future<void> switchConversation(String id, String title) async {
+    try {
+      if (_conversationRepository is ConversationRepositoryImpl) {
+        (_conversationRepository as ConversationRepositoryImpl)
+            .setActiveConversationId(id);
+      }
+      _agent.clearHistory();
+      final messages = await _conversationRepository.loadConversation(id);
+      if (!mounted) return;
+      state = state.copyWith(
+        messages: messages,
+        currentResponse: '',
+        isGenerating: false,
+        errorMessage: null,
+        agentSteps: [],
+        isConfirming: false,
+        currentConversationId: id,
+        currentConversationTitle: title,
+      );
+      print('[$_tag] Switched to conversation: $id');
+    } on Object catch (e) {
+      print('[$_tag] ERROR: switchConversation failed - $e');
+    }
+  }
+
+  Future<void> deleteConversation(String id) async {
+    try {
+      await _conversationRepository.deleteConversation(id);
+      if (!mounted) return;
+      if (state.currentConversationId == id) {
+        final remaining =
+            await _conversationRepository.getAllConversations();
+        if (remaining.isNotEmpty) {
+          final first = remaining.first;
+          await switchConversation(first.id, first.title);
+        } else {
+          final conv = await _conversationRepository.createConversation();
+          _agent.clearHistory();
+          state = state.copyWith(
+            messages: [],
+            currentResponse: '',
+            isGenerating: false,
+            errorMessage: null,
+            agentSteps: [],
+            isConfirming: false,
+            currentConversationId: conv.id,
+            currentConversationTitle: conv.title,
+          );
+        }
+      }
+      print('[$_tag] Deleted conversation: $id');
+    } on Object catch (e) {
+      print('[$_tag] ERROR: deleteConversation failed - $e');
     }
   }
 

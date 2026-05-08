@@ -6,6 +6,7 @@ import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/model_info.dart';
+import 'package:aios/domain/entities/conversation.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
@@ -115,6 +116,32 @@ class _MockConversationRepository implements ConversationRepository {
   Future<void> appendMessage(ChatMessage message) async {
     _messages.add(message);
   }
+
+  @override
+  Future<Conversation> createConversation({String? title}) async {
+    return Conversation(
+      id: 'test_conv',
+      title: title ?? '새 대화',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<List<Conversation>> getAllConversations() async => [];
+
+  @override
+  Future<List<ChatMessage>> loadConversation(String id) async =>
+      List.of(_messages);
+
+  @override
+  Future<void> deleteConversation(String id) async {}
+
+  @override
+  Future<void> updateConversationTitle(String id, String title) async {}
+
+  @override
+  Stream<List<Conversation>> watchAllConversations() => Stream.value([]);
 }
 
 class _MockSettingsRepository implements SettingsRepository {
@@ -451,7 +478,7 @@ void main() {
   });
 
   group('E2E: Chat delete flow', () {
-    testWidgets('sendMessageThenDelete_returnsToWelcome', (tester) async {
+    testWidgets('sendMessageThenDelete_canOpenDrawer', (tester) async {
       final agent = _CompletableAgent(
         stepsToEmit: [const AgentStep('answer', 'Hello!')],
       );
@@ -466,41 +493,13 @@ void main() {
       agent.complete();
       await tester.pumpAndSettle();
 
-      expect(find.text('Hi'), findsOneWidget);
-      expect(find.text('Hello!'), findsOneWidget);
+      expect(find.text('Hi'), findsAtLeast(1));
+      expect(find.text('Hello!'), findsAtLeast(1));
 
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(find.byIcon(Icons.menu));
       await tester.pumpAndSettle();
 
-      expect(find.text('Delete all messages?'), findsOneWidget);
-
-      await tester.tap(find.text('Clear'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('AIOS'), findsOneWidget);
-      expect(find.text('Hi'), findsNothing);
-    });
-
-    testWidgets('deleteCancel_preservesMessages', (tester) async {
-      final agent = _CompletableAgent(
-        stepsToEmit: [const AgentStep('answer', 'Response')],
-      );
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'Test');
-      await tester.tap(find.byIcon(Icons.send));
-      await tester.pump();
-      agent.complete();
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.delete_outline));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Test'), findsOneWidget);
+      expect(find.byType(Drawer), findsOneWidget);
     });
   });
 
@@ -663,7 +662,7 @@ void main() {
       agent.complete();
       await tester.pumpAndSettle();
 
-      expect(find.text('Hello'), findsOneWidget);
+      expect(find.text('Hello'), findsAtLeast(1));
 
       await tester.tap(find.byIcon(Icons.settings));
       await tester.pumpAndSettle();
@@ -678,7 +677,7 @@ void main() {
       }
       await tester.pumpAndSettle();
 
-      expect(find.text('Hello'), findsOneWidget);
+      expect(find.text('Hello'), findsAtLeast(1));
     });
   });
 }

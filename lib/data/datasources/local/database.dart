@@ -45,6 +45,15 @@ class AppDatabase extends _$AppDatabase {
     return (delete(conversations)..where((t) => t.id.equals(id))).go();
   }
 
+  Future<void> updateConversation(String id, {String? title}) {
+    return (update(conversations)..where((t) => t.id.equals(id))).write(
+      ConversationsCompanion(
+        title: title != null ? Value(title) : const Value.absent(),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   Future<List<Message>> getMessages(String conversationId) {
     return (select(messages)
           ..where((t) => t.conversationId.equals(conversationId))

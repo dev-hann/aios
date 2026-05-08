@@ -4,6 +4,7 @@ import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
+import 'package:aios/domain/entities/conversation.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
@@ -116,6 +117,7 @@ class _MockLlmRepository implements LlmRepository {
 class _MockConversationRepository implements ConversationRepository {
   final List<ChatMessage> savedMessages = [];
   ChatMessage? lastAppendedMessage;
+  final List<Conversation> _conversations = [];
 
   @override
   Future<void> save(List<ChatMessage> messages) async {
@@ -138,6 +140,36 @@ class _MockConversationRepository implements ConversationRepository {
     lastAppendedMessage = message;
     savedMessages.add(message);
   }
+
+  @override
+  Future<Conversation> createConversation({String? title}) async {
+    final conv = Conversation(
+      id: 'conv_test_${_conversations.length}',
+      title: title ?? '새 대화',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    _conversations.insert(0, conv);
+    return conv;
+  }
+
+  @override
+  Future<List<Conversation>> getAllConversations() async =>
+      List.unmodifiable(_conversations);
+
+  @override
+  Future<List<ChatMessage>> loadConversation(String id) async =>
+      List.unmodifiable(savedMessages);
+
+  @override
+  Future<void> deleteConversation(String id) async {}
+
+  @override
+  Future<void> updateConversationTitle(String id, String title) async {}
+
+  @override
+  Stream<List<Conversation>> watchAllConversations() =>
+      Stream.value(_conversations);
 }
 
 class _MockAgentStrategy implements AgentStrategy {

@@ -8,6 +8,7 @@ import 'package:aios/data/repositories/model_repository_impl.dart';
 import 'package:aios/data/repositories/settings_repository_impl.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/entities/chat_message.dart';
+import 'package:aios/domain/entities/conversation.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
@@ -52,6 +53,32 @@ class _InMemoryConversationRepository implements ConversationRepository {
   Future<void> appendMessage(ChatMessage message) async {
     _messages.add(message);
   }
+
+  @override
+  Future<Conversation> createConversation({String? title}) async {
+    return Conversation(
+      id: 'test_conv',
+      title: title ?? '새 대화',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<List<Conversation>> getAllConversations() async => [];
+
+  @override
+  Future<List<ChatMessage>> loadConversation(String id) async =>
+      List.of(_messages);
+
+  @override
+  Future<void> deleteConversation(String id) async {}
+
+  @override
+  Future<void> updateConversationTitle(String id, String title) async {}
+
+  @override
+  Stream<List<Conversation>> watchAllConversations() => Stream.value([]);
 }
 
 void main() {

@@ -16,6 +16,8 @@ class ChatState with _$ChatState {
     String? errorMessage,
     @Default([]) List<AgentStep> agentSteps,
     @Default(false) bool isConfirming,
+    String? currentConversationId,
+    @Default('새 대화') String currentConversationTitle,
   }) = _ChatState;
 
   factory ChatState.fromJson(Map<String, dynamic> json) =>
