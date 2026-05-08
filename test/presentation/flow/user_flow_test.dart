@@ -74,6 +74,7 @@ class _MockLlmRepository implements LlmRepository {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   }) async {}
 
   @override

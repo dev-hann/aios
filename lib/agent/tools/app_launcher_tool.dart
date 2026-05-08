@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:flutter/foundation.dart';
+import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppLauncherTool extends ExtendedTool {
   static const _tag = 'AIOS-AppLauncher';
 
-  List<dynamic>? _appsCache;
+  List<AppInfo>? _appsCache;
   DateTime? _cacheTime;
 
   @override
@@ -169,7 +170,7 @@ class AppLauncherTool extends ExtendedTool {
     return null;
   }
 
-  String _multiMatchResponse(List<dynamic> matches) {
+  String _multiMatchResponse(List<AppInfo> matches) {
     final list = matches.take(5).toList().asMap().entries.map(
           (e) =>
               '${e.key + 1}. ${e.value.name} (${e.value.packageName})',
@@ -201,7 +202,7 @@ class AppLauncherTool extends ExtendedTool {
     ).join('\n');
   }
 
-  Future<List<dynamic>?> _getCachedApps() async {
+  Future<List<AppInfo>?> _getCachedApps() async {
     if (_appsCache != null &&
         _cacheTime != null &&
         DateTime.now().difference(_cacheTime!) <

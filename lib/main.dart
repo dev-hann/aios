@@ -39,6 +39,7 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [
+        engineProvider.overrideWithValue(llamaEngine),
         llamaEngineProvider.overrideWithValue(llamaEngine),
         llmRepositoryProvider.overrideWithValue(
           LlmRepositoryImpl(llamaEngine),

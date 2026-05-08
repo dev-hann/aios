@@ -19,6 +19,7 @@ abstract class LlamaEngineProvider {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   });
 
   Future<void> stopGeneration();

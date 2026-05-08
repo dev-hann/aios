@@ -12,12 +12,15 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   final SettingsRepository _settingsRepository;
   final LlmRepository _llmRepository;
   final ModelRepository _modelRepository;
+  final void Function(String path)? _onModelLoaded;
 
   SettingsNotifier(
     this._settingsRepository,
     this._llmRepository,
-    this._modelRepository,
-  ) : super(SettingsState.initial()) {
+    this._modelRepository, {
+    void Function(String path)? onModelLoaded,
+  })  : _onModelLoaded = onModelLoaded,
+        super(SettingsState.initial()) {
     _init();
   }
 
@@ -159,6 +162,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
           lastModelPath: path,
           isLoadingModel: false,
         );
+        _onModelLoaded?.call(path);
         print('[$_tag] Model loaded: $path');
       } else {
         state = state.copyWith(isLoadingModel: false);

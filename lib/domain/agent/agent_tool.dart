@@ -6,6 +6,8 @@ abstract class AgentTool {
   String get toolPrompt =>
       '$description\nParameters: $parameters';
 
+  String? get grammar => null;
+
   Future<String> execute(String args);
 
   Future<String?> validate(String args) async => null;

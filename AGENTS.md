@@ -39,7 +39,7 @@ adb 설치 → 스크린샷 확인 → logcat 확인 → 문제 파악 → 수�
 
 ## 1. 프로젝트 개요
 
-- **Android 온디바이스 AI 에이전트** (Flutter/Dart + llama_cpp_dart)
+- **Android 온디바이스 AI 에이전트** (Flutter/Dart + llamadart)
 - **2-Phase ReAct** 에이전트: Phase 1 (routing) → Phase 2 (tool-specific execution)
 - Privacy-first: 모든 LLM 추론은 온디바이스 (네트워크 호출 없음)
 - GitHub Releases 기반 in-app 자동 업데이트

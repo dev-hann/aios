@@ -34,6 +34,7 @@ class MockLlamaEngineProvider implements LlamaEngineProvider {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   }) =>
       const Stream.empty();
 

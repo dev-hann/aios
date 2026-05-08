@@ -60,12 +60,9 @@ class PromptBuilder {
     String? extraContext,
   }) {
     final base = '$toolPrompt\n\n'
-        'You MUST respond with exactly 2 lines:\n'
-        'Action: $toolName\n'
-        'Args: {JSON object}\n\n'
-        'Example for opening Firefox:\n'
-        'Action: app_launcher\n'
-        'Args: {"action": "open_app", "package_name": "org.mozilla.firefox"}';
+        'Respond with JSON only.\n'
+        'Example: {"action": "open_app", '
+        '"package_name": "org.mozilla.firefox"}';
 
     if (extraContext != null) {
       return '$base\n\nInstalled apps:\n$extraContext';

@@ -93,18 +93,29 @@ void main() {
     await ensureModelAvailable();
   });
 
+  late ReactStrategy? _cachedStrategy;
+
   setUp(() async {
     engineProvider = RealLlamaEngineProvider();
     llmRepo = LlmRepositoryImpl(engineProvider);
     settingsRepo = SettingsRepositoryImpl();
     await settingsRepo.init();
     conversationRepo = _InMemoryConversationRepository();
+    _cachedStrategy = null;
   });
 
   tearDown(() async {
     llmRepo.dispose();
     await engineProvider.releaseModel();
   });
+
+  ReactStrategy _getStrategy() {
+    if (_cachedStrategy != null) return _cachedStrategy!;
+    final engine = engineProvider.engine;
+    if (engine == null) throw StateError('Model not loaded');
+    _cachedStrategy = ReactStrategy(engine: engine);
+    return _cachedStrategy!;
+  }
 
   Widget _buildTestApp() {
     return ProviderScope(
@@ -117,9 +128,6 @@ void main() {
             modelsDir: '/data/local/tmp/models',
             downloadsDir: '/data/local/tmp/downloads',
           ),
-        ),
-        agentProvider.overrideWithValue(
-          ReactStrategy(llmRepo),
         ),
       ],
       child: MaterialApp.router(
@@ -225,7 +233,7 @@ void main() {
       final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
       expect(loaded, isTrue);
 
-      final strategy = ReactStrategy(llmRepo);
+      final strategy = _getStrategy();
 
       await tester.pumpWidget(
         ProviderScope(
@@ -239,7 +247,6 @@ void main() {
                 downloadsDir: '/data/local/tmp/downloads',
               ),
             ),
-            agentProvider.overrideWithValue(strategy),
           ],
           child: MaterialApp.router(
             routerConfig: GoRouter(

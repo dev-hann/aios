@@ -1,4 +1,5 @@
 import 'package:aios/domain/repositories/settings_repository.dart';
+import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/model_provider.dart';
 import 'package:aios/presentation/providers/settings_notifier.dart';
@@ -14,5 +15,12 @@ final settingsProvider =
   final settingsRepo = ref.watch(settingsRepositoryProvider);
   final llmRepo = ref.watch(llmRepositoryProvider);
   final modelRepo = ref.watch(modelRepositoryProvider);
-  return SettingsNotifier(settingsRepo, llmRepo, modelRepo);
+  return SettingsNotifier(
+    settingsRepo,
+    llmRepo,
+    modelRepo,
+    onModelLoaded: (path) {
+      ref.read(modelLoadedPathProvider.notifier).state = path;
+    },
+  );
 });

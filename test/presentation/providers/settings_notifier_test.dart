@@ -121,6 +121,7 @@ class _MockLlmRepository implements LlmRepository {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   }) async {}
 
   @override
@@ -219,6 +220,7 @@ class _FailingLlmRepository implements LlmRepository {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   }) async {}
 
   @override
@@ -280,6 +282,7 @@ class _ErrorLlmRepository implements LlmRepository {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   }) async {}
 
   @override

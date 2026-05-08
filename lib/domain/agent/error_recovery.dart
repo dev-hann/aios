@@ -143,7 +143,8 @@ class ErrorRecovery {
             'Check available actions and retry with correct name.';
       case ErrorType.missingParameter:
         return 'RECOVERY: Missing required parameter. '
-            'Include all required parameters in Args and retry.';
+            'You MUST provide all parameters as a JSON object. '
+            'Call the same tool again with the correct parameters.';
       case ErrorType.generic:
         return 'RECOVERY: Tool failed. '
             'Try different approach or Answer with error details.';

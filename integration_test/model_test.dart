@@ -134,12 +134,12 @@ void main() {
       expect(tokens.join(), isNotEmpty);
     });
 
-    testWidgets('detects chat template after model load', (tester) async {
+    testWidgets('engine is available after model load', (tester) async {
       if (!modelReady) return;
       await provider.loadModel(modelPath, contextSize: 512);
 
-      final template = provider.detectedTemplate;
-      debugPrint('Detected template: ${template ?? "native"}');
+      final eng = provider.engine;
+      debugPrint('Engine available: ${eng != null}');
     });
 
     testWidgets('generates with custom sampler params', (tester) async {

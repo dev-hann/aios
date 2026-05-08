@@ -9,26 +9,24 @@ import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/error_recovery.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/loop_detector.dart';
-import 'package:aios/domain/agent/prompt_builder.dart';
-import 'package:aios/domain/agent/response_parser.dart';
 import 'package:aios/domain/agent/risk_classifier.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
-import 'package:aios/domain/entities/chat_message.dart';
-import 'package:aios/domain/repositories/llm_repository.dart';
+import 'package:llamadart/llamadart.dart';
 
 class ReactStrategy implements AgentStrategy {
-  ReactStrategy(
-    this._llmRepository, {
+  ReactStrategy({
+    required LlamaEngine engine,
     ToolContext? toolContext,
     Map<String, AgentTool>? basicTools,
     Map<String, ExtendedTool>? extendedTools,
-  })  : _toolContext = toolContext,
+  })  : _engine = engine,
+        _toolContext = toolContext,
         _basicTools = basicTools ?? {},
         _extendedTools = extendedTools ?? {};
 
-  final LlmRepository _llmRepository;
+  final LlamaEngine _engine;
   final ToolContext? _toolContext;
   final Map<String, AgentTool> _basicTools;
   final Map<String, ExtendedTool> _extendedTools;
@@ -46,19 +44,89 @@ class ReactStrategy implements AgentStrategy {
     availableTools: _allToolNames,
   );
 
-  late final PromptBuilder _promptBuilder = PromptBuilder();
-
   Set<String> get _allToolNames =>
       {..._basicTools.keys, ..._extendedTools.keys};
 
-  late final ResponseParser _responseParser =
-      ResponseParser(_allToolNames);
-
   static const _tag = 'AIOS-React';
-  static const _phase0MaxRetries = 1;
-  static const _phase1MaxRetries = 2;
-  static const _phase2MaxRetries = 2;
-  static const _answerMaxRetries = 1;
+  static const _maxToolRetries = 1;
+
+  String get _systemPrompt =>
+      'You are AIOS, an on-device phone assistant.\n'
+      'Use tools to help the user. Respond concisely in the user\'s language.\n'
+      'When calling a tool, ALWAYS include ALL required parameters as JSON.\n'
+      'Example: calculator needs {"expression": "2+3"}\n'
+      'If no tool is needed, answer directly.';
+
+  List<ToolDefinition> _buildToolDefinitions() {
+    final defs = <ToolDefinition>[];
+
+    for (final tool in _basicTools.values) {
+      defs.add(_basicToolToDefinition(tool));
+    }
+    for (final tool in _extendedTools.values) {
+      defs.add(_extendedToolToDefinition(tool));
+    }
+    return defs;
+  }
+
+  ToolDefinition _basicToolToDefinition(AgentTool tool) {
+    return ToolDefinition(
+      name: tool.name,
+      description: tool.description,
+      parameters: _parseParams(tool.parameters),
+      handler: (params) async {
+        final argsJson = jsonEncode(params.raw);
+        return tool.execute(argsJson);
+      },
+    );
+  }
+
+  ToolDefinition _extendedToolToDefinition(ExtendedTool tool) {
+    return ToolDefinition(
+      name: tool.name,
+      description: tool.description,
+      parameters: _parseParams(tool.parameters),
+      handler: (params) async {
+        final ctx = _toolContext;
+        if (ctx == null) return 'Error: ToolContext not initialized';
+
+        final argsJson = jsonEncode(params.raw);
+
+        final validationError = await tool.validate(argsJson, ctx);
+        if (validationError != null) return validationError;
+
+        return tool.execute(argsJson, ctx);
+      },
+    );
+  }
+
+  List<ToolParam> _parseParams(String paramsStr) {
+    try {
+      final decoded = jsonDecode(paramsStr);
+      if (decoded is! Map<String, dynamic>) return [];
+      return decoded.entries.map((e) {
+        final desc = e.value.toString();
+        if (desc.contains('|')) {
+          final values = desc
+              .split('|')
+              .map((v) => v.replaceAll(RegExp(r'[^a-z_]'), ''))
+              .where((v) => v.isNotEmpty)
+              .toList();
+          if (values.isNotEmpty) {
+            return ToolParam.enumType(
+              e.key,
+              values: values,
+              description: desc,
+              required: true,
+            );
+          }
+        }
+        return ToolParam.string(e.key, description: desc, required: true);
+      }).toList();
+    } on Object {
+      return [];
+    }
+  }
 
   @override
   Future<AgentResult> execute(
@@ -83,39 +151,22 @@ class ReactStrategy implements AgentStrategy {
       steps.add(AgentStep('thought', 'Processing: $prompt'));
       onStep?.call(steps.last);
 
-      _promptBuilder.addUserMessage(prompt);
-
-      final routingManifest = _getRoutingManifest();
-
-      // ── Phase 0: Intent Classification ──
-      final isConversation = await _classifyIntent(
-        prompt,
-        maxTokens,
-        onStep,
-        steps,
-        routingManifest,
+      final session = ChatSession(
+        _engine,
+        systemPrompt: _systemPrompt,
       );
-      if (_cancelled) {
-        steps.add(const AgentStep('answer', '작업이 취소되었습니다.'));
-        onStep?.call(steps.last);
-        _recordTurn(prompt, steps);
-        return AgentResult(steps: steps, success: false);
-      }
 
-      if (isConversation) {
-        final answer = await _generateAnswer(
-          prompt,
-          maxTokens,
-          onStep,
-          steps,
-        );
-        steps.add(AgentStep('answer', answer));
-        onStep?.call(steps.last);
-        _recordTurn(prompt, steps);
-        return AgentResult(steps: steps, success: true);
-      }
+      final tools = _buildToolDefinitions();
+      final generationParams = GenerationParams(
+        temp: 0.7,
+        topK: 40,
+        topP: 0.9,
+        penalty: 1.1,
+        maxTokens: maxTokens,
+      );
 
-      // ── TASK: Phase 1/2 Loop ──
+      var userParts = [LlamaTextContent(prompt)];
+
       for (var i = 0; i < maxIterations; i++) {
         if (_cancelled) break;
 
@@ -129,183 +180,209 @@ class ReactStrategy implements AgentStrategy {
           break;
         }
 
-        steps.add(
-          AgentStep('thought', 'Thinking (step ${i + 1})...'),
-        );
+        steps.add(AgentStep('thought', 'Thinking (step ${i + 1})...'));
         onStep?.call(steps.last);
         onStep?.call(const AgentStep('thinking_start', ''));
 
-        // ── Phase 1: Routing ──
-        final routingSystem =
-            _promptBuilder.buildRoutingPrompt(
-          routingManifest,
-          conversationContext:
-              _conversationContext?.toPromptContext(),
-          toolPreferences:
-              _preferenceTracker?.toPromptContext(),
-        );
+        String fullContent = '';
+        String fullThinking = '';
+        final Map<int, _ToolCallAccumulator> toolCallBuilders = {};
 
-        final phase1Response =
-            await _generateResponse(routingSystem, maxTokens);
+        try {
+          await for (final chunk in session.create(
+            userParts,
+            params: generationParams,
+            tools: tools,
+          )) {
+            if (_cancelled) break;
+            final delta = chunk.choices.first.delta;
+            if (delta.content != null) fullContent += delta.content!;
+            if (delta.thinking != null) fullThinking += delta.thinking!;
 
-        print('[$_tag] Phase1 iter$i: '
-            '${phase1Response.substring(0, phase1Response.length > 200 ? 200 : phase1Response.length)}');
+            if (delta.toolCalls != null) {
+              for (final tc in delta.toolCalls!) {
+                toolCallBuilders.putIfAbsent(
+                    tc.index, () => _ToolCallAccumulator());
+                final builder = toolCallBuilders[tc.index]!;
+                if (tc.id != null) builder.id = tc.id;
+                if (tc.function?.name != null) {
+                  builder.name = tc.function!.name;
+                }
+                if (tc.function?.arguments != null) {
+                  builder.arguments += tc.function!.arguments!;
+                }
+              }
+            }
+          }
+        } on Object catch (e) {
+          print('[$_tag] ERROR: generation stream error - $e');
+        }
 
         onStep?.call(const AgentStep('thinking_end', ''));
 
-        _promptBuilder.addAssistantMessage(phase1Response);
+        print('[$_tag] Step $i: '
+            'content="${fullContent.substring(0, fullContent.length > 200 ? 200 : fullContent.length)}", '
+            'toolCalls=${toolCallBuilders.length}');
 
-        final parsed = _responseParser.parse(phase1Response);
-
-        if (parsed is ParseAnswer) {
-          steps.add(AgentStep('answer', parsed.text));
-          onStep?.call(steps.last);
-          break;
-        }
-
-        if (parsed is ParseAction) {
-          final String observation;
-
-          if (_hasValidArgs(parsed.args)) {
-            print('[$_tag] Phase1 direct execute: '
-                'tool=${parsed.toolName}');
-            observation = await _executeTool(
-              parsed.toolName,
-              parsed.args,
-              onStep,
-            );
-          } else {
-            print('[$_tag] Phase2: tool=${parsed.toolName}');
-            observation = await _phase2Execute(
-              parsed.toolName,
-              prompt,
-              maxTokens,
-              onStep,
-            );
+        if (toolCallBuilders.isEmpty) {
+          final answer = fullContent.trim();
+          if (answer.isNotEmpty) {
+            steps.add(AgentStep('answer', answer));
+            onStep?.call(steps.last);
+            _recordTurn(prompt, steps);
+            return AgentResult(steps: steps, success: true);
           }
 
-          steps.add(
-            AgentStep(
-              'action',
-              'Using tool: ${parsed.toolName}',
-              toolName: parsed.toolName,
-              toolArgs: parsed.args,
-            ),
-          );
-          onStep?.call(steps.last);
-
-          steps.add(
-            AgentStep(
-              'observation',
-              observation,
-              toolName: parsed.toolName,
-              toolResult: observation,
-            ),
-          );
-          onStep?.call(steps.last);
-
-          _promptBuilder.addObservation(
-            'Observation from ${parsed.toolName}: $observation',
-          );
-
-          final recoveryHint = _errorRecovery.analyze(
-            parsed.toolName,
-            parsed.args,
-            observation,
-          );
-          if (recoveryHint != null &&
-              recoveryHint.promptNudge.isNotEmpty) {
-            print('[$_tag] Recovery: type=${recoveryHint.type}, '
-                'retry=${recoveryHint.shouldRetry}');
-            _promptBuilder.addObservation(
-              recoveryHint.promptNudge,
-            );
-          }
-
-          final loopResult = _loopDetector.record(
-            parsed.toolName,
-            parsed.args,
-            observation,
-          );
-
-          if (loopResult is LoopWarning) {
-            final nudge =
-                'WARNING: You have called \'${parsed.toolName}\' '
-                '${loopResult.count} times with similar arguments. '
-                'Provide your final Answer now, '
-                'or try a different approach.';
-            _promptBuilder.addObservation(nudge);
-          } else if (loopResult is LoopForceBreak) {
-            _promptBuilder.addObservation(
-              'SYSTEM: Loop detected. Provide your Answer now.',
-            );
-            break;
-          } else if (_loopDetector.shouldNudge(
-            i + 1,
-            steps.every((s) => s.type != 'answer'),
-          )) {
-            _promptBuilder.addObservation(
-              'Reminder: ${i + 1} steps completed. '
-              'If you have enough information, '
-              'provide your final Answer now.',
-            );
-          }
-        } else {
           final retryCount = steps
               .where((s) => s.type == 'phase1_retry')
               .length;
-          print('[$_tag] WARN: ParseEmpty iter$i '
-              '(retry=$retryCount/$_phase1MaxRetries)');
-
-          if (retryCount < _phase1MaxRetries) {
-            final nudge = retryCount == 0
-                ? 'FORMAT ERROR: Respond ONLY '
-                    '"Action: tool_name" or "Answer: text".'
-                : 'CRITICAL: You MUST respond '
-                    '"Answer: [your response]". '
-                    'You have failed format twice. Answer now.';
+          if (retryCount < 2) {
             steps.add(AgentStep(
               'phase1_retry',
-              'Format retry ${retryCount + 1}/$_phase1MaxRetries',
-              phase: 'routing',
-              retryAttempt: retryCount + 1,
-              maxRetries: _phase1MaxRetries,
+              'Format retry ${retryCount + 1}/2',
             ));
             onStep?.call(steps.last);
-            _promptBuilder.addObservation(nudge);
+            userParts = [
+              LlamaTextContent(
+                'Please use a tool or provide a direct answer.',
+              ),
+            ];
             continue;
           }
 
-          steps.add(AgentStep(
-            'answer',
-            '요청을 처리하지 못했습니다. 다시 시도해주세요.',
-          ));
+          steps.add(AgentStep('answer', '요청을 처리하지 못했습니다.'));
           onStep?.call(steps.last);
           break;
         }
+
+        for (final entry in toolCallBuilders.entries) {
+          if (_cancelled) break;
+
+          final builder = entry.value;
+          final toolName = builder.name ?? '';
+          Map<String, dynamic> toolArgs = {};
+          try {
+            if (builder.arguments.isNotEmpty) {
+              toolArgs = Map<String, dynamic>.from(
+                jsonDecode(builder.arguments) as Map,
+              );
+            }
+          } on Object {
+            print('[$_tag] WARN: tool args parse error');
+          }
+
+          if (toolArgs.isEmpty) {
+            final inferred = _inferToolArgs(toolName, prompt);
+            if (inferred != null) {
+              toolArgs = inferred;
+              print('[$_tag] Auto-inferred args for $toolName: $toolArgs');
+            }
+          }
+
+          final argsJson = jsonEncode(toolArgs);
+
+          steps.add(AgentStep(
+            'action',
+            'Using tool: $toolName',
+            toolName: toolName,
+            toolArgs: argsJson,
+          ));
+          onStep?.call(steps.last);
+
+          final risk = _riskClassifier.classify(toolName, argsJson);
+
+          if (risk == ToolRisk.high || risk == ToolRisk.critical) {
+            final approved =
+                await _confirmationGate.requestConfirmation(
+              risk,
+              toolName,
+              argsJson,
+              onStep ?? (_) {},
+            );
+            if (!approved) {
+              _auditLog.add(toolName, argsJson, risk, false, 'Cancelled');
+              final result = 'Action cancelled by user';
+              steps.add(AgentStep(
+                'observation',
+                result,
+                toolName: toolName,
+                toolResult: result,
+              ));
+              onStep?.call(steps.last);
+              session.addMessage(LlamaChatMessage.withContent(
+                role: LlamaChatRole.tool,
+                content: [LlamaToolResultContent(name: toolName, result: result)],
+              ));
+              continue;
+            }
+          }
+
+          final toolResult = await _executeToolDirect(
+            toolName,
+            toolArgs,
+          );
+
+          _auditLog.add(
+              toolName, argsJson, risk, true, toolResult);
+          _preferenceTracker?.recordToolUse(toolName);
+
+          steps.add(AgentStep(
+            'observation',
+            toolResult,
+            toolName: toolName,
+            toolResult: toolResult,
+          ));
+          onStep?.call(steps.last);
+
+          session.addMessage(LlamaChatMessage.withContent(
+            role: LlamaChatRole.tool,
+            content: [LlamaToolResultContent(name: toolName, result: toolResult)],
+          ));
+
+          final recoveryHint = _errorRecovery.analyze(
+            toolName,
+            argsJson,
+            toolResult,
+          );
+          if (recoveryHint != null &&
+              recoveryHint.promptNudge.isNotEmpty) {
+            print('[$_tag] Recovery: type=${recoveryHint.type}');
+            if (recoveryHint.shouldRetry) {
+              final toolPrompt = _getToolPrompt(toolName);
+              userParts = [
+                LlamaTextContent(
+                  '${recoveryHint.promptNudge}\n'
+                  '$toolPrompt',
+                ),
+              ];
+            }
+          }
+
+          final loopResult = _loopDetector.record(
+            toolName,
+            argsJson,
+            toolResult,
+          );
+
+          if (loopResult is LoopForceBreak) {
+            steps.add(AgentStep('answer', '작업이 반복 감지로 중단되었습니다.'));
+            onStep?.call(steps.last);
+            _recordTurn(prompt, steps);
+            return AgentResult(steps: steps, success: false);
+          }
+        }
+
+        userParts = [];
       }
 
       if (steps.every((s) => s.type != 'answer')) {
-        final lastObs = steps
-            .where((s) => s.type == 'observation')
-            .lastOrNull?.toolResult;
-        final truncated = lastObs != null && lastObs.length > 200
-            ? lastObs.substring(0, 200)
-            : lastObs;
-        final summary = truncated != null
-            ? '작업을 완료하지 못했습니다. '
-                '마지막 관찰 결과: $truncated'
-            : '작업을 완료하지 못했습니다. 다시 시도해주세요.';
-        steps.add(AgentStep('answer', summary));
+        steps.add(AgentStep('answer', '작업을 완료하지 못했습니다.'));
         onStep?.call(steps.last);
       }
     } on Object catch (e) {
       print('[$_tag] ERROR: Agent run crashed: $e');
       if (steps.every((s) => s.type != 'answer')) {
-        steps.add(AgentStep(
-          'answer',
-          'An error occurred: $e',
-        ));
+        steps.add(AgentStep('answer', 'An error occurred: $e'));
         onStep?.call(steps.last);
       }
     }
@@ -315,161 +392,98 @@ class ReactStrategy implements AgentStrategy {
     return AgentResult(steps: steps, success: success);
   }
 
-  Future<bool> _classifyIntent(
-    String prompt,
-    int maxTokens,
-    void Function(AgentStep)? onStep,
-    List<AgentStep> steps,
-    String routingManifest,
+  Future<String> _executeToolDirect(
+    String name,
+    Map<String, dynamic> args,
   ) async {
-    for (var attempt = 0; attempt <= _phase0MaxRetries; attempt++) {
-      if (_cancelled) return false;
+    final argsJson = jsonEncode(args);
+    final basicTool = _basicTools[name];
+    final extendedTool = _extendedTools[name];
 
-      steps.add(AgentStep(
-        'phase0_classifying',
-        '의도 분석 중...',
-        phase: 'intent',
-        retryAttempt: attempt,
-        maxRetries: _phase0MaxRetries,
-      ));
-      onStep?.call(steps.last);
-
-      final intentSystem =
-          _promptBuilder.buildIntentPrompt(routingManifest);
-      final response = await _generateResponseFromPrompt(
-        [
-          ChatMessage(
-            id: 'sys_p0_${DateTime.now().millisecondsSinceEpoch}',
-            role: 'system',
-            content: intentSystem,
-            createdAt: DateTime.now(),
-          ),
-          ChatMessage(
-            id: 'usr_p0_${DateTime.now().millisecondsSinceEpoch}',
-            role: 'user',
-            content: prompt,
-            createdAt: DateTime.now(),
-          ),
-        ],
-        prompt,
-        16,
-      );
-
-      final result = _responseParser.parseIntent(response);
-      if (result is ParseIntent) {
-        final isConvo = result.isConversation;
-        steps.add(AgentStep(
-          'phase0_result',
-          isConvo ? '의도: 대화' : '의도: 작업 요청',
-          phase: 'intent',
-        ));
-        onStep?.call(steps.last);
-        print('[$_tag] Phase0: '
-            '${isConvo ? "CONVERSATION" : "TASK"} '
-            '(attempt=$attempt, response="$response")');
-        return isConvo;
-      }
-
-      print('[$_tag] Phase0 retry: '
-          'attempt=$attempt, response="$response"');
-
-      if (attempt < _phase0MaxRetries) {
-        steps.add(AgentStep(
-          'phase0_retry',
-          '의도 분석 재시도... (${attempt + 1}/$_phase0MaxRetries)',
-          phase: 'intent',
-          retryAttempt: attempt + 1,
-          maxRetries: _phase0MaxRetries,
-        ));
-        onStep?.call(steps.last);
-      }
+    if (basicTool != null) {
+      return basicTool.execute(argsJson);
     }
 
-    print('[$_tag] Phase0 fallback: defaulting to TASK');
-    steps.add(const AgentStep(
-      'phase0_result',
-      '의도: 작업 요청 (기본)',
-      phase: 'intent',
-    ));
-    onStep?.call(steps.last);
-    return false;
+    if (extendedTool != null) {
+      final ctx = _toolContext;
+      if (ctx == null) return 'Error: ToolContext not initialized';
+      return extendedTool.execute(argsJson, ctx);
+    }
+
+    return "Error: Unknown tool '$name'";
   }
 
-  Future<String> _generateAnswer(
-    String prompt,
-    int maxTokens,
-    void Function(AgentStep)? onStep,
-    List<AgentStep> steps,
-  ) async {
-    for (var attempt = 0; attempt <= _answerMaxRetries; attempt++) {
-      if (_cancelled) return '작업이 취소되었습니다.';
-
-      steps.add(AgentStep(
-        'phase_answer',
-        '응답 생성 중...',
-        phase: 'answer',
-        retryAttempt: attempt,
-        maxRetries: _answerMaxRetries,
-      ));
-      onStep?.call(steps.last);
-
-      final answerSystem = _promptBuilder.buildAnswerPrompt();
-      final response = await _generateResponseFromPrompt(
-        [
-          ChatMessage(
-            id: 'sys_ans_${DateTime.now().millisecondsSinceEpoch}',
-            role: 'system',
-            content: answerSystem,
-            createdAt: DateTime.now(),
-          ),
-          ChatMessage(
-            id: 'usr_ans_${DateTime.now().millisecondsSinceEpoch}',
-            role: 'user',
-            content: prompt,
-            createdAt: DateTime.now(),
-          ),
-        ],
-        prompt,
-        maxTokens,
-      );
-
-      final trimmed = response.trim();
-      if (trimmed.isNotEmpty &&
-          !trimmed.toLowerCase().startsWith('action:') &&
-          !trimmed.toLowerCase().startsWith('answer:')) {
-        print('[$_tag] Answer phase: "$trimmed" '
-            '(attempt=$attempt)');
-        return trimmed;
-      }
-
-      if (trimmed.toLowerCase().startsWith('answer:')) {
-        final text = trimmed.substring(7).trim();
-        if (text.isNotEmpty) return text;
-      }
-
-      print('[$_tag] Answer phase retry: '
-          'attempt=$attempt, response="$trimmed"');
-
-      if (attempt < _answerMaxRetries) {
-        steps.add(AgentStep(
-          'phase_answer_retry',
-          '응답 재시도... (${attempt + 1}/$_answerMaxRetries)',
-          phase: 'answer',
-          retryAttempt: attempt + 1,
-          maxRetries: _answerMaxRetries,
-        ));
-        onStep?.call(steps.last);
-      }
+  String _getToolPrompt(String name) {
+    final basicTool = _basicTools[name];
+    if (basicTool != null) {
+      return 'Tool "$name" help: ${basicTool.toolPrompt}';
     }
+    final extendedTool = _extendedTools[name];
+    if (extendedTool != null) {
+      return 'Tool "$name" help: ${extendedTool.toolPrompt}';
+    }
+    return '';
+  }
 
-    return '안녕하세요! 무엇을 도와드릴까요?';
+  Map<String, dynamic>? _inferToolArgs(String toolName, String userMessage) {
+    final msg = userMessage.toLowerCase();
+    switch (toolName) {
+      case 'calculator':
+        final expr = _extractMathExpr(msg);
+        if (expr != null) return {'expression': expr};
+        return null;
+      case 'notepad':
+        final writeMatch = RegExp(
+          r'(?:write|save|note|store|record)\s+(.+)',
+          caseSensitive: false,
+        ).firstMatch(userMessage);
+        if (writeMatch != null) {
+          return {
+            'action': 'write',
+            'key': 'note_${DateTime.now().millisecondsSinceEpoch}',
+            'content': writeMatch.group(1)!.trim(),
+          };
+        }
+        return {'action': 'list'};
+      case 'timer':
+        final durationMatch = RegExp(
+          r'(\d+)\s*(?:second|sec|minute|min)',
+          caseSensitive: false,
+        ).firstMatch(msg);
+        if (durationMatch != null) {
+          final value = int.tryParse(durationMatch.group(1)!) ?? 0;
+          final unit = msg.contains('min') ? value * 60 : value;
+          return {'action': 'set', 'seconds': unit};
+        }
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  String? _extractMathExpr(String msg) {
+    final ops = {
+      'plus': '+', 'added to': '+', 'and': '+',
+      'minus': '-', 'less': '-', 'subtract': '-',
+      'times': '*', 'multiplied by': '*', 'x': '*',
+      'divided by': '/', 'over': '/',
+    };
+    var expr = msg;
+    expr = expr.replaceAll(RegExp(r'calculate\s*', caseSensitive: false), '');
+    expr = expr.replaceAll(RegExp(r'what\s+is\s*', caseSensitive: false), '');
+    expr = expr.replaceAll(RegExp(r'compute\s*', caseSensitive: false), '');
+    for (final entry in ops.entries) {
+      expr = expr.replaceAll(entry.key, entry.value);
+    }
+    expr = expr.replaceAll(RegExp(r'[^\d+\-*/.()% ]'), '').trim();
+    if (expr.isEmpty || !RegExp(r'\d').hasMatch(expr)) return null;
+    if (!RegExp(r'[+\-*/]').hasMatch(expr)) return null;
+    return expr;
   }
 
   void _recordTurn(String userMessage, List<AgentStep> steps) {
     if (_conversationContext == null) return;
-    final answerStep = steps
-        .where((s) => s.type == 'answer')
-        .lastOrNull;
+    final answerStep = steps.where((s) => s.type == 'answer').lastOrNull;
     if (answerStep == null) return;
     final toolSteps = steps
         .where((s) => s.type == 'action' && s.toolName.isNotEmpty)
@@ -481,295 +495,12 @@ class ReactStrategy implements AgentStrategy {
       answerStep.content,
       toolUsed: toolUsed,
     );
-    print('[$_tag] Context turn recorded: '
-        '${_conversationContext!.length} turns, '
-        'tool=${toolUsed ?? "none"}');
-  }
-
-  Future<String> _generateResponse(
-    String systemPrompt,
-    int maxTokens,
-  ) async {
-    final history = _promptBuilder.getHistory();
-    final chatHistory = _buildChatHistory(systemPrompt, history);
-
-    final responseBuffer = StringBuffer();
-
-    final tokenSub = _llmRepository.tokenStream.listen(
-      (token) => responseBuffer.write(token),
-      onError: (Object e) {
-        print('[$_tag] ERROR: Token stream error: $e');
-      },
-    );
-
-    try {
-      await _llmRepository.sendMessage(
-        chatHistory,
-        userMessage: history.last.content,
-        maxTokens: maxTokens,
-      );
-      await Future<void>.delayed(Duration.zero);
-    } on Object catch (e) {
-      print('[$_tag] ERROR: Generate response error: $e');
-    } finally {
-      await tokenSub.cancel();
-    }
-
-    final response = responseBuffer.toString();
-    print('[$_tag] LLM response="$response"');
-    return response;
-  }
-
-  Future<String> _phase2Execute(
-    String toolName,
-    String originalPrompt,
-    int maxTokens,
-    void Function(AgentStep)? onStep,
-  ) async {
-    final basicTool = _basicTools[toolName];
-    final extendedTool = _extendedTools[toolName];
-    if (basicTool == null && extendedTool == null) {
-      return "Error: Unknown tool '$toolName'";
-    }
-
-    final String toolPromptText;
-    String? extraContext;
-
-    if (extendedTool != null) {
-      toolPromptText = extendedTool.toolPrompt;
-      if (_toolContext != null) {
-        extraContext =
-            await extendedTool.phaseContext(originalPrompt, _toolContext!);
-        print('[$_tag] Phase2 extraContext length='
-            '${extraContext?.length ?? 0}');
-      }
-    } else {
-      toolPromptText = basicTool!.toolPrompt;
-      extraContext = await basicTool.phaseContext(originalPrompt);
-    }
-
-    final toolSystem = _promptBuilder.buildToolPrompt(
-      toolName,
-      toolPromptText,
-      extraContext: extraContext,
-    );
-
-    final phase2UserMessage =
-        _buildPhase2UserMessage(originalPrompt);
-
-    for (var attempt = 0; attempt < _phase2MaxRetries; attempt++) {
-      String userMsg = attempt == 0
-          ? phase2UserMessage
-          : '$phase2UserMessage\n\n'
-              'FORMAT: Respond with:\n'
-              'Action: $toolName\n'
-              'Args: {"action": "open_app", '
-              '"package_name": "org.example.app"}';
-
-      final phase2History = <ChatMessage>[
-        ChatMessage(
-          id: 'sys_p2_${DateTime.now().millisecondsSinceEpoch}',
-          role: 'system',
-          content: toolSystem,
-          createdAt: DateTime.now(),
-        ),
-        ChatMessage(
-          id: 'usr_p2_${DateTime.now().millisecondsSinceEpoch}',
-          role: 'user',
-          content: userMsg,
-          createdAt: DateTime.now(),
-        ),
-      ];
-
-      final phase2Response =
-          await _generateResponseFromPrompt(
-        phase2History,
-        userMsg,
-        maxTokens,
-      );
-
-      print('[$_tag] Phase2 attempt=$attempt '
-          'response="$phase2Response" '
-          'len=${phase2Response.length}');
-
-      final parsed = _responseParser.parse(phase2Response);
-      if (parsed is ParseAction &&
-          parsed.toolName == toolName &&
-          _hasValidArgs(parsed.args)) {
-        return _executeTool(
-          parsed.toolName,
-          parsed.args,
-          onStep,
-        );
-      }
-
-      print('[$_tag] Phase2 retry: '
-          'attempt=$attempt, parsed=$parsed');
-    }
-
-    return "Error: Could not generate valid args for $toolName";
-  }
-
-  Future<String> _generateResponseFromPrompt(
-    List<ChatMessage> chatHistory,
-    String userMessage,
-    int maxTokens,
-  ) async {
-    final responseBuffer = StringBuffer();
-
-    final tokenSub = _llmRepository.tokenStream.listen(
-      (token) => responseBuffer.write(token),
-      onError: (Object e) {
-        print('[$_tag] ERROR: Stream error: $e');
-      },
-    );
-
-    try {
-      await _llmRepository.sendMessage(
-        chatHistory,
-        userMessage: userMessage,
-        maxTokens: maxTokens,
-      );
-      await Future<void>.delayed(Duration.zero);
-    } on Object catch (e) {
-      print('[$_tag] ERROR: Generate error: $e');
-    } finally {
-      await tokenSub.cancel();
-    }
-
-    return responseBuffer.toString();
-  }
-
-  String _buildPhase2UserMessage(String originalPrompt) {
-    final history = _promptBuilder.getHistory();
-    final observations = history
-        .where((m) =>
-            m.role == 'user' &&
-            m.content.startsWith('Observation'))
-        .toList();
-
-    if (observations.isEmpty) return originalPrompt;
-
-    final allObs =
-        observations.map((m) => m.content).join('\n');
-    return '$originalPrompt\n\nPrevious results:\n$allObs';
-  }
-
-  List<ChatMessage> _buildChatHistory(
-    String systemPrompt,
-    List<({String role, String content})> history,
-  ) {
-    return <ChatMessage>[
-      ChatMessage(
-        id: 'system_${DateTime.now().millisecondsSinceEpoch}',
-        role: 'system',
-        content: systemPrompt,
-        createdAt: DateTime.now(),
-      ),
-      ...history.map(
-        (m) => ChatMessage(
-          id: '${m.role}_${DateTime.now().millisecondsSinceEpoch}',
-          role: m.role,
-          content: m.content,
-          createdAt: DateTime.now(),
-        ),
-      ),
-    ];
-  }
-
-  bool _hasValidArgs(String args) {
-    if (args.isEmpty || args == '{}') return false;
-    try {
-      final decoded = jsonDecode(args);
-      return decoded is Map<String, dynamic> && decoded.isNotEmpty;
-    } on Object {
-      return false;
-    }
-  }
-
-  String _getRoutingManifest() {
-    final lines = <String>[];
-    for (final tool in _basicTools.values) {
-      lines.add('- ${tool.name}: ${tool.description}');
-    }
-    for (final tool in _extendedTools.values) {
-      lines.add('- ${tool.name}: ${tool.description}');
-    }
-    return lines.join('\n');
-  }
-
-  Future<String> _executeTool(
-    String name,
-    String args,
-    void Function(AgentStep)? onStep,
-  ) async {
-    final risk = _riskClassifier.classify(name, args);
-
-    final basicTool = _basicTools[name];
-    final extendedTool = _extendedTools[name];
-
-    if (basicTool != null) {
-      final validationError = await basicTool.validate(args);
-      if (validationError != null) return validationError;
-    }
-
-    if (extendedTool != null) {
-      final ctx = _toolContext;
-      if (ctx == null) return _noContextError(name, args, risk);
-      final validationError =
-          await extendedTool.validate(args, ctx);
-      if (validationError != null) return validationError;
-    }
-
-    if (risk == ToolRisk.high || risk == ToolRisk.critical) {
-      final approved =
-          await _confirmationGate.requestConfirmation(
-        risk,
-        name,
-        args,
-        onStep ?? (_) {},
-      );
-      if (!approved) {
-        _auditLog.add(name, args, risk, false, 'Cancelled');
-        return 'Action cancelled by user';
-      }
-    }
-
-    if (basicTool != null) {
-      final result = await basicTool.execute(args);
-      _auditLog.add(name, args, risk, true, result);
-      _preferenceTracker?.recordToolUse(name);
-      return result;
-    }
-
-    if (extendedTool != null) {
-      final ctx = _toolContext;
-      if (ctx == null) return _noContextError(name, args, risk);
-      final result = await extendedTool.execute(args, ctx);
-      _auditLog.add(name, args, risk, true, result);
-      _preferenceTracker?.recordToolUse(name);
-      return result;
-    }
-
-    return "Error: Unknown tool '$name'. "
-        "Available: ${_allToolNames.join(', ')}";
-  }
-
-  String _noContextError(String name, String args, ToolRisk risk) {
-    _auditLog.add(
-      name,
-      args,
-      risk,
-      false,
-      'ToolContext not initialized',
-    );
-    return 'Error: ToolContext not initialized';
   }
 
   @override
   void cancel() {
     _cancelled = true;
-    _llmRepository.stopGeneration();
+    _engine.cancelGeneration();
     _confirmationGate.cancel();
   }
 
@@ -782,28 +513,19 @@ class ReactStrategy implements AgentStrategy {
   String getToolManifest() {
     final lines = <String>[];
     for (final tool in _basicTools.values) {
-      lines.add(
-        '- ${tool.name}: ${tool.description}\n'
-        '  Parameters: ${tool.parameters}',
-      );
+      lines.add('- ${tool.name}: ${tool.description}');
     }
     for (final tool in _extendedTools.values) {
-      lines.add(
-        '- ${tool.name}: ${tool.description}\n'
-        '  Parameters: ${tool.parameters}',
-      );
+      lines.add('- ${tool.name}: ${tool.description}');
     }
     return lines.join('\n');
   }
 
   @override
-  List<({String role, String content})> getConversationHistory() =>
-      _promptBuilder.getHistory();
+  List<({String role, String content})> getConversationHistory() => [];
 
   @override
-  void clearHistory() {
-    _promptBuilder.clearHistory();
-  }
+  void clearHistory() {}
 
   @override
   void setConversationContext(ConversationContext? context) {
@@ -814,4 +536,10 @@ class ReactStrategy implements AgentStrategy {
   void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {
     _preferenceTracker = tracker;
   }
+}
+
+class _ToolCallAccumulator {
+  String? id;
+  String? name;
+  String arguments = '';
 }

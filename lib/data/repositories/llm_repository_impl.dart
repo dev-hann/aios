@@ -109,6 +109,7 @@ class LlmRepositoryImpl implements LlmRepository {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   }) async {
     if (!_provider.isModelLoaded) {
       print('[$_tag] WARN: sendMessage called without loaded model');
@@ -127,6 +128,7 @@ class LlmRepositoryImpl implements LlmRepository {
         topK: topK,
         topP: topP,
         repeatPenalty: repeatPenalty,
+        grammar: grammar,
       );
 
       _generationCompleter = Completer<void>();

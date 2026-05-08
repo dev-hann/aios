@@ -23,7 +23,6 @@ void main() {
     setUp(() {
       engineProvider = RealLlamaEngineProvider();
       repository = LlmRepositoryImpl(engineProvider);
-      strategy = ReactStrategy(repository);
     });
 
     tearDown(() async {
@@ -31,10 +30,17 @@ void main() {
       await engineProvider.releaseModel();
     });
 
+    ReactStrategy _createStrategy() {
+      final engine = engineProvider.engine;
+      if (engine == null) throw StateError('Model not loaded');
+      return ReactStrategy(engine: engine);
+    }
+
     testWidgets('execute with answer response', (tester) async {
       if (!modelReady) return;
 
       await repository.loadModel(modelPath, contextSize: 512);
+      strategy = _createStrategy();
 
       final steps = <AgentStep>[];
       final result = await strategy.execute(
@@ -58,6 +64,7 @@ void main() {
       if (!modelReady) return;
 
       await repository.loadModel(modelPath, contextSize: 512);
+      strategy = _createStrategy();
 
       final result = await strategy.execute(
         'Hi',
@@ -74,7 +81,7 @@ void main() {
 
       await repository.loadModel(modelPath, contextSize: 512);
 
-      final noContextStrategy = ReactStrategy(repository);
+      final noContextStrategy = _createStrategy();
 
       final result = await noContextStrategy.execute(
         'List apps on this phone',
@@ -89,7 +96,7 @@ void main() {
       if (!modelReady) return;
 
       await repository.loadModel(modelPath, contextSize: 512);
-
+      strategy = _createStrategy();
       await strategy.execute('Hello', maxIterations: 2, maxTokens: 16);
       expect(strategy.getConversationHistory(), isNotEmpty);
 
@@ -100,6 +107,8 @@ void main() {
     testWidgets('getToolManifest returns non-empty', (tester) async {
       if (!modelReady) return;
 
+      await repository.loadModel(modelPath, contextSize: 512);
+      strategy = _createStrategy();
       final manifest = strategy.getToolManifest();
       expect(manifest, isNotEmpty);
       expect(manifest, contains('app_launcher'));
@@ -109,6 +118,7 @@ void main() {
       if (!modelReady) return;
 
       await repository.loadModel(modelPath, contextSize: 512);
+      strategy = _createStrategy();
 
       final future = strategy.execute(
         'Tell me a long story',
@@ -127,6 +137,7 @@ void main() {
       if (!modelReady) return;
 
       await repository.loadModel(modelPath, contextSize: 512);
+      strategy = _createStrategy();
 
       final r1 = await strategy.execute(
         'Say A',

@@ -132,9 +132,6 @@ void main() {
 
       await repository.loadModel(modelPath, contextSize: 512);
 
-      final detected = engineProvider.detectedTemplate;
-      debugPrint('Template override: ${detected ?? "native"}');
-
       final tokens = <String>[];
       repository.tokenStream.listen(tokens.add);
 

@@ -73,6 +73,7 @@ class _MockLlmRepository implements LlmRepository {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   }) async {
     _stateController.add(ServiceState.generating);
     for (final token in tokens) {

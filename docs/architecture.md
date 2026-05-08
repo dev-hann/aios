@@ -4,7 +4,7 @@ AIOS의 내부 아키텍처를 설명합니다.
 
 ## System Overview
 
-AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llama_cpp_dart (inference via Isolate).
+AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llamadart (inference via Isolate).
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -24,15 +24,17 @@ AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llama_cpp
 │  ┌──────────────────────────▼─────────────────────────────┐  │
 │  │  Data                                                   │  │
 │  │  Repository Impls + DataSource (Drift, Dio)             │  │
-│  │  LlamaEngineProvider (llama_cpp_dart 추상화)            │  │
+│  │  LlamaEngineProvider (llamadart 추상화)                 │  │
 │  │  ToolContextImpl (MethodChannel 래핑)                   │  │
 │  └──────────────────────────┬─────────────────────────────┘  │
 └─────────────────────────────┼────────────────────────────────┘
                               │
 ┌─────────────────────────────▼────────────────────────────────┐
-│                   llama_cpp_dart (Isolate)                    │
-│  LLM 추론: loadModel / generate / stopGeneration             │
-│  KV-cache: saveState / loadState                              │
+│                      llamadart (Isolate)                      │
+│  LLM 추론: LlamaEngine / ChatSession / GenerationParams      │
+│  Template: ChatTemplateEngine (자동 감지)                     │
+│  Grammar: GenerationParams.grammar (plain string)             │
+│  Native Assets: 빌드 시 자동 다운로드                          │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -140,7 +142,7 @@ User Input → ChatNotifier.sendMessage()
 ```
 User Input → ChatNotifier.sendMessage()
   → LlmRepository.sendMessage()
-    → LlamaEngineProvider.generate() (Isolate)
+    → LlamaEngineProvider.generate() (Isolate, llamadart)
       → Stream<String> (토큰 단위 스트리밍)
     → ChatState 업데이트 (currentResponse 누적)
   → _finalizeResponse() → ChatMessage 저장 (Drift DB)
@@ -235,6 +237,7 @@ idle → loadingModel → ready ↔ generating → ready
 - **UI 업데이트**: Main Isolate (기본값, 별도 처리 불필요)
 - **에이전트 실행**: LlmEngine Isolate에서 실행, Stream으로 UI에 전달
 - **취소**: 취소 플래그 + StreamController.close() 조합
+- **참고**: saveState/loadState는 아직 llamadart에서 미지원
 
 ## UX Polish
 
@@ -290,7 +293,7 @@ SettingsScreen의 Permissions 섹션에서 각 권한 상태 표시:
 
 ### Why Flutter?
 
-- JNI + C++ ~1500줄 → llama_cpp_dart ~20줄
+- JNI + C++ ~1500줄 → llamadart ~20줄
 - 단일 언어 (Dart)로 유지보수 간소화
 - Isolate 기반으로 Foreground Service 불필요
 - KV-cache, Context shift 등 고급 기능 패키지에서 지원

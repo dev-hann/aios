@@ -9,6 +9,7 @@ import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/agent/tools/screen_reader_tool.dart';
 import 'package:aios/agent/tools/sms_sender_tool.dart';
 import 'package:aios/agent/tools/timer_tool.dart';
+import 'package:aios/data/providers/real_llama_engine_provider.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
@@ -16,7 +17,7 @@ import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
-import 'package:aios/presentation/providers/llm_provider.dart';
+import 'package:aios/domain/entities/agent_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final toolContextProvider = Provider<ToolContext>((ref) {
@@ -32,8 +33,15 @@ final toolPreferenceTrackerProvider =
   return ToolPreferenceTracker();
 });
 
+final engineProvider = Provider<RealLlamaEngineProvider>((ref) {
+  throw UnimplementedError('engineProvider must be overridden');
+});
+
+final modelLoadedPathProvider = StateProvider<String?>((ref) => null);
+
 final agentProvider = Provider<AgentStrategy>((ref) {
-  final llmRepo = ref.watch(llmRepositoryProvider);
+  ref.watch(modelLoadedPathProvider);
+  final engineProviderInstance = ref.watch(engineProvider);
   final toolContext = ref.watch(toolContextProvider);
   final conversationContext =
       ref.watch(conversationContextProvider);
@@ -60,8 +68,13 @@ final agentProvider = Provider<AgentStrategy>((ref) {
     'device_info': DeviceInfoTool(),
   };
 
+  final engine = engineProviderInstance.engine;
+  if (engine == null) {
+    return _PlaceholderStrategy();
+  }
+
   final strategy = ReactStrategy(
-    llmRepo,
+    engine: engine,
     toolContext: toolContext,
     basicTools: basicTools,
     extendedTools: extendedTools,
@@ -72,3 +85,39 @@ final agentProvider = Provider<AgentStrategy>((ref) {
 
   return strategy;
 });
+
+class _PlaceholderStrategy implements AgentStrategy {
+  @override
+  Future<AgentResult> execute(
+    String prompt, {
+    int maxIterations = 8,
+    int maxTokens = 512,
+    void Function(AgentStep)? onStep,
+  }) async {
+    return AgentResult(
+      steps: [AgentStep('answer', '모델을 먼저 로드해주세요.')],
+      success: false,
+    );
+  }
+
+  @override
+  void cancel() {}
+
+  @override
+  void resolveConfirmation(bool approved) {}
+
+  @override
+  String getToolManifest() => '';
+
+  @override
+  List<({String role, String content})> getConversationHistory() => [];
+
+  @override
+  void clearHistory() {}
+
+  @override
+  void setConversationContext(ConversationContext? context) {}
+
+  @override
+  void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {}
+}

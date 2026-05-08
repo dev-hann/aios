@@ -83,6 +83,7 @@ class MockLlamaEngineProvider implements LlamaEngineProvider {
     int? topK,
     double? topP,
     double? repeatPenalty,
+    String? grammar,
   }) {
     lastHistory = history;
     lastUserMessage = userMessage;
