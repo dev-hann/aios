@@ -12,16 +12,16 @@
 | 1 | 앱 실행 | 설치 후 실행 | 크래시 없음, `[AIOS-ChatNotifier] Session initialized` |
 | 2 | 모델 로드 | 설정 → Load | `[AIOS-RealEngine] Model loaded` |
 | 3 | 기본 응답 | "hello" | `[AIOS-React]` + 응답 텍스트 |
-| 4 | 툴 실행 | "2+2" | `[AIOS-React]` + `calculator` 또는 정답 포함 |
+| 4 | calculator | "calculate 15 plus 27" | `[AIOS-React]` + `calculator` + 정답 (42) |
+| 5 | app_launcher | "open youtube" | `[AIOS-AppLauncher]` + 앱 실행 |
 
 ## 2. 기능 테스트 (변경 관련 시 수행)
 
 | # | 항목 | 입력 | 검증 |
 |---|------|------|------|
-| 5 | 세션 생성 | 새 대화 버튼 | 빈 채팅화면 전환 |
-| 6 | 세션 전환 | Drawer → 다른 세션 탭 | 이전 대화 내용 표시 |
-| 7 | 세션 삭제 | 세션 스와이프/길게눌러 삭제 | 세션 목록에서 제거 |
-| 8 | app_launcher | "open youtube" | 유튜브 앱 실행 (퍼지 매칭) |
+| 6 | 세션 생성 | 새 대화 버튼 | 빈 채팅화면 전환 |
+| 7 | 세션 전환 | Drawer → 다른 세션 탭 | 이전 대화 내용 표시 |
+| 8 | 세션 삭제 | 세션 스와이프/길게눌러 삭제 | 세션 목록에서 제거 |
 | 9 | device_info | "내 폰 정보 알려줘" | 기기 모델/Android 버전 포함 응답 |
 | 10 | timer | "30초 타이머" | 타이머 설정 응답 |
 | 11 | notepad | "메모해줘 테스트" | 메모 저장 응답 |
