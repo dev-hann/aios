@@ -21,6 +21,8 @@ class _InputBarState extends State<InputBar> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
 
+  static const _maxLines = 5;
+
   void _handleSubmit() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -48,12 +50,15 @@ class _InputBarState extends State<InputBar> {
       child: SafeArea(
         top: false,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
               child: TextField(
                 controller: _controller,
                 focusNode: _focusNode,
                 enabled: !widget.isGenerating,
+                maxLines: _maxLines,
+                minLines: 1,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 13,
@@ -86,7 +91,7 @@ class _InputBarState extends State<InputBar> {
                         const BorderSide(color: AppColors.primary, width: 2),
                   ),
                 ),
-                textInputAction: TextInputAction.send,
+                textInputAction: TextInputAction.newline,
                 onSubmitted:
                     widget.isGenerating ? null : (_) => _handleSubmit(),
               ),

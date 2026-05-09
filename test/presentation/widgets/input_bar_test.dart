@@ -211,7 +211,7 @@ void main() {
       expect(textField.decoration?.hintText, 'Generating...');
     });
 
-    testWidgets('render_textInputActionIsSend', (tester) async {
+    testWidgets('render_textInputActionIsNewline', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
           InputBar(
@@ -223,7 +223,23 @@ void main() {
       );
 
       final textField = tester.widget<TextField>(find.byType(TextField));
-      expect(textField.textInputAction, TextInputAction.send);
+      expect(textField.textInputAction, TextInputAction.newline);
+    });
+
+    testWidgets('render_multiline_maxLines', (tester) async {
+      await tester.pumpWidget(
+        _wrapWithMaterial(
+          InputBar(
+            onSubmitted: (_) {},
+            onStop: () {},
+            isGenerating: false,
+          ),
+        ),
+      );
+
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.maxLines, 5);
+      expect(textField.minLines, 1);
     });
 
     testWidgets('render_generating_onSubmittedIsNull', (tester) async {

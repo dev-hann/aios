@@ -187,9 +187,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Icons.add_comment_outlined,
               color: AppColors.textSecondary,
             ),
-            tooltip: '새 대화',
+            tooltip: '\uC0C8 \uB300\uD654',
             onPressed: () =>
                 ref.read(chatStateProvider.notifier).createNewChat(),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.delete_outline,
+              color: AppColors.textSecondary,
+            ),
+            tooltip: 'Clear chat',
+            onPressed: () => _showClearChatDialog(context, ref),
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: AppColors.textPrimary),
@@ -337,6 +345,23 @@ class _MessageList extends StatefulWidget {
 
 class _MessageListState extends State<_MessageList> {
   final _scrollController = ScrollController();
+  bool _showScrollFab = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final show = !_scrollController.hasClients ||
+        _scrollController.position.maxScrollExtent -
+                _scrollController.offset >
+            200;
+    if (show != _showScrollFab) {
+      setState(() => _showScrollFab = show);
+    }
+  }
 
   @override
   void didUpdateWidget(_MessageList oldWidget) {
@@ -367,24 +392,45 @@ class _MessageListState extends State<_MessageList> {
     final messages = widget.chatState.messages;
     final agentSteps = widget.chatState.agentSteps;
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: messages.length +
-          agentSteps.length +
-          (widget.chatState.isThinking ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index < messages.length) {
-          return MessageBubble(message: messages[index]);
-        }
+    return Stack(
+      children: [
+        ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: messages.length +
+              agentSteps.length +
+              (widget.chatState.isThinking ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index < messages.length) {
+              return MessageBubble(message: messages[index]);
+            }
 
-        final stepIndex = index - messages.length;
-        if (stepIndex < agentSteps.length) {
-          return _SystemAnnotation(step: agentSteps[stepIndex]);
-        }
+            final stepIndex = index - messages.length;
+            if (stepIndex < agentSteps.length) {
+              return _SystemAnnotation(step: agentSteps[stepIndex]);
+            }
 
-        return const _ThinkingIndicator();
-      },
+            return const _ThinkingIndicator();
+          },
+        ),
+        if (_showScrollFab && messages.isNotEmpty)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: Semantics(
+              label: 'scroll_to_bottom_button',
+              child: FloatingActionButton.small(
+                onPressed: _scrollToBottom,
+                backgroundColor: AppColors.surfaceModal,
+                child: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: AppColors.textPrimary,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -451,35 +497,37 @@ class _SystemAnnotation extends StatelessWidget {
   String get _annotationText {
     switch (step.type) {
       case 'phase0_classifying':
-        return '의도 분석 중...';
+        return '\uC758\uB3C4 \uBD84\uC11D \uC911...';
       case 'phase0_result':
         return step.content;
       case 'phase0_retry':
-        return '의도 분석 재시도... '
+        return '\uC758\uB3C4 \uBD84\uC11D \uC7AC\uC2DC\uB3C4... '
             '(${step.retryAttempt}/${step.maxRetries})';
       case 'phase1_retry':
-        return '작업 분석 재시도... '
+        return '\uC791\uC5C5 \uBD84\uC11D \uC7AC\uC2DC\uB3C4... '
             '(${step.retryAttempt}/${step.maxRetries})';
       case 'phase_answer':
-        return '응답 생성 중...';
+        return '\uC751\uB2F5 \uC0DD\uC131 \uC911...';
       case 'phase_answer_retry':
-        return '응답 재시도... '
+        return '\uC751\uB2F5 \uC7AC\uC2DC\uB3C4... '
             '(${step.retryAttempt}/${step.maxRetries})';
       case 'action':
         final name = step.toolName.isNotEmpty
             ? step.toolName
             : 'tool';
-        return '$name 실행 중...';
+        return '$name \uC2E4\uD589 \uC911...';
       case 'observation':
         final result = step.toolResult;
-        if (result.isEmpty) return '결과: (empty)';
+        if (result.isEmpty) return '\uACB0\uACFC: (empty)';
         final summary = result.length > 50
             ? '${result.substring(0, 50)}...'
             : result;
         final isError = summary.trimLeft().startsWith('Error:');
-        return isError ? '실패: $summary' : '결과: $summary';
+        return isError
+            ? '\uC2E4\uD328: $summary'
+            : '\uACB0\uACFC: $summary';
       case 'confirmation_required':
-        return '사용자 확인 대기 중...';
+        return '\uC0AC\uC6A9\uC790 \uD655\uC778 \uB300\uAE30 \uC911...';
       default:
         return step.content;
     }
