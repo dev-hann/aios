@@ -260,6 +260,14 @@ class _StepCapturingAgent implements AgentStrategy {
   }
 
   @override
+  void resolvePermission(bool granted) {}
+
+  @override
+  void setPermissionChecker(
+    Future<bool> Function(String permissionKey)? checker,
+  ) {}
+
+  @override
   String getToolManifest() => '- test: test';
 
   @override
@@ -319,10 +327,19 @@ class _DelayedEmitAgent implements AgentStrategy {
   }
 
   @override
+  void resolvePermission(bool granted) {}
+
+  @override
+  void setPermissionChecker(
+    Future<bool> Function(String permissionKey)? checker,
+  ) {}
+
+  @override
   String getToolManifest() => '- test: test';
 
   @override
-  List<({String role, String content})> getConversationHistory() => [];
+  List<({String role, String content})>
+      getConversationHistory() => [];
 
   @override
   void clearHistory() {}

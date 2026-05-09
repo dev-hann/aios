@@ -237,6 +237,14 @@ class _MockAgentStrategy implements AgentStrategy {
   }
 
   @override
+  void resolvePermission(bool granted) {}
+
+  @override
+  void setPermissionChecker(
+    Future<bool> Function(String permissionKey)? checker,
+  ) {}
+
+  @override
   String getToolManifest() => '- test: test tool';
 
   @override

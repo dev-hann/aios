@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:aios/domain/agent/agent_strategy.dart';
+import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/conversation.dart';
@@ -9,6 +10,7 @@ import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ChatNotifier extends StateNotifier<ChatState> {
   ChatNotifier(
@@ -69,24 +71,29 @@ class ChatNotifier extends StateNotifier<ChatState> {
       errorMessage: null,
       agentSteps: [const AgentStep('thinking_start', '')],
       isConfirming: false,
+      isAwaitingPermission: false,
     );
 
-    _conversationRepository
-        .appendMessage(userMessage)
-        .catchError((e) => print('[$_tag] WARN: appendMessage fire-forget - $e'));
+    _conversationRepository.appendMessage(userMessage).catchError(
+      (e) => print('[$_tag] WARN: appendMessage fire-forget - $e'),
+    );
 
     if (state.currentConversationTitle == '새 대화' &&
-        state.messages.where((m) => m.role == 'user').length == 1) {
+        state.messages.where((m) => m.role == 'user').length ==
+            1) {
       final title = text.trim().length > 20
           ? '${text.trim().substring(0, 20)}...'
           : text.trim();
       final convId = state.currentConversationId;
       if (convId != null) {
-        state = state.copyWith(currentConversationTitle: title);
+        state =
+            state.copyWith(currentConversationTitle: title);
         _conversationRepository
             .updateConversationTitle(convId, title)
             .catchError(
-                (e) => print('[$_tag] WARN: updateTitle fire-forget - $e'));
+          (e) =>
+              print('[$_tag] WARN: updateTitle fire-forget - $e'),
+        );
       }
     }
 
@@ -107,7 +114,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       );
       if (answerStep.isNotEmpty) {
         final assistantMessage = ChatMessage(
-          id: 'assistant_${DateTime.now().millisecondsSinceEpoch}',
+          id:
+              'assistant_${DateTime.now().millisecondsSinceEpoch}',
           role: 'assistant',
           content: answerStep.last.content,
           createdAt: DateTime.now(),
@@ -115,12 +123,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
         state = state.copyWith(
           messages: [...state.messages, assistantMessage],
         );
-        await _conversationRepository.appendMessage(assistantMessage);
+        await _conversationRepository
+            .appendMessage(assistantMessage);
       }
 
       state = state.copyWith(
         agentSteps: [],
         isConfirming: false,
+        isAwaitingPermission: false,
       );
     } on Object catch (e) {
       print('[$_tag] ERROR: sendMessage failed - $e');
@@ -137,14 +147,118 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     state = state.copyWith(
       agentSteps: [...state.agentSteps, step],
-      isConfirming:
-          step.type == 'confirmation_required' ? true : state.isConfirming,
+      isConfirming: step.type == 'confirmation_required'
+          ? true
+          : state.isConfirming,
+      isAwaitingPermission:
+          step.type == 'permission_required'
+              ? true
+              : state.isAwaitingPermission,
     );
   }
 
   void resolveConfirmation(bool approved) {
     _agent.resolveConfirmation(approved);
     state = state.copyWith(isConfirming: false);
+  }
+
+  Future<void> resolvePermission(
+    bool userTappedGrant,
+  ) async {
+    final permStep = state.agentSteps
+        .where((s) => s.type == 'permission_required')
+        .lastOrNull;
+    if (permStep == null) {
+      _agent.resolvePermission(false);
+      state = state.copyWith(isAwaitingPermission: false);
+      return;
+    }
+
+    if (!userTappedGrant) {
+      _agent.resolvePermission(false);
+      state = state.copyWith(isAwaitingPermission: false);
+      return;
+    }
+
+    final permKey = permStep.permission;
+    final perm = ToolPermissionMapper.getByKey(permKey);
+
+    if (perm == null) {
+      _agent.resolvePermission(false);
+      state = state.copyWith(isAwaitingPermission: false);
+      return;
+    }
+
+    bool granted = false;
+
+    if (perm.isService) {
+      if (permKey == 'accessibility') {
+        await _openAccessibilitySettings();
+        granted = true;
+      } else if (permKey == 'notification') {
+        granted = await _requestNotificationPermission();
+      }
+    } else {
+      granted = await _requestRuntimePermission(permKey);
+    }
+
+    print(
+      '[$_tag] Permission $permKey resolved: $granted',
+    );
+    _agent.resolvePermission(granted);
+    state = state.copyWith(isAwaitingPermission: false);
+  }
+
+  Future<bool> _requestRuntimePermission(
+    String permKey,
+  ) async {
+    final permission = _mapToPermission(permKey);
+    if (permission == null) return false;
+
+    try {
+      final status = await permission.request();
+      if (status.isGranted) return true;
+
+      if (status.isPermanentlyDenied) {
+        await openAppSettings();
+        return false;
+      }
+      return false;
+    } on Object catch (e) {
+      print('[$_tag] ERROR: permission request - $e');
+      return false;
+    }
+  }
+
+  Future<bool> _requestNotificationPermission() async {
+    try {
+      final status = await Permission.notification.request();
+      return status.isGranted;
+    } on Object catch (e) {
+      print('[$_tag] ERROR: notification perm - $e');
+      return false;
+    }
+  }
+
+  Future<void> _openAccessibilitySettings() async {
+    try {
+      await openAppSettings();
+    } on Object catch (e) {
+      print('[$_tag] ERROR: open settings - $e');
+    }
+  }
+
+  Permission? _mapToPermission(String key) {
+    switch (key) {
+      case 'contacts':
+        return Permission.contacts;
+      case 'phone':
+        return Permission.phone;
+      case 'sms':
+        return Permission.sms;
+      default:
+        return null;
+    }
   }
 
   Future<void> stopGeneration() async {
@@ -158,7 +272,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
         .lastOrNull;
     if (lastStep != null) {
       final assistantMessage = ChatMessage(
-        id: 'assistant_${DateTime.now().millisecondsSinceEpoch}',
+        id:
+            'assistant_${DateTime.now().millisecondsSinceEpoch}',
         role: 'assistant',
         content: lastStep.content,
         createdAt: DateTime.now(),
@@ -170,13 +285,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     state = state.copyWith(
       isConfirming: false,
+      isAwaitingPermission: false,
       agentSteps: [],
     );
   }
 
   Future<void> loadConversation() async {
     try {
-      final messages = await _conversationRepository.load();
+      final messages =
+          await _conversationRepository.load();
       if (!mounted) return;
       if (messages.isNotEmpty) {
         state = state.copyWith(messages: messages);
@@ -189,9 +306,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   Future<void> initializeSession() async {
     try {
-      final conversations = await _conversationRepository.getAllConversations();
+      final conversations =
+          await _conversationRepository.getAllConversations();
       if (conversations.isEmpty) {
-        final conv = await _conversationRepository.createConversation();
+        final conv =
+            await _conversationRepository.createConversation();
         if (!mounted) return;
         state = state.copyWith(
           currentConversationId: conv.id,
@@ -200,7 +319,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       } else {
         final active = conversations.first;
         final messages =
-            await _conversationRepository.loadConversation(active.id);
+            await _conversationRepository
+                .loadConversation(active.id);
         if (!mounted) return;
         state = state.copyWith(
           currentConversationId: active.id,
@@ -208,16 +328,22 @@ class ChatNotifier extends StateNotifier<ChatState> {
           messages: messages,
         );
       }
-      print('[$_tag] Session initialized: ${state.currentConversationId}');
+      print(
+        '[$_tag] Session initialized: '
+        '${state.currentConversationId}',
+      );
     } on Object catch (e) {
-      print('[$_tag] ERROR: initializeSession failed - $e');
+      print(
+        '[$_tag] ERROR: initializeSession failed - $e',
+      );
       await loadConversation();
     }
   }
 
   Future<void> createNewChat() async {
     try {
-      final conv = await _conversationRepository.createConversation();
+      final conv =
+          await _conversationRepository.createConversation();
       _agent.clearHistory();
       if (!mounted) return;
       state = state.copyWith(
@@ -226,20 +352,27 @@ class ChatNotifier extends StateNotifier<ChatState> {
         errorMessage: null,
         agentSteps: [],
         isConfirming: false,
+        isAwaitingPermission: false,
         currentConversationId: conv.id,
         currentConversationTitle: conv.title,
       );
-      print('[$_tag] Created new conversation: ${conv.id}');
+      print(
+        '[$_tag] Created new conversation: ${conv.id}',
+      );
     } on Object catch (e) {
       print('[$_tag] ERROR: createNewChat failed - $e');
     }
   }
 
-  Future<void> switchConversation(String id, String title) async {
+  Future<void> switchConversation(
+    String id,
+    String title,
+  ) async {
     try {
       _conversationRepository.setActiveConversationId(id);
       _agent.clearHistory();
-      final messages = await _conversationRepository.loadConversation(id);
+      final messages =
+          await _conversationRepository.loadConversation(id);
       if (!mounted) return;
       state = state.copyWith(
         messages: messages,
@@ -247,12 +380,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
         errorMessage: null,
         agentSteps: [],
         isConfirming: false,
+        isAwaitingPermission: false,
         currentConversationId: id,
         currentConversationTitle: title,
       );
       print('[$_tag] Switched to conversation: $id');
     } on Object catch (e) {
-      print('[$_tag] ERROR: switchConversation failed - $e');
+      print(
+        '[$_tag] ERROR: switchConversation failed - $e',
+      );
     }
   }
 
@@ -261,13 +397,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
       await _conversationRepository.deleteConversation(id);
       if (!mounted) return;
       if (state.currentConversationId == id) {
-        final remaining =
-            await _conversationRepository.getAllConversations();
+        final remaining = await _conversationRepository
+            .getAllConversations();
         if (remaining.isNotEmpty) {
           final first = remaining.first;
           await switchConversation(first.id, first.title);
         } else {
-          final conv = await _conversationRepository.createConversation();
+          final conv = await _conversationRepository
+              .createConversation();
           _agent.clearHistory();
           state = state.copyWith(
             messages: [],
@@ -275,6 +412,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
             errorMessage: null,
             agentSteps: [],
             isConfirming: false,
+            isAwaitingPermission: false,
             currentConversationId: conv.id,
             currentConversationTitle: conv.title,
           );
@@ -282,12 +420,20 @@ class ChatNotifier extends StateNotifier<ChatState> {
       }
       print('[$_tag] Deleted conversation: $id');
     } on Object catch (e) {
-      print('[$_tag] ERROR: deleteConversation failed - $e');
+      print(
+        '[$_tag] ERROR: deleteConversation failed - $e',
+      );
     }
   }
 
-  Future<void> loadModel(String path, {int? contextSize}) async {
-    await _llmRepository.loadModel(path, contextSize: contextSize);
+  Future<void> loadModel(
+    String path, {
+    int? contextSize,
+  }) async {
+    await _llmRepository.loadModel(
+      path,
+      contextSize: contextSize,
+    );
   }
 
   Future<void> clearChat() async {

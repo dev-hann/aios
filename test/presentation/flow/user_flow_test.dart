@@ -264,6 +264,14 @@ class _CompletableAgent implements AgentStrategy {
   }
 
   @override
+  void resolvePermission(bool granted) {}
+
+  @override
+  void setPermissionChecker(
+    Future<bool> Function(String permissionKey)? checker,
+  ) {}
+
+  @override
   String getToolManifest() => '- test: test';
 
   @override
@@ -302,6 +310,14 @@ class _ErrorAgent implements AgentStrategy {
 
   @override
   void resolveConfirmation(bool approved) {}
+
+  @override
+  void resolvePermission(bool granted) {}
+
+  @override
+  void setPermissionChecker(
+    Future<bool> Function(String permissionKey)? checker,
+  ) {}
 
   @override
   String getToolManifest() => '- test: test';
@@ -357,6 +373,14 @@ class _DelayedAgent implements AgentStrategy {
   void resolveConfirmation(bool approved) {
     if (!_completer.isCompleted) _completer.complete();
   }
+
+  @override
+  void resolvePermission(bool granted) {}
+
+  @override
+  void setPermissionChecker(
+    Future<bool> Function(String permissionKey)? checker,
+  ) {}
 
   @override
   String getToolManifest() => '- test: test';

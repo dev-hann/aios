@@ -17,6 +17,7 @@ class AgentStep with _$AgentStep {
     @Default('') String phase,
     @Default(0) int retryAttempt,
     @Default(0) int maxRetries,
+    @Default('') String permission,
   }) = _AgentStep;
 
   factory AgentStep.fromJson(Map<String, dynamic> json) =>

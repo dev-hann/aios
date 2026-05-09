@@ -19,12 +19,14 @@ import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 final toolContextProvider = Provider<ToolContext>((ref) {
   throw UnimplementedError('toolContextProvider must be overridden');
 });
 
-final conversationContextProvider = Provider<ConversationContext>((ref) {
+final conversationContextProvider =
+    Provider<ConversationContext>((ref) {
   return ConversationContext();
 });
 
@@ -34,10 +36,28 @@ final toolPreferenceTrackerProvider =
 });
 
 final agentEngineProvider = Provider<LlmEngine?>((ref) {
-  throw UnimplementedError('agentEngineProvider must be overridden');
+  throw UnimplementedError(
+    'agentEngineProvider must be overridden',
+  );
 });
 
-final modelLoadedPathProvider = StateProvider<String?>((ref) => null);
+final modelLoadedPathProvider =
+    StateProvider<String?>((ref) => null);
+
+Future<bool> _defaultPermissionChecker(
+  String permissionKey,
+) async {
+  switch (permissionKey) {
+    case 'contacts':
+      return Permission.contacts.status.isGranted;
+    case 'phone':
+      return Permission.phone.status.isGranted;
+    case 'sms':
+      return Permission.sms.status.isGranted;
+    default:
+      return true;
+  }
+}
 
 final agentProvider = Provider<AgentStrategy>((ref) {
   ref.watch(modelLoadedPathProvider);
@@ -79,6 +99,7 @@ final agentProvider = Provider<AgentStrategy>((ref) {
     extendedTools: extendedTools,
   );
 
+  strategy.setPermissionChecker(_defaultPermissionChecker);
   strategy.setConversationContext(conversationContext);
   strategy.setToolPreferenceTracker(preferenceTracker);
 
@@ -109,10 +130,19 @@ class _PlaceholderStrategy implements AgentStrategy {
   void resolveConfirmation(bool approved) {}
 
   @override
+  void resolvePermission(bool granted) {}
+
+  @override
+  void setPermissionChecker(
+    Future<bool> Function(String permissionKey)? checker,
+  ) {}
+
+  @override
   String getToolManifest() => '';
 
   @override
-  List<({String role, String content})> getConversationHistory() => [];
+  List<({String role, String content})>
+      getConversationHistory() => [];
 
   @override
   void clearHistory() {}
@@ -121,5 +151,7 @@ class _PlaceholderStrategy implements AgentStrategy {
   void setConversationContext(ConversationContext? context) {}
 
   @override
-  void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {}
+  void setToolPreferenceTracker(
+    ToolPreferenceTracker? tracker,
+  ) {}
 }

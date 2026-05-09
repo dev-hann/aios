@@ -16,6 +16,12 @@ abstract class AgentStrategy {
 
   void resolveConfirmation(bool approved);
 
+  void resolvePermission(bool granted);
+
+  void setPermissionChecker(
+    Future<bool> Function(String permissionKey)? checker,
+  );
+
   String getToolManifest();
 
   List<({String role, String content})> getConversationHistory();

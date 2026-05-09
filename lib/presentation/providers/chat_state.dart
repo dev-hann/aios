@@ -17,6 +17,7 @@ class ChatState with _$ChatState {
     String? errorMessage,
     @Default([]) List<AgentStep> agentSteps,
     @Default(false) bool isConfirming,
+    @Default(false) bool isAwaitingPermission,
     String? currentConversationId,
     @Default('새 대화') String currentConversationTitle,
   }) = _ChatState;
@@ -31,6 +32,7 @@ class ChatState with _$ChatState {
     'thought',
     'thinking_start',
     'thinking_end',
+    'permission_required',
   };
 
   factory ChatState.fromJson(Map<String, dynamic> json) =>

@@ -1,4 +1,5 @@
 import 'package:aios/core/theme/app_colors.dart';
+import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/agent/user_message_mapper.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/service_state.dart';
@@ -407,7 +408,11 @@ class _MessageListState extends State<_MessageList> {
 
             final stepIndex = index - messages.length;
             if (stepIndex < agentSteps.length) {
-              return _SystemAnnotation(step: agentSteps[stepIndex]);
+              final step = agentSteps[stepIndex];
+              if (step.type == 'permission_required') {
+                return _PermissionCard(step: step);
+              }
+              return _SystemAnnotation(step: step);
             }
 
             return const _ThinkingIndicator();
@@ -491,6 +496,7 @@ class _SystemAnnotation extends StatelessWidget {
         'action' => Icons.build_outlined,
         'observation' => Icons.check_circle_outline,
         'confirmation_required' => Icons.shield_outlined,
+        'permission_required' => Icons.lock_outline,
         _ => Icons.circle,
       };
 
@@ -528,9 +534,125 @@ class _SystemAnnotation extends StatelessWidget {
             : '\uACB0\uACFC: $summary';
       case 'confirmation_required':
         return '\uC0AC\uC6A9\uC790 \uD655\uC778 \uB300\uAE30 \uC911...';
+      case 'permission_required':
+        return step.content;
       default:
         return step.content;
     }
+  }
+}
+
+class _PermissionCard extends StatelessWidget {
+  const _PermissionCard({required this.step});
+
+  final AgentStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    final perm =
+        ToolPermissionMapper.getByKey(step.permission);
+    final isService = perm?.isService ?? false;
+    final displayName = perm?.displayName ?? step.content;
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 6,
+        ),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceModal,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+            color: AppColors.warning.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.lock_outline,
+                  size: 18,
+                  color: AppColors.warning,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$displayName \uAD8C\uD55C\uC774 \uD544\uC694\uD569\uB2C8\uB2E4',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    _resolve(context, false);
+                  },
+                  child: const Text(
+                    '\uB098\uC911\uC5D0',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Consumer(
+                  builder: (context, ref, _) {
+                    return TextButton(
+                      onPressed: () {
+                        _resolve(context, true);
+                      },
+                      style: TextButton.styleFrom(
+                        backgroundColor:
+                            AppColors.primary.withValues(
+                          alpha: 0.15,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            AppRadius.sm,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        isService
+                            ? '\uC124\uC815\uC73C\uB85C \uC774\uB3D9'
+                            : '\uD5C8\uC6A9\uD558\uAE30',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _resolve(BuildContext context, bool granted) {
+    final notifier = context.findAncestorStateOfType<
+        _ChatScreenState>();
+    notifier?.ref
+        .read(chatStateProvider.notifier)
+        .resolvePermission(granted);
   }
 }
 
