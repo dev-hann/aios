@@ -74,11 +74,10 @@ class AIOSApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider);
     return MaterialApp.router(
       title: 'AIOS',
       debugShowCheckedModeBanner: false,
-      theme: aiosThemeOf(settings.themeMode),
+      theme: aiosDarkTheme,
       routerConfig: ref.watch(routerProvider),
     );
   }

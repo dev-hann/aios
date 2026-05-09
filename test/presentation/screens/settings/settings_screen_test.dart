@@ -3,13 +3,18 @@ import 'dart:async';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/model_info.dart';
 import 'package:aios/domain/entities/service_state.dart';
+import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/model_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
+import 'package:aios/domain/repositories/update_repository.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/model_provider.dart';
 import 'package:aios/presentation/providers/settings_notifier.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
+import 'package:aios/presentation/providers/update_notifier.dart';
+import 'package:aios/presentation/providers/update_provider.dart';
+import 'package:aios/presentation/providers/update_state.dart';
 import 'package:aios/presentation/screens/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,7 +30,6 @@ class _MockSettingsRepository implements SettingsRepository {
   double _repeatPenalty = SettingsRepository.defaultRepeatPenalty;
   int _agentMaxIterations = SettingsRepository.defaultAgentMaxIterations;
   String? _lastModelPath;
-  String _themeMode = 'dark';
   bool _onboardingCompleted = false;
 
   @override
@@ -44,8 +48,6 @@ class _MockSettingsRepository implements SettingsRepository {
   int get agentMaxIterations => _agentMaxIterations;
   @override
   String? get lastModelPath => _lastModelPath;
-  @override
-  String get themeMode => _themeMode;
   @override
   bool get onboardingCompleted => _onboardingCompleted;
 
@@ -68,8 +70,6 @@ class _MockSettingsRepository implements SettingsRepository {
   Future<void> setLastModelPath(String path) async => _lastModelPath = path;
   @override
   Future<void> clearLastModelPath() async => _lastModelPath = null;
-  @override
-  Future<void> setThemeMode(String mode) async => _themeMode = mode;
   @override
   Future<void> setOnboardingCompleted() async =>
       _onboardingCompleted = true;
@@ -136,10 +136,27 @@ class _MockModelRepository implements ModelRepository {
   }
 }
 
+class _MockUpdateRepository implements UpdateRepository {
+  @override
+  Future<UpdateResult> checkForUpdate() async {
+    return const UpdateResult.notAvailable();
+  }
+
+  @override
+  Future<String?> downloadApk(String url, String fileName,
+      {void Function(double)? onProgress}) async {
+    return '/tmp/fake.apk';
+  }
+
+  @override
+  Future<bool> installApk(String apkPath) async => true;
+}
+
 Widget _createTestWidget({_MockModelRepository? modelRepo}) {
   final settingsRepo = _MockSettingsRepository();
   final llmRepo = _MockLlmRepository();
   final mRepo = modelRepo ?? _MockModelRepository();
+  final updateRepo = _MockUpdateRepository();
 
   return ProviderScope(
     overrides: [
@@ -149,6 +166,8 @@ Widget _createTestWidget({_MockModelRepository? modelRepo}) {
       settingsProvider.overrideWith(
         (ref) => SettingsNotifier(settingsRepo, llmRepo, mRepo),
       ),
+      updateRepositoryProvider.overrideWithValue(updateRepo),
+      currentVersionProvider.overrideWithValue('1.0.0'),
     ],
     child: const MaterialApp(
       home: SettingsScreen(),
@@ -173,38 +192,31 @@ void main() {
   });
 
   group('SettingsScreen', () {
-    testWidgets('shows_context_size_section', (tester) async {
+    testWidgets('shows_model_section', (tester) async {
       await tester.pumpWidget(_createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Context Size'), findsOneWidget);
+      expect(find.text('Model'), findsOneWidget);
+      expect(find.text('No model loaded'), findsOneWidget);
     });
 
-    testWidgets('shows_temperature_slider', (tester) async {
+    testWidgets('shows_inference_section', (tester) async {
       await tester.pumpWidget(_createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Temperature'), findsOneWidget);
-      expect(find.byType(Slider), findsWidgets);
+      expect(find.text('Inference'), findsOneWidget);
     });
 
-    testWidgets('shows_model_management_section', (tester) async {
+    testWidgets('shows_permissions_section', (tester) async {
       await tester.pumpWidget(_createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Model Management'), findsOneWidget);
-      expect(find.text('No models found'), findsOneWidget);
+      expect(find.text('Permissions'), findsOneWidget);
     });
 
     testWidgets('shows_update_check_button', (tester) async {
       await tester.pumpWidget(_createTestWidget());
       await tester.pumpAndSettle();
-
-      await tester.scrollUntilVisible(
-        find.text('Check for Updates'),
-        200,
-        scrollable: find.byType(Scrollable),
-      );
 
       expect(find.text('Check for Updates'), findsOneWidget);
     });
@@ -213,84 +225,14 @@ void main() {
       await tester.pumpWidget(_createTestWidget());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Version'),
-        200,
-        scrollable: find.byType(Scrollable),
-      );
-
       expect(find.text('Version'), findsOneWidget);
     });
 
-    testWidgets('shows_about_section', (tester) async {
+    testWidgets('shows_github_link', (tester) async {
       await tester.pumpWidget(_createTestWidget());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('About'),
-        200,
-        scrollable: find.byType(Scrollable),
-      );
-
-      expect(find.text('About'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
-    });
-
-    testWidgets('shows_inference_parameters', (tester) async {
-      await tester.pumpWidget(_createTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Inference Parameters'), findsOneWidget);
-      expect(find.text('Max Tokens'), findsOneWidget);
-      expect(find.text('Top-K'), findsOneWidget);
-      expect(find.text('Top-P'), findsOneWidget);
-      expect(find.text('Repeat Penalty'), findsOneWidget);
-    });
-
-    testWidgets('shows_agent_settings', (tester) async {
-      await tester.pumpWidget(_createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.scrollUntilVisible(
-        find.text('Agent Settings'),
-        200,
-        scrollable: find.byType(Scrollable),
-      );
-
-      expect(find.text('Agent Settings'), findsOneWidget);
-      expect(find.text('Max Iterations'), findsOneWidget);
-    });
-
-    testWidgets('shows_scan_and_import_buttons', (tester) async {
-      await tester.pumpWidget(_createTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Scan'), findsOneWidget);
-      expect(find.text('Import'), findsOneWidget);
-    });
-
-    testWidgets('shows_appearance_section', (tester) async {
-      await tester.pumpWidget(_createTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Appearance'), findsOneWidget);
-      expect(find.text('Theme'), findsOneWidget);
-    });
-
-    testWidgets('shows_permissions_section', (tester) async {
-      await tester.pumpWidget(_createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.scrollUntilVisible(
-        find.text('Permissions'),
-        200,
-        scrollable: find.byType(Scrollable),
-      );
-
-      expect(find.text('Permissions'), findsOneWidget);
-      expect(find.text('Storage'), findsOneWidget);
-      expect(find.text('Notifications'), findsOneWidget);
-      expect(find.text('Contacts'), findsOneWidget);
     });
   });
 
@@ -299,19 +241,13 @@ void main() {
       await tester.pumpWidget(_createTestWidget());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Check for Updates'),
-        500,
-        scrollable: find.byType(Scrollable),
-      );
-
       final updateButton = find.widgetWithText(
-        ElevatedButton,
+        OutlinedButton,
         'Check for Updates',
       );
       expect(updateButton, findsOneWidget);
 
-      final button = tester.widget<ElevatedButton>(updateButton);
+      final button = tester.widget<OutlinedButton>(updateButton);
       expect(button.onPressed, isNotNull);
     });
   });
@@ -321,12 +257,6 @@ void main() {
       await tester.pumpWidget(_createTestWidget());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('GitHub'),
-        500,
-        scrollable: find.byType(Scrollable),
-      );
-
       final githubTile = find.ancestor(
         of: find.text('GitHub'),
         matching: find.byType(ListTile),
@@ -335,54 +265,6 @@ void main() {
 
       final tile = tester.widget<ListTile>(githubTile);
       expect(tile.onTap, isNotNull);
-    });
-  });
-
-  group('SettingsScreen Import button', () {
-    testWidgets('importButton_isTappable', (tester) async {
-      await tester.pumpWidget(_createTestWidget());
-      await tester.pumpAndSettle();
-
-      final importButton = find.widgetWithText(ElevatedButton, 'Import');
-      expect(importButton, findsOneWidget);
-
-      final button = tester.widget<ElevatedButton>(importButton);
-      expect(button.onPressed, isNotNull);
-    });
-
-    testWidgets('importButton_showsNoFilesSnackBarWhenNoExternal', (tester) async {
-      await tester.pumpWidget(_createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Import'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('No .gguf files found in Downloads folder'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('importButton_showsDialogWhenExternalModels', (tester) async {
-      final modelRepo = _MockModelRepository();
-      modelRepo.addExternalModel(
-        const ModelInfo(
-          name: 'test.gguf',
-          size: 1024,
-          path: '/sdcard/Download/test.gguf',
-        ),
-      );
-
-      await tester.pumpWidget(_createTestWidget(modelRepo: modelRepo));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Import'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Import Model'), findsOneWidget);
-      expect(find.text('test.gguf'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'Import'), findsOneWidget);
-      expect(find.text('Close'), findsOneWidget);
     });
   });
 }

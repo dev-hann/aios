@@ -17,8 +17,6 @@ abstract class SettingsRepository {
   Future<void> setAgentMaxIterations(int value);
   Future<void> setLastModelPath(String path);
   Future<void> clearLastModelPath();
-  String get themeMode;
-  Future<void> setThemeMode(String mode);
   bool get onboardingCompleted;
   Future<void> setOnboardingCompleted();
 

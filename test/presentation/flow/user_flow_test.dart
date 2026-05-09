@@ -154,7 +154,6 @@ class _MockSettingsRepository implements SettingsRepository {
   double _repeatPenalty = SettingsRepository.defaultRepeatPenalty;
   int _agentMaxIterations = SettingsRepository.defaultAgentMaxIterations;
   String? _lastModelPath;
-  String _themeMode = 'dark';
   bool _onboardingCompleted;
 
   _MockSettingsRepository({bool onboardingCompleted = true})
@@ -176,8 +175,6 @@ class _MockSettingsRepository implements SettingsRepository {
   int get agentMaxIterations => _agentMaxIterations;
   @override
   String? get lastModelPath => _lastModelPath;
-  @override
-  String get themeMode => _themeMode;
   @override
   bool get onboardingCompleted => _onboardingCompleted;
 
@@ -201,8 +198,6 @@ class _MockSettingsRepository implements SettingsRepository {
   Future<void> setLastModelPath(String path) async => _lastModelPath = path;
   @override
   Future<void> clearLastModelPath() async => _lastModelPath = null;
-  @override
-  Future<void> setThemeMode(String mode) async => _themeMode = mode;
   @override
   Future<void> setOnboardingCompleted() async =>
       _onboardingCompleted = true;

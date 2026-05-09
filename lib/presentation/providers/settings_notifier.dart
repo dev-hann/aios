@@ -3,7 +3,6 @@ import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/model_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
 import 'package:aios/presentation/providers/settings_state.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
@@ -41,34 +40,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         agentMaxIterations: _settingsRepository.agentMaxIterations,
         lastModelPath: _settingsRepository.lastModelPath,
         availableModels: _modelRepository.scanModels(),
-        themeMode: _parseThemeMode(_settingsRepository.themeMode),
         onboardingCompleted: _settingsRepository.onboardingCompleted,
       );
       print('[$_tag] Settings loaded');
     } catch (e) {
       print('[$_tag] ERROR: loadSettings failed - $e');
     }
-  }
-
-  ThemeMode _parseThemeMode(String mode) {
-    return switch (mode) {
-      'light' => ThemeMode.light,
-      'dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
-    };
-  }
-
-  String _themeModeToString(ThemeMode mode) {
-    return switch (mode) {
-      ThemeMode.light => 'light',
-      ThemeMode.dark => 'dark',
-      ThemeMode.system => 'system',
-    };
-  }
-
-  Future<void> updateThemeMode(ThemeMode mode) async {
-    await _settingsRepository.setThemeMode(_themeModeToString(mode));
-    state = state.copyWith(themeMode: mode);
   }
 
   Future<void> completeOnboarding() async {

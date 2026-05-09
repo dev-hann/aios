@@ -1,6 +1,5 @@
 import 'package:aios/domain/entities/model_info.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'settings_state.freezed.dart';
@@ -18,7 +17,6 @@ class SettingsState with _$SettingsState {
     String? lastModelPath,
     @Default([]) List<ModelInfo> availableModels,
     @Default(false) bool isLoadingModel,
-    @Default(ThemeMode.dark) ThemeMode themeMode,
     @Default(false) bool onboardingCompleted,
   }) = _SettingsState;
 

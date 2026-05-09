@@ -1,12 +1,13 @@
 import 'package:aios/core/theme/app_colors.dart';
-import 'package:aios/domain/entities/model_info.dart';
+import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/providers/settings_state.dart';
+import 'package:aios/presentation/providers/update_provider.dart';
+import 'package:aios/presentation/providers/update_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -27,490 +28,15 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          _ModelSection(state: state),
-          const _SectionDivider(),
-          _ThemeSection(state: state),
-          const _SectionDivider(),
-          _InferenceSection(state: state),
-          const _SectionDivider(),
-          _AgentSection(state: state),
-          const _SectionDivider(),
-          const _PermissionSection(),
-          const _SectionDivider(),
-          _AppInfoSection(),
-          const _SectionDivider(),
-          _AboutSection(),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModelSection extends ConsumerWidget {
-  const _ModelSection({required this.state});
-
-  final SettingsState state;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return _SectionCard(
-      title: 'Model Management',
-      icon: Icons.psychology,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (state.isLoadingModel)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: LinearProgressIndicator(
-                color: AppColors.primary,
-              ),
-            ),
-          if (state.availableModels.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'No models found',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-            )
-          else
-            ...state.availableModels.map(
-              (model) => _ModelTile(model: model),
-            ),
+          _ModelNavTile(state: state),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await _requestStoragePermission(context);
-                    if (context.mounted) {
-                      ref.read(settingsProvider.notifier).scanModels();
-                    }
-                  },
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Scan'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    _showImportDialog(context, ref);
-                  },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Import'),
-                ),
-              ),
-            ],
-          ),
+          _InferenceNavTile(state: state),
+          const SizedBox(height: 8),
+          _PermissionNavTile(),
+          const SizedBox(height: 8),
+          _AppInfoSection(),
+          const SizedBox(height: 16),
         ],
-      ),
-    );
-  }
-
-  void _showImportDialog(BuildContext context, WidgetRef ref) async {
-    final externalModels =
-        ref.read(settingsProvider.notifier).scanImportableModels();
-    final internalModels = ref.read(settingsProvider).availableModels;
-    final internalNames = internalModels.map((m) => m.name).toSet();
-
-    if (!context.mounted) return;
-
-    if (externalModels.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No .gguf files found in Downloads folder'),
-        ),
-      );
-      return;
-    }
-
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => _ImportDialog(
-        models: externalModels,
-        internalNames: internalNames,
-        onImport: (model) async {
-          final success = await ref
-              .read(settingsProvider.notifier)
-              .importModel(model.path, model.name);
-          if (dialogContext.mounted) {
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              SnackBar(
-                content: Text(
-                  success
-                      ? 'Model imported: ${model.name}'
-                      : 'Failed to import model',
-                ),
-              ),
-            );
-          }
-        },
-      ),
-    );
-  }
-}
-
-class _ModelTile extends ConsumerWidget {
-  const _ModelTile({required this.model});
-
-  final ModelInfo model;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(settingsProvider);
-    final isActive = state.lastModelPath == model.path;
-
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        isActive ? Icons.check_circle : Icons.circle_outlined,
-        color: isActive ? AppColors.primary : AppColors.textSecondary,
-        size: 20,
-      ),
-      title: Text(
-        model.name,
-        style: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-      subtitle: Text(
-        _formatSize(model.size),
-        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-      ),
-      trailing: isActive
-          ? null
-          : TextButton(
-              onPressed: () {
-                ref.read(settingsProvider.notifier).loadModel(model.path);
-              },
-              child: const Text('Load'),
-            ),
-    );
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1048576) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / 1048576).toStringAsFixed(1)} MB';
-  }
-}
-
-class _ImportDialog extends StatefulWidget {
-  const _ImportDialog({
-    required this.models,
-    required this.internalNames,
-    required this.onImport,
-  });
-
-  final List<ModelInfo> models;
-  final Set<String> internalNames;
-  final Future<void> Function(ModelInfo) onImport;
-
-  @override
-  State<_ImportDialog> createState() => _ImportDialogState();
-}
-
-class _ImportDialogState extends State<_ImportDialog> {
-  String? _importingName;
-  final Set<String> _importedNames = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _importedNames.addAll(widget.internalNames);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: const Text(
-        'Import Model',
-        style: TextStyle(color: AppColors.textPrimary),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: widget.models.isEmpty
-            ? const Text(
-                'No importable models found',
-                style: TextStyle(color: AppColors.textSecondary),
-              )
-            : ListView.builder(
-                shrinkWrap: true,
-                itemCount: widget.models.length,
-                itemBuilder: (context, index) {
-                  final model = widget.models[index];
-                  final isImported = _importedNames.contains(model.name);
-                  final isImporting = _importingName == model.name;
-
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      isImported
-                          ? Icons.check_circle
-                          : Icons.download_rounded,
-                      color: isImported
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                      size: 20,
-                    ),
-                    title: Text(
-                      model.name,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: isImported
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    subtitle: Text(
-                      _formatSize(model.size),
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                    trailing: isImported
-                        ? const Text(
-                            'Imported',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                            ),
-                          )
-                        : isImporting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary,
-                                ),
-                              )
-                            : TextButton(
-                                onPressed: () => _handleImport(model),
-                                child: const Text('Import'),
-                              ),
-                  );
-                },
-              ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _handleImport(ModelInfo model) async {
-    setState(() => _importingName = model.name);
-    await widget.onImport(model);
-    if (mounted) {
-      setState(() {
-        _importingName = null;
-        _importedNames.add(model.name);
-      });
-    }
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1048576) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / 1048576).toStringAsFixed(1)} MB';
-  }
-}
-
-class _InferenceSection extends ConsumerWidget {
-  const _InferenceSection({required this.state});
-
-  final SettingsState state;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return _SectionCard(
-      title: 'Inference Parameters',
-      icon: Icons.tune,
-      child: Column(
-        children: [
-          _SliderTile(
-            label: 'Context Size',
-            value: state.contextSize.toDouble(),
-            min: 512,
-            max: 8192,
-            divisions: 15,
-            displayValue: '${state.contextSize}',
-            onChanged: (v) =>
-                ref.read(settingsProvider.notifier).updateContextSize(v.round()),
-          ),
-          _SliderTile(
-            label: 'Temperature',
-            value: state.temperature,
-            min: 0.0,
-            max: 2.0,
-            divisions: 20,
-            displayValue: state.temperature.toStringAsFixed(2),
-            onChanged: (v) =>
-                ref.read(settingsProvider.notifier).updateTemperature(v),
-          ),
-          _SliderTile(
-            label: 'Max Tokens',
-            value: state.maxTokens.toDouble(),
-            min: 64,
-            max: 2048,
-            divisions: 18,
-            displayValue: '${state.maxTokens}',
-            onChanged: (v) =>
-                ref.read(settingsProvider.notifier).updateMaxTokens(v.round()),
-          ),
-          _SliderTile(
-            label: 'Top-K',
-            value: state.topK.toDouble(),
-            min: 1,
-            max: 100,
-            divisions: 99,
-            displayValue: '${state.topK}',
-            onChanged: (v) =>
-                ref.read(settingsProvider.notifier).updateTopK(v.round()),
-          ),
-          _SliderTile(
-            label: 'Top-P',
-            value: state.topP,
-            min: 0.0,
-            max: 1.0,
-            divisions: 20,
-            displayValue: state.topP.toStringAsFixed(2),
-            onChanged: (v) =>
-                ref.read(settingsProvider.notifier).updateTopP(v),
-          ),
-          _SliderTile(
-            label: 'Repeat Penalty',
-            value: state.repeatPenalty,
-            min: 0.5,
-            max: 2.0,
-            divisions: 15,
-            displayValue: state.repeatPenalty.toStringAsFixed(2),
-            onChanged: (v) =>
-                ref.read(settingsProvider.notifier).updateRepeatPenalty(v),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AgentSection extends ConsumerWidget {
-  const _AgentSection({required this.state});
-
-  final SettingsState state;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return _SectionCard(
-      title: 'Agent Settings',
-      icon: Icons.smart_toy,
-      child: _SliderTile(
-        label: 'Max Iterations',
-        value: state.agentMaxIterations.toDouble(),
-        min: 1,
-        max: 20,
-        divisions: 19,
-        displayValue: '${state.agentMaxIterations}',
-        onChanged: (v) => ref
-            .read(settingsProvider.notifier)
-            .updateAgentMaxIterations(v.round()),
-      ),
-    );
-  }
-}
-
-class _AppInfoSection extends StatefulWidget {
-  @override
-  State<_AppInfoSection> createState() => _AppInfoSectionState();
-}
-
-class _AppInfoSectionState extends State<_AppInfoSection> {
-  String _version = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadVersion();
-  }
-
-  Future<void> _loadVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() {
-        _version = '${info.version} (${info.buildNumber})';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'App Info',
-      icon: Icons.info_outline,
-      child: Column(
-        children: [
-          ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Version'),
-            trailing: Text(
-              _version.isNotEmpty ? _version : 'Loading...',
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                context.push('/update');
-              },
-              icon: const Icon(Icons.system_update, size: 18),
-              label: const Text('Check for Updates'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondary,
-                foregroundColor: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AboutSection extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'About',
-      icon: Icons.code,
-      child: ListTile(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        title: const Text('GitHub'),
-        trailing: const Icon(
-          Icons.open_in_new,
-          color: AppColors.primary,
-          size: 20,
-        ),
-        onTap: () async {
-          final uri = Uri.parse('https://github.com/dev-hann/aios');
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-        },
       ),
     );
   }
@@ -566,266 +92,381 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-class _SliderTile extends StatelessWidget {
-  const _SliderTile({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.displayValue,
-    required this.onChanged,
+class _NavTile extends StatelessWidget {
+  const _NavTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    required this.onTap,
+    this.trailing,
   });
 
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final int divisions;
-  final String displayValue;
-  final ValueChanged<double> onChanged;
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                ),
-              ),
-              Text(
-                displayValue,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Card(
+        color: AppColors.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: const BorderSide(color: AppColors.divider),
+        ),
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          SliderTheme(
-            data: SliderThemeData(
-              activeTrackColor: AppColors.sliderActive,
-              inactiveTrackColor: AppColors.sliderInactive,
-              thumbColor: AppColors.primary,
-              overlayColor: AppColors.primary.withValues(alpha: 0.12),
-              trackHeight: 4,
-            ),
-            child: Slider(
-              value: value,
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onChanged,
-            ),
+          leading: Icon(icon, color: AppColors.primary, size: 20),
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 14),
           ),
-        ],
+          subtitle: subtitle != null
+              ? Text(
+                  subtitle!,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                )
+              : null,
+          trailing: trailing ??
+              const Icon(Icons.chevron_right,
+                  color: AppColors.textSecondary, size: 20),
+          onTap: onTap,
+        ),
       ),
     );
   }
 }
 
-class _ThemeSection extends ConsumerWidget {
-  const _ThemeSection({required this.state});
+class _ModelNavTile extends StatelessWidget {
+  const _ModelNavTile({required this.state});
 
   final SettingsState state;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final activeName = _activeModelName();
+    final subtitle = activeName ?? 'No model loaded';
+
+    return _NavTile(
+      icon: Icons.psychology,
+      title: 'Model',
+      subtitle: subtitle,
+      onTap: () => context.push('/settings/model'),
+      trailing: state.isLoadingModel
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            )
+          : null,
+    );
+  }
+
+  String? _activeModelName() {
+    if (state.lastModelPath == null) return null;
+    final model = state.availableModels
+        .where((m) => m.path == state.lastModelPath)
+        .firstOrNull;
+    return model?.name;
+  }
+}
+
+class _InferenceNavTile extends StatelessWidget {
+  const _InferenceNavTile({required this.state});
+
+  final SettingsState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return _NavTile(
+      icon: Icons.tune,
+      title: 'Inference',
+      subtitle:
+          'Temp ${state.temperature.toStringAsFixed(1)} · MaxTok ${state.maxTokens} · Ctx ${state.contextSize}',
+      onTap: () => context.push('/settings/inference'),
+    );
+  }
+}
+
+class _PermissionNavTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return _NavTile(
+      icon: Icons.security,
+      title: 'Permissions',
+      subtitle: 'Manage app permissions',
+      onTap: () => context.push('/settings/permissions'),
+    );
+  }
+}
+
+class _AppInfoSection extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_AppInfoSection> createState() => _AppInfoSectionState();
+}
+
+class _AppInfoSectionState extends ConsumerState<_AppInfoSection> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _version = '${info.version} (${info.buildNumber})';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final updateState = ref.watch(updateProvider);
+
     return _SectionCard(
-      title: 'Appearance',
-      icon: Icons.palette,
+      title: 'App Info',
+      icon: Icons.info_outline,
       child: Column(
         children: [
           ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Theme'),
-            trailing: SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
-                ButtonSegment(value: ThemeMode.system, label: Text('Auto')),
-              ],
-              selected: {state.themeMode},
-              onSelectionChanged: (modes) {
-                ref
-                    .read(settingsProvider.notifier)
-                    .updateThemeMode(modes.first);
-              },
-              style: ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                textStyle: WidgetStateProperty.all(
-                  const TextStyle(fontSize: 12),
+            title: const Text('Version'),
+            trailing: Text(
+              _version.isNotEmpty ? _version : 'Loading...',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          _InlineUpdateStatus(state: updateState),
+          const SizedBox(height: 8),
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('GitHub'),
+            trailing: const Icon(
+              Icons.open_in_new,
+              color: AppColors.primary,
+              size: 20,
+            ),
+            onTap: () async {
+              final uri = Uri.parse('https://github.com/dev-hann/aios');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineUpdateStatus extends ConsumerWidget {
+  const _InlineUpdateStatus({required this.state});
+
+  final UpdateState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = state.status;
+    if (status == UpdateStatus.idle) {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () =>
+              ref.read(updateProvider.notifier).checkForUpdate(),
+          icon: const Icon(Icons.system_update, size: 18),
+          label: const Text('Check for Updates'),
+        ),
+      );
+    }
+    if (status == UpdateStatus.checking) {
+      return const Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary,
+            ),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Checking for updates...',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (status == UpdateStatus.available) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Update available: v${state.updateInfo!.latestVersion}',
+            style: const TextStyle(
+              color: AppColors.success,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            state.updateInfo!.releaseNotes,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  ref.read(updateProvider.notifier).downloadApk(),
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('Download'),
+            ),
+          ),
+        ],
+      );
+    }
+    if (status == UpdateStatus.downloading) {
+      return Column(
+        children: [
+          LinearProgressIndicator(
+            value: state.downloadProgress,
+            backgroundColor: AppColors.sliderInactive,
+            color: AppColors.primary,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Downloading... ${(state.downloadProgress * 100).toStringAsFixed(0)}%',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (status == UpdateStatus.downloaded) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () =>
+              ref.read(updateProvider.notifier).installApk(),
+          icon: const Icon(Icons.install_mobile, size: 18),
+          label: const Text('Install Update'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.success,
+            foregroundColor: AppColors.textPrimary,
+          ),
+        ),
+      );
+    }
+    if (status == UpdateStatus.installing) {
+      return const Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary,
+            ),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Installing update...',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (status == UpdateStatus.installed) {
+      return const Row(
+        children: [
+          Icon(Icons.check_circle, color: AppColors.success, size: 18),
+          SizedBox(width: 8),
+          Text(
+            'Update installed — app will restart',
+            style: TextStyle(color: AppColors.success, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (status == UpdateStatus.notAvailable) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.check_circle_outline,
+                  color: AppColors.success, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Already up to date',
+                style: TextStyle(
+                  color: AppColors.success,
+                  fontSize: 13,
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  ref.read(updateProvider.notifier).checkForUpdate(),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Check Again'),
+            ),
+          ),
+        ],
+      );
+    }
+    if (status == UpdateStatus.error) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            state.errorMessage ?? 'Unknown error',
+            style: const TextStyle(color: AppColors.error, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  ref.read(updateProvider.notifier).checkForUpdate(),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: AppColors.textPrimary,
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PermissionSection extends StatefulWidget {
-  const _PermissionSection();
-
-  @override
-  State<_PermissionSection> createState() => _PermissionSectionState();
-}
-
-class _PermissionSectionState extends State<_PermissionSection> {
-  final Map<String, bool> _statuses = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _checkPermissions();
-  }
-
-  Future<void> _checkPermissions() async {
-    final results = <String, bool>{};
-    results['storage'] =
-        await Permission.manageExternalStorage.status.isGranted;
-    results['notifications'] = await Permission.notification.status.isGranted;
-    results['contacts'] = await Permission.contacts.status.isGranted;
-    results['phone'] = await Permission.phone.status.isGranted;
-    results['sms'] = await Permission.sms.status.isGranted;
-    if (mounted) setState(() => _statuses.addAll(results));
-  }
-
-  Future<void> _requestPermission(String key, Permission permission) async {
-    await permission.request();
-    await _checkPermissions();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Permissions',
-      icon: Icons.security,
-      child: Column(
-        children: [
-          _PermissionTile(
-            icon: Icons.folder,
-            title: 'Storage',
-            granted: _statuses['storage'] ?? false,
-            onRequest: () => _requestPermission(
-              'storage',
-              Permission.manageExternalStorage,
-            ),
-          ),
-          _PermissionTile(
-            icon: Icons.notifications,
-            title: 'Notifications',
-            granted: _statuses['notifications'] ?? false,
-            onRequest: () => _requestPermission(
-              'notifications',
-              Permission.notification,
-            ),
-          ),
-          _PermissionTile(
-            icon: Icons.contacts,
-            title: 'Contacts',
-            granted: _statuses['contacts'] ?? false,
-            onRequest: () => _requestPermission(
-              'contacts',
-              Permission.contacts,
-            ),
-          ),
-          _PermissionTile(
-            icon: Icons.phone,
-            title: 'Phone',
-            granted: _statuses['phone'] ?? false,
-            onRequest: () => _requestPermission(
-              'phone',
-              Permission.phone,
-            ),
-          ),
-          _PermissionTile(
-            icon: Icons.sms,
-            title: 'SMS',
-            granted: _statuses['sms'] ?? false,
-            onRequest: () => _requestPermission(
-              'sms',
-              Permission.sms,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PermissionTile extends StatelessWidget {
-  const _PermissionTile({
-    required this.icon,
-    required this.title,
-    required this.granted,
-    required this.onRequest,
-  });
-
-  final IconData icon;
-  final String title;
-  final bool granted;
-  final VoidCallback onRequest;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        icon,
-        color: granted ? AppColors.success : AppColors.textSecondary,
-        size: 20,
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 13),
-      ),
-      trailing: granted
-          ? const Icon(Icons.check_circle, color: AppColors.success, size: 18)
-          : TextButton(
-              onPressed: onRequest,
-              child: const Text('Grant'),
-            ),
-    );
-  }
-}
-
-class _SectionDivider extends StatelessWidget {
-  const _SectionDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(height: 8);
-  }
-}
-
-Future<void> _requestStoragePermission(BuildContext context) async {
-  final status = await Permission.manageExternalStorage.status;
-  if (status.isGranted) return;
-
-  final result = await Permission.manageExternalStorage.request();
-  if (result.isPermanentlyDenied && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Storage permission denied. '
-          'Enable in Settings > Apps > AIOS > Permissions.',
-        ),
-      ),
-    );
-    await openAppSettings();
+      );
+    }
+    return const SizedBox.shrink();
   }
 }
