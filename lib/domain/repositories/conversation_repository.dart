@@ -13,4 +13,6 @@ abstract class ConversationRepository {
   Future<void> deleteConversation(String id);
   Future<void> updateConversationTitle(String id, String title);
   Stream<List<Conversation>> watchAllConversations();
+
+  void setActiveConversationId(String id);
 }

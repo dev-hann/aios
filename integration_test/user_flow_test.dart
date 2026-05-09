@@ -20,7 +20,6 @@ import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/model_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
-import 'package:aios/presentation/screens/onboarding/onboarding_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -138,46 +137,15 @@ void main() {
               path: '/',
               builder: (_, __) => const ChatScreen(),
             ),
-            GoRoute(
-              path: '/onboarding',
-              builder: (_, __) => const OnboardingScreen(),
-            ),
           ],
         ),
       ),
     );
   }
 
-  group('Device E2E: Onboarding', () {
-    testWidgets('freshApp_showsOnboardingWhenNotCompleted', (tester) async {
-      if (!modelReady) return;
-
-      await tester.pumpWidget(_buildTestApp());
-      await tester.pumpAndSettle(const Duration(seconds: 2));
-
-      final hasWelcome = find.text('Welcome to AIOS').evaluate().isNotEmpty;
-      final hasChat = find.text('AIOS').evaluate().isNotEmpty;
-
-      expect(hasWelcome || hasChat, isTrue);
-    });
-
-    testWidgets('completeOnboarding_navigatesToChat', (tester) async {
-      if (!modelReady) return;
-
-      await settingsRepo.setOnboardingCompleted();
-
-      await tester.pumpWidget(_buildTestApp());
-      await tester.pumpAndSettle(const Duration(seconds: 2));
-
-      expect(find.byType(TextField), findsOneWidget);
-    });
-  });
-
   group('Device E2E: Model load and chat', () {
     testWidgets('loadModelAndSend_firstChat', (tester) async {
       if (!modelReady) return;
-
-      await settingsRepo.setOnboardingCompleted();
 
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
@@ -203,7 +171,6 @@ void main() {
     testWidgets('twoTurnConversation_preservesMessages', (tester) async {
       if (!modelReady) return;
 
-      await settingsRepo.setOnboardingCompleted();
       final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
       expect(loaded, isTrue);
 
@@ -229,7 +196,6 @@ void main() {
     testWidgets('agentExecutes_reachesAnswer', (tester) async {
       if (!modelReady) return;
 
-      await settingsRepo.setOnboardingCompleted();
       final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
       expect(loaded, isTrue);
 
@@ -277,7 +243,6 @@ void main() {
     testWidgets('stopDuringGeneration_interruptsAgent', (tester) async {
       if (!modelReady) return;
 
-      await settingsRepo.setOnboardingCompleted();
       final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
       expect(loaded, isTrue);
 
@@ -304,7 +269,6 @@ void main() {
     testWidgets('deleteChat_restartsFresh', (tester) async {
       if (!modelReady) return;
 
-      await settingsRepo.setOnboardingCompleted();
       final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
       expect(loaded, isTrue);
 

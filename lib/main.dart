@@ -2,6 +2,7 @@ import 'package:aios/core/router/router.dart';
 import 'package:aios/core/theme/theme.dart';
 import 'package:aios/data/datasources/local/database.dart';
 import 'package:aios/data/datasources/remote/github_api.dart';
+import 'package:aios/data/providers/llm_engine_impl.dart';
 import 'package:aios/data/providers/real_llama_engine_provider.dart';
 import 'package:aios/data/providers/tool_context_impl.dart';
 import 'package:aios/data/repositories/conversation_repository_impl.dart';
@@ -39,8 +40,11 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [
-        engineProvider.overrideWithValue(llamaEngine),
-        llamaEngineProvider.overrideWithValue(llamaEngine),
+        agentEngineProvider.overrideWith((ref) {
+          ref.watch(modelLoadedPathProvider);
+          final rawEngine = llamaEngine.engine;
+          return rawEngine != null ? LlmEngineImpl(rawEngine) : null;
+        }),
         llmRepositoryProvider.overrideWithValue(
           LlmRepositoryImpl(llamaEngine),
         ),

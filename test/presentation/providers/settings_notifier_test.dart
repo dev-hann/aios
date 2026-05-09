@@ -20,6 +20,7 @@ class _MockSettingsRepository implements SettingsRepository {
   String? _lastModelPath;
   bool _onboardingCompleted = false;
 
+
   @override
   double get temperature => _temperature;
   @override
@@ -38,6 +39,7 @@ class _MockSettingsRepository implements SettingsRepository {
   String? get lastModelPath => _lastModelPath;
   @override
   bool get onboardingCompleted => _onboardingCompleted;
+
 
   @override
   Future<void> setTemperature(double value) async => _temperature = value;
@@ -61,6 +63,7 @@ class _MockSettingsRepository implements SettingsRepository {
   @override
   Future<void> setOnboardingCompleted() async =>
       _onboardingCompleted = true;
+
 }
 
 class _MockLlmRepository implements LlmRepository {
@@ -561,5 +564,7 @@ void main() {
         expect(settingsRepo.onboardingCompleted, isTrue);
       });
     });
+
+
   });
 }

@@ -1,5 +1,6 @@
 import 'package:aios/core/theme/app_colors.dart';
 import 'package:aios/domain/entities/update_info.dart';
+
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/providers/settings_state.dart';
 import 'package:aios/presentation/providers/update_provider.dart';

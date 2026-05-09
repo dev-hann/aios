@@ -14,6 +14,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const String _keyLastModelPath = 'last_model_path';
   static const String _keyOnboardingCompleted = 'onboarding_completed';
 
+
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
   }
@@ -92,4 +93,5 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setOnboardingCompleted() =>
       _prefs.setBool(_keyOnboardingCompleted, true);
+
 }

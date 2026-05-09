@@ -175,7 +175,7 @@ void main() {
       mockContext.setInvokeResult(null);
       final result = await tool.execute(
           '{"action": "tap", "text": "Btn"}', mockContext);
-      expect(result, 'Error');
+      expect(result, contains('Error:'));
     });
   });
 

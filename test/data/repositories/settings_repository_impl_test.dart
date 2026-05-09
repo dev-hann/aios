@@ -112,6 +112,7 @@ void main() {
       final repo2 = SettingsRepositoryImpl();
       await repo2.init();
       expect(repo2.onboardingCompleted, isTrue);
+
     });
   });
 }

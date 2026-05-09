@@ -19,9 +19,9 @@
 
 ## 2. Current Status
 
-- **817 테스트** 전체 통과
+- **823 단위/위젯 테스트** 전체 통과
+- **9개 통합 테스트 파일** (기기 + GGUF 모델 필요)
 - 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
-- 알려진 사전 실패: `integration_test/database_integration_test.dart` 3개 (`isNull` 관련)
 
 ## 3. Test Scope
 
@@ -31,7 +31,7 @@
 |--------|------|-----------|
 | LlmRepositoryImpl | `lib/data/repositories/llm_repository_impl.dart` | 모델 로드/해제, 추론 호출, 에러 처리, 세션 저장/로드 |
 | ChatNotifier | `lib/presentation/providers/chat_notifier.dart` | sendMessage, stopGeneration, loadModel, state 일관성 |
-| ReactStrategy | `lib/domain/agent/react_strategy.dart` | Phase 1/2 흐름, tool 실행, ParseEmpty 넛지, 루프 감지, multi-tool chaining, context awareness, error recovery |
+| ReactStrategy | `lib/domain/agent/react_strategy.dart` | native tool-calling 루프, tool 실행, 빈 응답 넛지, 루프 감지, multi-tool chaining, context awareness 주입, error recovery |
 | ConversationContext | `lib/domain/agent/conversation_context.dart` | 대화 맥락 유지, 턴 기록/조회, maxTurns, toPromptContext |
 | ToolPreferenceTracker | `lib/domain/agent/tool_preference_tracker.dart` | tool 사용 빈도 추적, getMostUsed, toPromptContext |
 
@@ -39,8 +39,6 @@
 
 | Module | File | Test 항목 |
 |--------|------|-----------|
-| ResponseParser | `lib/domain/agent/response_parser.dart` | Action/Answer/Empty 파싱, JSON args 추출 |
-| PromptBuilder | `lib/domain/agent/prompt_builder.dart` | routing/tool 프롬프트 생성, 컨텍스트 포함, 대화 맥락/선호도 주입 |
 | RiskClassifier | `lib/domain/agent/risk_classifier.dart` | 위험도 분류 (LOW/MEDIUM/HIGH/CRITICAL) |
 | LoopDetector | `lib/domain/agent/loop_detector.dart` | 반복 감지, 넛지/강제종료 |
 | ErrorRecovery | `lib/domain/agent/error_recovery.dart` | 에러 분류, 복구 힌트, 재시도 추적, 사용자 메시지 |
@@ -72,12 +70,17 @@
 
 ### P4: Integration (기기 필요)
 
-| Module | What to Test |
-|--------|--------------|
-| llamadart on-device | 실제 GGUF 모델 로드→추론→해제 |
-| Full Agent Flow | "open youtube" → Phase 1 → Phase 2 → app 실행 |
-| Database | Drift SQLite CRUD, 마이그레이션 |
-| Update | GitHub Release 확인→다운로드→설치 |
+| Module | File | What to Test |
+|--------|------|--------------|
+| llamadart on-device | `model_test.dart` | 실제 GGUF 모델 로드→추론→해제 |
+| Agent integration | `agent_integration_test.dart` | ReactStrategy 실행, cancel, clearHistory |
+| Chat pipeline | `chat_pipeline_test.dart` | LlmRepository sendMessage, token stream, history |
+| Tool execution E2E | `tool_execution_test.dart` | LLM이 calculator/notepad/timer/device_info 선택·실패 |
+| User flow E2E | `user_flow_test.dart` | 모델 로드→채팅→정지→삭제 전체 플로우 |
+| App launch | `app_test.dart` | ChatScreen/SettingsScreen UI 네비게이션 |
+| Database | `database_integration_test.dart` | Drift SQLite CRUD |
+| Settings persistence | `settings_persistence_test.dart` | SharedPreferences 영속성 |
+| Conversation persistence | `conversation_persistence_test.dart` | 대화 저장/로드 |
 
 ## 4. Test Categories
 

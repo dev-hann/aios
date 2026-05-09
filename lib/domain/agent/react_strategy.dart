@@ -8,16 +8,16 @@ import 'package:aios/domain/agent/confirmation_gate.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/error_recovery.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
+import 'package:aios/domain/agent/llm_engine.dart';
 import 'package:aios/domain/agent/loop_detector.dart';
 import 'package:aios/domain/agent/risk_classifier.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
-import 'package:llamadart/llamadart.dart';
 
 class ReactStrategy implements AgentStrategy {
   ReactStrategy({
-    required LlamaEngine engine,
+    required LlmEngine engine,
     ToolContext? toolContext,
     Map<String, AgentTool>? basicTools,
     Map<String, ExtendedTool>? extendedTools,
@@ -26,13 +26,16 @@ class ReactStrategy implements AgentStrategy {
         _basicTools = basicTools ?? {},
         _extendedTools = extendedTools ?? {};
 
-  final LlamaEngine _engine;
+  final LlmEngine _engine;
   final ToolContext? _toolContext;
   final Map<String, AgentTool> _basicTools;
   final Map<String, ExtendedTool> _extendedTools;
 
   ConversationContext? _conversationContext;
   ToolPreferenceTracker? _preferenceTracker;
+
+  LlmChatSession? _session;
+  List<LlmToolSchema>? _cachedToolSchemas;
 
   bool _cancelled = false;
 
@@ -47,60 +50,68 @@ class ReactStrategy implements AgentStrategy {
   Set<String> get _allToolNames =>
       {..._basicTools.keys, ..._extendedTools.keys};
 
+  LlmChatSession _ensureSession() {
+    if (_session == null) {
+      _session = _engine.createSession(_systemPrompt);
+      _cachedToolSchemas = _buildToolSchemas();
+    }
+    return _session!;
+  }
+
   static const _tag = 'AIOS-React';
   static const _maxToolRetries = 1;
 
-  String get _systemPrompt =>
-      'You are AIOS, an on-device phone assistant.\n'
-      'Use tools to help the user. Respond concisely in the user\'s language.\n'
-      'When calling a tool, ALWAYS include ALL required parameters as JSON.\n'
-      'Example: calculator needs {"expression": "2+3"}\n'
-      'If no tool is needed, answer directly.';
+  String get _systemPrompt {
+    final base = StringBuffer();
+    base.writeln('You are AIOS, an on-device phone assistant.');
+    base.writeln('Use tools to help the user. Respond concisely in the user\'s language.');
+    base.writeln('When calling a tool, ALWAYS include ALL required parameters as JSON.');
+    base.writeln('Example: calculator needs {"expression": "2+3"}');
+    base.writeln('If no tool is needed, answer directly.');
 
-  List<ToolDefinition> _buildToolDefinitions() {
-    final defs = <ToolDefinition>[];
+    final contextStr = _conversationContext?.toPromptContext() ?? '';
+    if (contextStr.isNotEmpty) {
+      base.writeln();
+      base.write(contextStr);
+    }
 
+    final prefStr = _preferenceTracker?.toPromptContext() ?? '';
+    if (prefStr.isNotEmpty) {
+      base.writeln();
+      base.write(prefStr);
+    }
+
+    return base.toString();
+  }
+
+  List<LlmToolSchema> _buildToolSchemas() {
+    final schemas = <LlmToolSchema>[];
     for (final tool in _basicTools.values) {
-      defs.add(_basicToolToDefinition(tool));
+      schemas.add(_basicToolToSchema(tool));
     }
     for (final tool in _extendedTools.values) {
-      defs.add(_extendedToolToDefinition(tool));
+      schemas.add(_extendedToolToSchema(tool));
     }
-    return defs;
+    return schemas;
   }
 
-  ToolDefinition _basicToolToDefinition(AgentTool tool) {
-    return ToolDefinition(
+  LlmToolSchema _basicToolToSchema(AgentTool tool) {
+    return LlmToolSchema(
       name: tool.name,
       description: tool.description,
       parameters: _parseParams(tool.parameters),
-      handler: (params) async {
-        final argsJson = jsonEncode(params.raw);
-        return tool.execute(argsJson);
-      },
     );
   }
 
-  ToolDefinition _extendedToolToDefinition(ExtendedTool tool) {
-    return ToolDefinition(
+  LlmToolSchema _extendedToolToSchema(ExtendedTool tool) {
+    return LlmToolSchema(
       name: tool.name,
       description: tool.description,
       parameters: _parseParams(tool.parameters),
-      handler: (params) async {
-        final ctx = _toolContext;
-        if (ctx == null) return 'Error: ToolContext not initialized';
-
-        final argsJson = jsonEncode(params.raw);
-
-        final validationError = await tool.validate(argsJson, ctx);
-        if (validationError != null) return validationError;
-
-        return tool.execute(argsJson, ctx);
-      },
     );
   }
 
-  List<ToolParam> _parseParams(String paramsStr) {
+  List<LlmToolParamSchema> _parseParams(String paramsStr) {
     try {
       final decoded = jsonDecode(paramsStr);
       if (decoded is! Map<String, dynamic>) return [];
@@ -113,15 +124,20 @@ class ReactStrategy implements AgentStrategy {
               .where((v) => v.isNotEmpty)
               .toList();
           if (values.isNotEmpty) {
-            return ToolParam.enumType(
-              e.key,
-              values: values,
+            return LlmToolParamSchema(
+              name: e.key,
               description: desc,
               required: true,
+              isEnum: true,
+              enumValues: values,
             );
           }
         }
-        return ToolParam.string(e.key, description: desc, required: true);
+        return LlmToolParamSchema(
+          name: e.key,
+          description: desc,
+          required: true,
+        );
       }).toList();
     } on Object {
       return [];
@@ -151,21 +167,18 @@ class ReactStrategy implements AgentStrategy {
       steps.add(AgentStep('thought', 'Processing: $prompt'));
       onStep?.call(steps.last);
 
-      final session = ChatSession(
-        _engine,
-        systemPrompt: _systemPrompt,
-      );
+      final session = _ensureSession();
 
-      final tools = _buildToolDefinitions();
-      final generationParams = GenerationParams(
-        temp: 0.7,
+      final tools = _cachedToolSchemas!;
+      final generationConfig = LlmGenerationConfig(
+        temperature: 0.7,
         topK: 40,
         topP: 0.9,
         penalty: 1.1,
         maxTokens: maxTokens,
       );
 
-      var userParts = [LlamaTextContent(prompt)];
+      var userParts = [LlmContentPart.text(prompt)];
 
       for (var i = 0; i < maxIterations; i++) {
         if (_cancelled) break;
@@ -189,28 +202,23 @@ class ReactStrategy implements AgentStrategy {
         final Map<int, _ToolCallAccumulator> toolCallBuilders = {};
 
         try {
-          await for (final chunk in session.create(
+          await for (final chunk in session.chat(
             userParts,
-            params: generationParams,
+            config: generationConfig,
             tools: tools,
           )) {
             if (_cancelled) break;
-            final delta = chunk.choices.first.delta;
-            if (delta.content != null) fullContent += delta.content!;
-            if (delta.thinking != null) fullThinking += delta.thinking!;
+            if (chunk.text != null) fullContent += chunk.text!;
+            if (chunk.thinking != null) fullThinking += chunk.thinking!;
 
-            if (delta.toolCalls != null) {
-              for (final tc in delta.toolCalls!) {
+            if (chunk.toolCallDeltas != null) {
+              for (final tc in chunk.toolCallDeltas!) {
                 toolCallBuilders.putIfAbsent(
                     tc.index, () => _ToolCallAccumulator());
                 final builder = toolCallBuilders[tc.index]!;
                 if (tc.id != null) builder.id = tc.id;
-                if (tc.function?.name != null) {
-                  builder.name = tc.function!.name;
-                }
-                if (tc.function?.arguments != null) {
-                  builder.arguments += tc.function!.arguments!;
-                }
+                if (tc.name != null) builder.name = tc.name;
+                if (tc.arguments != null) builder.arguments += tc.arguments!;
               }
             }
           }
@@ -243,7 +251,7 @@ class ReactStrategy implements AgentStrategy {
             ));
             onStep?.call(steps.last);
             userParts = [
-              LlamaTextContent(
+              LlmContentPart.text(
                 'Please use a tool or provide a direct answer.',
               ),
             ];
@@ -291,6 +299,20 @@ class ReactStrategy implements AgentStrategy {
 
           final risk = _riskClassifier.classify(toolName, argsJson);
 
+          final validationError =
+              await _validateTool(toolName, argsJson);
+          if (validationError != null) {
+            steps.add(AgentStep(
+              'observation',
+              validationError,
+              toolName: toolName,
+              toolResult: validationError,
+            ));
+            onStep?.call(steps.last);
+            session.addToolResult(toolName, validationError);
+            continue;
+          }
+
           if (risk == ToolRisk.high || risk == ToolRisk.critical) {
             final approved =
                 await _confirmationGate.requestConfirmation(
@@ -309,10 +331,7 @@ class ReactStrategy implements AgentStrategy {
                 toolResult: result,
               ));
               onStep?.call(steps.last);
-              session.addMessage(LlamaChatMessage.withContent(
-                role: LlamaChatRole.tool,
-                content: [LlamaToolResultContent(name: toolName, result: result)],
-              ));
+              session.addToolResult(toolName, result);
               continue;
             }
           }
@@ -334,10 +353,7 @@ class ReactStrategy implements AgentStrategy {
           ));
           onStep?.call(steps.last);
 
-          session.addMessage(LlamaChatMessage.withContent(
-            role: LlamaChatRole.tool,
-            content: [LlamaToolResultContent(name: toolName, result: toolResult)],
-          ));
+          session.addToolResult(toolName, toolResult);
 
           final recoveryHint = _errorRecovery.analyze(
             toolName,
@@ -350,7 +366,7 @@ class ReactStrategy implements AgentStrategy {
             if (recoveryHint.shouldRetry) {
               final toolPrompt = _getToolPrompt(toolName);
               userParts = [
-                LlamaTextContent(
+                LlmContentPart.text(
                   '${recoveryHint.promptNudge}\n'
                   '$toolPrompt',
                 ),
@@ -390,6 +406,22 @@ class ReactStrategy implements AgentStrategy {
     final success = steps.any((s) => s.type == 'answer');
     _recordTurn(prompt, steps);
     return AgentResult(steps: steps, success: success);
+  }
+
+  Future<String?> _validateTool(String name, String argsJson) async {
+    final basicTool = _basicTools[name];
+    if (basicTool != null) {
+      return basicTool.validate(argsJson);
+    }
+
+    final extendedTool = _extendedTools[name];
+    if (extendedTool != null) {
+      final ctx = _toolContext;
+      if (ctx == null) return 'Error: ToolContext not initialized';
+      return extendedTool.validate(argsJson, ctx);
+    }
+
+    return null;
   }
 
   Future<String> _executeToolDirect(
@@ -525,7 +557,15 @@ class ReactStrategy implements AgentStrategy {
   List<({String role, String content})> getConversationHistory() => [];
 
   @override
-  void clearHistory() {}
+  void clearHistory() {
+    _session = null;
+    _cachedToolSchemas = null;
+  }
+
+  @override
+  Future<void> warmup() async {
+    await _engine.warmup();
+  }
 
   @override
   void setConversationContext(ConversationContext? context) {

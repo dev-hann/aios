@@ -143,6 +143,9 @@ class _MockConversationRepository implements ConversationRepository {
 
   @override
   Stream<List<Conversation>> watchAllConversations() => Stream.value([]);
+
+  @override
+  void setActiveConversationId(String id) {}
 }
 
 class _MockSettingsRepository implements SettingsRepository {
@@ -158,6 +161,7 @@ class _MockSettingsRepository implements SettingsRepository {
 
   _MockSettingsRepository({bool onboardingCompleted = true})
       : _onboardingCompleted = onboardingCompleted;
+
 
   @override
   double get temperature => _temperature;
@@ -177,6 +181,7 @@ class _MockSettingsRepository implements SettingsRepository {
   String? get lastModelPath => _lastModelPath;
   @override
   bool get onboardingCompleted => _onboardingCompleted;
+
 
   @override
   Future<void> setTemperature(double value) async => _temperature = value;
@@ -201,6 +206,7 @@ class _MockSettingsRepository implements SettingsRepository {
   @override
   Future<void> setOnboardingCompleted() async =>
       _onboardingCompleted = true;
+
 }
 
 class _MockModelRepository implements ModelRepository {
@@ -267,6 +273,9 @@ class _CompletableAgent implements AgentStrategy {
   void clearHistory() {}
 
   @override
+  Future<void> warmup() async {}
+
+  @override
   void setConversationContext(ConversationContext? context) {}
 
   @override
@@ -302,6 +311,9 @@ class _ErrorAgent implements AgentStrategy {
 
   @override
   void clearHistory() {}
+
+  @override
+  Future<void> warmup() async {}
 
   @override
   void setConversationContext(ConversationContext? context) {}
@@ -354,6 +366,9 @@ class _DelayedAgent implements AgentStrategy {
 
   @override
   void clearHistory() {}
+
+  @override
+  Future<void> warmup() async {}
 
   @override
   void setConversationContext(ConversationContext? context) {}

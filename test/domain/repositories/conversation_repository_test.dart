@@ -53,6 +53,9 @@ class _MockConversationRepository implements ConversationRepository {
 
   @override
   Stream<List<Conversation>> watchAllConversations() => Stream.value([]);
+
+  @override
+  void setActiveConversationId(String id) {}
 }
 
 ChatMessage _makeMessage({

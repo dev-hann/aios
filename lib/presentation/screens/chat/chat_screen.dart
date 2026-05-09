@@ -366,14 +366,13 @@ class _MessageListState extends State<_MessageList> {
   Widget build(BuildContext context) {
     final messages = widget.chatState.messages;
     final agentSteps = widget.chatState.agentSteps;
-    final isGenerating = widget.chatState.isGenerating;
 
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: messages.length +
           agentSteps.length +
-          (isGenerating && agentSteps.isEmpty ? 1 : 0),
+          (widget.chatState.isThinking ? 1 : 0),
       itemBuilder: (context, index) {
         if (index < messages.length) {
           return MessageBubble(message: messages[index]);

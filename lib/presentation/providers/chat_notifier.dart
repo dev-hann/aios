@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:aios/data/repositories/conversation_repository_impl.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
@@ -27,10 +26,22 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   static const _tag = 'AIOS-ChatNotifier';
 
+  bool _warmedUp = false;
+
   void _listenToStateChanges() {
     _stateSub = _llmRepository.state.listen((serviceState) {
       if (!mounted) return;
       state = state.copyWith(serviceState: serviceState);
+
+      if (serviceState == ServiceState.ready) {
+        if (!_warmedUp) {
+          _warmedUp = true;
+          _agent.warmup();
+        }
+        if (state.currentConversationId == null) {
+          initializeSession();
+        }
+      }
     });
   }
 
@@ -54,14 +65,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     state = state.copyWith(
       messages: [...state.messages, userMessage],
-      isGenerating: true,
       currentResponse: '',
       errorMessage: null,
-      agentSteps: [],
+      agentSteps: [const AgentStep('thinking_start', '')],
       isConfirming: false,
     );
 
-    await _conversationRepository.appendMessage(userMessage);
+    _conversationRepository
+        .appendMessage(userMessage)
+        .catchError((e) => print('[$_tag] WARN: appendMessage fire-forget - $e'));
 
     if (state.currentConversationTitle == '새 대화' &&
         state.messages.where((m) => m.role == 'user').length == 1) {
@@ -70,8 +82,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
           : text.trim();
       final convId = state.currentConversationId;
       if (convId != null) {
-        await _conversationRepository.updateConversationTitle(convId, title);
         state = state.copyWith(currentConversationTitle: title);
+        _conversationRepository
+            .updateConversationTitle(convId, title)
+            .catchError(
+                (e) => print('[$_tag] WARN: updateTitle fire-forget - $e'));
       }
     }
 
@@ -104,7 +119,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
       }
 
       state = state.copyWith(
-        isGenerating: false,
         agentSteps: [],
         isConfirming: false,
       );
@@ -112,7 +126,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       print('[$_tag] ERROR: sendMessage failed - $e');
       if (!mounted) return;
       state = state.copyWith(
-        isGenerating: false,
+        agentSteps: [],
         errorMessage: e.toString(),
       );
     }
@@ -155,7 +169,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
 
     state = state.copyWith(
-      isGenerating: false,
       isConfirming: false,
       agentSteps: [],
     );
@@ -210,7 +223,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
       state = state.copyWith(
         messages: [],
         currentResponse: '',
-        isGenerating: false,
         errorMessage: null,
         agentSteps: [],
         isConfirming: false,
@@ -225,17 +237,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   Future<void> switchConversation(String id, String title) async {
     try {
-      if (_conversationRepository is ConversationRepositoryImpl) {
-        (_conversationRepository as ConversationRepositoryImpl)
-            .setActiveConversationId(id);
-      }
+      _conversationRepository.setActiveConversationId(id);
       _agent.clearHistory();
       final messages = await _conversationRepository.loadConversation(id);
       if (!mounted) return;
       state = state.copyWith(
         messages: messages,
         currentResponse: '',
-        isGenerating: false,
         errorMessage: null,
         agentSteps: [],
         isConfirming: false,
@@ -264,7 +272,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
           state = state.copyWith(
             messages: [],
             currentResponse: '',
-            isGenerating: false,
             errorMessage: null,
             agentSteps: [],
             isConfirming: false,

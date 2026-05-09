@@ -12,6 +12,7 @@ class _MockSettingsRepository implements SettingsRepository {
   String? _lastModelPath;
   bool _onboardingCompleted = false;
 
+
   @override
   int get contextSize => _contextSize;
 
@@ -38,6 +39,7 @@ class _MockSettingsRepository implements SettingsRepository {
 
   @override
   bool get onboardingCompleted => _onboardingCompleted;
+
 
   @override
   Future<void> setContextSize(int value) async => _contextSize = value;
@@ -70,6 +72,7 @@ class _MockSettingsRepository implements SettingsRepository {
   @override
   Future<void> setOnboardingCompleted() async =>
       _onboardingCompleted = true;
+
 }
 
 void main() {
@@ -170,6 +173,7 @@ void main() {
 
   group('SettingsRepository constants', () {
     test('default_values_areExpected', () {
+
       expect(SettingsRepository.defaultContextSize, 2048);
       expect(SettingsRepository.defaultMaxTokens, 512);
       expect(SettingsRepository.defaultTemperature, 0.7);

@@ -41,6 +41,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         lastModelPath: _settingsRepository.lastModelPath,
         availableModels: _modelRepository.scanModels(),
         onboardingCompleted: _settingsRepository.onboardingCompleted,
+
       );
       print('[$_tag] Settings loaded');
     } catch (e) {
@@ -51,6 +52,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> completeOnboarding() async {
     await _settingsRepository.setOnboardingCompleted();
     state = state.copyWith(onboardingCompleted: true);
+
   }
 
   Future<void> _autoLoadLastModel() async {

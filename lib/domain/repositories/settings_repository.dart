@@ -20,6 +20,7 @@ abstract class SettingsRepository {
   bool get onboardingCompleted;
   Future<void> setOnboardingCompleted();
 
+
   static const int defaultContextSize = 2048;
   static const int defaultMaxTokens = 512;
   static const double defaultTemperature = 0.7;

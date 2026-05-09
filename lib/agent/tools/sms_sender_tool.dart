@@ -59,7 +59,7 @@ class SmsSenderTool extends ExtendedTool {
           'sendSms',
           {'to': to, 'body': body},
         ) ??
-        'Error';
+        'Error: SMS send failed - no response from platform';
   }
 
   Future<String> _readSms(
@@ -71,7 +71,7 @@ class SmsSenderTool extends ExtendedTool {
           'readSms',
           {'limit': limit},
         ) ??
-        'Error';
+        'Error: SMS read failed - no response from platform';
   }
 
   int? _parseInt(dynamic value) {

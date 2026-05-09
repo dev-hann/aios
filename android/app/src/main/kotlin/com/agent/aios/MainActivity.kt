@@ -13,6 +13,8 @@ import android.provider.ContactsContract
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityManager
+import com.agent.aios.overlay.OverlayManager
+import com.agent.aios.service.AiosForegroundService
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -23,7 +25,10 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val TAG = "AIOS-Channel"
         private const val CHANNEL = "com.agent.aios/tools"
+        private const val SERVICE_CHANNEL = "com.agent.aios/service"
     }
+
+    private var overlayManager: OverlayManager? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -33,6 +38,37 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             handleMethodCall(call.method, call.arguments, result)
         }
+
+        overlayManager = OverlayManager(this, flutterEngine.dartExecutor.binaryMessenger)
+        overlayManager?.setup()
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SERVICE_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "startForegroundService" -> {
+                    val intent = Intent(this, AiosForegroundService::class.java)
+                    startForegroundService(intent)
+                    result.success(true)
+                }
+                "stopForegroundService" -> {
+                    val intent = Intent(this, AiosForegroundService::class.java)
+                    stopService(intent)
+                    result.success(true)
+                }
+                "isForegroundServiceRunning" -> {
+                    result.success(AiosForegroundService.isRunning)
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        overlayManager?.dispose()
+        overlayManager = null
+        super.onDestroy()
     }
 
     @Suppress("UNCHECKED_CAST")

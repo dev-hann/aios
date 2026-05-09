@@ -130,7 +130,7 @@ class AppLauncherTool extends ExtendedTool {
           'openApp',
           {'package_name': packageName},
         ) ??
-        'Error';
+        'Error: app launch failed - no response from platform';
     print('[$_tag] openApp result: $result');
     return result;
   }

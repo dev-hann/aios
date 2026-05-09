@@ -138,6 +138,9 @@ class _MockConversationRepository implements ConversationRepository {
 
   @override
   Stream<List<Conversation>> watchAllConversations() => Stream.value([]);
+
+  @override
+  void setActiveConversationId(String id) {}
 }
 
 class _MockSettingsRepository implements SettingsRepository {
@@ -169,6 +172,7 @@ class _MockSettingsRepository implements SettingsRepository {
   @override
   bool get onboardingCompleted => true;
 
+
   @override
   Future<void> setContextSize(int value) async {}
 
@@ -198,6 +202,7 @@ class _MockSettingsRepository implements SettingsRepository {
 
   @override
   Future<void> setOnboardingCompleted() async {}
+
 }
 
 class _MockModelRepository implements ModelRepository {
@@ -264,6 +269,9 @@ class _StepCapturingAgent implements AgentStrategy {
   void clearHistory() {}
 
   @override
+  Future<void> warmup() async {}
+
+  @override
   void setConversationContext(ConversationContext? context) {}
 
   @override
@@ -318,6 +326,9 @@ class _DelayedEmitAgent implements AgentStrategy {
 
   @override
   void clearHistory() {}
+
+  @override
+  Future<void> warmup() async {}
 
   @override
   void setConversationContext(ConversationContext? context) {}

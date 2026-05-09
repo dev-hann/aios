@@ -171,6 +171,9 @@ class _MockConversationRepository implements ConversationRepository {
   @override
   Stream<List<Conversation>> watchAllConversations() =>
       Stream.value(_conversations);
+
+  @override
+  void setActiveConversationId(String id) {}
 }
 
 class _MockAgentStrategy implements AgentStrategy {
@@ -241,6 +244,9 @@ class _MockAgentStrategy implements AgentStrategy {
 
   @override
   void clearHistory() {}
+
+  @override
+  Future<void> warmup() async {}
 
   @override
   void setConversationContext(ConversationContext? context) {}

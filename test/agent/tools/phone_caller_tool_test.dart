@@ -62,7 +62,7 @@ void main() {
       mockContext.setInvokeResult(null);
       final result = await tool.execute(
           '{"action": "call", "number": "010"}', mockContext);
-      expect(result, 'Error');
+      expect(result, contains('Error:'));
     });
   });
 

@@ -4,7 +4,9 @@ AIOS의 내부 아키텍처를 설명합니다.
 
 ## System Overview
 
-AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llamadart (inference via Isolate).
+AIOS는 **Dart Layer** (UI + logic)와 **llamadart** (inference via Isolate) 두 파트로 구성됩니다.
+
+Dart Layer 내부는 Clean Architecture 기반 **3계층 + Core** 구조를 따릅니다.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -12,295 +14,188 @@ AIOS는 **2-layer architecture**를 따릅니다: Dart (UI + logic)과 llamadart
 │                                                               │
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │  Presentation                                          │  │
-│  │  Flutter Widgets + Riverpod StateNotifier + GoRouter   │  │
+│  │  Flutter Widgets + Riverpod + GoRouter                 │  │
 │  └──────────────────────────┬─────────────────────────────┘  │
 │                             │                                  │
 │  ┌──────────────────────────▼─────────────────────────────┐  │
 │  │  Domain                                                 │  │
 │  │  Entities (freezed) + Repository Interfaces (abstract)  │  │
-│  │  Agent System: ReactStrategy, ResponseParser, Tools     │  │
+│  │  Agent System: Strategy, Tools, Safety Pipeline         │  │
 │  └──────────────────────────┬─────────────────────────────┘  │
 │                             │                                  │
 │  ┌──────────────────────────▼─────────────────────────────┐  │
 │  │  Data                                                   │  │
 │  │  Repository Impls + DataSource (Drift, Dio)             │  │
-│  │  LlamaEngineProvider (llamadart 추상화)                 │  │
-│  │  ToolContextImpl (MethodChannel 래핑)                   │  │
+│  │  LlamaEngineProvider + ToolContextImpl                  │  │
 │  └──────────────────────────┬─────────────────────────────┘  │
 └─────────────────────────────┼────────────────────────────────┘
                               │
 ┌─────────────────────────────▼────────────────────────────────┐
 │                      llamadart (Isolate)                      │
-│  LLM 추론: LlamaEngine / ChatSession / GenerationParams      │
-│  Template: ChatTemplateEngine (자동 감지)                     │
-│  Grammar: GenerationParams.grammar (plain string)             │
-│  Native Assets: 빌드 시 자동 다운로드                          │
+│  LLM 추론 엔진 — Native tool calling 지원                     │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Layers
+## Layer Rules
 
-### Domain Layer (`lib/domain/`)
+### Domain (`lib/domain/`)
 
-비즈니스 로직의 핵심. **외부 의존성 없음** (Flutter, DB, 네트워크 모르게).
-
-| 하위 디렉토리 | 역할 | 파일 |
-|--------------|------|------|
-| `entities/` | 불변 데이터 모델 (freezed) | `chat_message.dart`, `agent_models.dart`, `model_info.dart` |
-| `repositories/` | Repository 인터페이스 (abstract class) | `llm_repository.dart`, `settings_repository.dart` |
-| `agent/` | 에이전트 전략, 파서, 위험 분류 | `react_strategy.dart`, `response_parser.dart`, `risk_classifier.dart`, `conversation_context.dart`, `tool_preference_tracker.dart`, `error_recovery.dart`, `user_message_mapper.dart` |
-
-**규칙**: Domain은 Data, Presentation, 외부 패키지를 import하지 않음.
-
-### Data Layer (`lib/data/`)
-
-Domain 인터페이스의 구현체. 외부 API, DB, 파일시스템 접근.
-
-| 하위 디렉토리 | 역할 | 파일 |
-|--------------|------|------|
-| `repositories/` | Domain Repository 구현체 | `llm_repository_impl.dart`, `update_repository_impl.dart` |
-| `datasources/local/` | 로컬 저장소 (Drift/SQLite) | `database.dart`, `tables.dart` |
-| `datasources/remote/` | 원격 API | `github_api.dart` (GitHub Releases, Dio) |
-| `providers/` | 외부 엔진 추상화 | `real_llama_engine_provider.dart`, `tool_context_impl.dart` |
-
-**규칙**: Data는 Domain을 참조 가능. Presentation은 참조하지 않음.
-
-### Presentation Layer (`lib/presentation/`)
-
-UI와 상태 관리. Riverpod으로 Domain/Data 계층 사용.
-
-| 하위 디렉토리 | 역할 | 파일 |
-|--------------|------|------|
-| `screens/` | 화면 단위 Widget | `chat_screen.dart`, `settings_screen.dart`, `update_screen.dart`, `onboarding_screen.dart` |
-| `widgets/` | 재사용 UI 컴포넌트 | `message_bubble.dart`, `input_bar.dart`, `status_bar.dart`, `loading_indicator.dart` |
-| `providers/` | Riverpod Provider + StateNotifier | `chat_notifier.dart`, `agent_provider.dart`, `settings_notifier.dart` |
-
-**규칙**: Presentation은 Domain 인터페이스를 통해서만 Data에 접근. 직접 DataSource 참조 금지.
-
-### Agent Tools (`lib/agent/tools/`)
-
-독립적인 Tool 구현체. Domain의 `AgentTool` / `ExtendedTool` 인터페이스 구현.
-
-| Tool | 타입 | 상태 | 설명 |
-|------|------|------|------|
-| `app_launcher_tool.dart` | ExtendedTool | **활성** | 앱 실행, URL 열기, 앱 목록 조회 |
-| `screen_action_tool.dart` | ExtendedTool | **활성** | 화면 탭, 스와이프, 텍스트 입력 |
-| `screen_reader_tool.dart` | ExtendedTool | **활성** | 화면 텍스트 읽기, UI 요소 검색 |
-| `notification_tool.dart` | ExtendedTool | **활성** | 알림 목록/내용 읽기 |
-| `sms_sender_tool.dart` | ExtendedTool | **활성** | SMS 전송/읽기 |
-| `phone_caller_tool.dart` | ExtendedTool | **활성** | 전화 걸기/다이얼 |
-| `contact_search_tool.dart` | ExtendedTool | **활성** | 연락처 검색 (이름/전화/이메일) |
-| `calculator_tool.dart` | BasicTool | **활성** | 수학 계산 (사칙연산, 괄호) |
-| `notepad_tool.dart` | BasicTool | **활성** | 메모 작성/조회/목록/삭제 |
-| `timer_tool.dart` | BasicTool | **활성** | 타이머 설정/확인/취소/목록 |
-| `device_info_tool.dart` | ExtendedTool | **활성** | 기기 정보, 배터리, 저장공간, 메모리 |
-
-### Core Layer (`lib/core/`)
-
-모든 계층에서 공유하는 유틸리티.
+**역할**: 비즈니스 로직의 핵심. 외부 의존성 없이 순수 Dart로만 구성.
 
 | 하위 디렉토리 | 역할 |
 |--------------|------|
-| `router/` | GoRouter 화면 라우팅 |
-| `theme/` | `AppColors`/`LightColors` 색상 상수, `aiosDarkTheme`/`aiosLightTheme` ThemeData, 테마 모드 전환 |
+| `entities/` | 불변 데이터 모델 (freezed) |
+| `repositories/` | Repository 인터페이스 (abstract class) |
+| `agent/` | 에이전트 전략, Safety Pipeline, 컨텍스트 추적 |
 
-## Data Flow
+**규칙**:
+- Domain은 Data, Presentation, 외부 패키지를 import하지 않음
+- 모든 외부 접근은 Repository 인터페이스를 통해 추상화
 
-### Agent Mode (2-Phase ReAct)
+### Data (`lib/data/`)
 
-```
-User Input → ChatNotifier.sendMessage()
-  → ReactStrategy.execute()
-    ├─ Phase 1: Routing
-    │   → PromptBuilder.buildRoutingPrompt() (최소 프롬프트)
-    │   → LlmRepository.sendMessage() → LLM 응답
-    │   → ResponseParser.parse()
-    │     ├─ ParseAction: tool_name 식별 (args 없음 → Phase 2)
-    │     ├─ ParseAction: tool_name 식별 (args 있음 → 바로 실행)
-    │     ├─ ParseAnswer: 최종 응답 반환
-    │     └─ ParseEmpty: 포맷 넛지 후 재시도
-    ├─ Phase 2: Tool-specific execution
-    │   → Tool.toolPrompt (tool 전용 프롬프트)
-    │   → Tool.phaseContext() (app 리스트 등 컨텍스트)
-    │   → PromptBuilder.buildToolPrompt()
-    │   → LLM 응답 → Action + Args 파싱
-    ├─ Tool Execution
-    │   → RiskClassifier.classify() (위험도 분류)
-    │   → Tool.validate() (검증)
-    │   → ConfirmationGate (HIGH/CRITICAL 승인)
-    │   → Tool.execute() → Observation
-    ├─ Error Recovery
-    │   → ErrorRecovery.analyze()로 에러 분류 (8가지 타입)
-    │   → 재시도 가능 에러: invalidAction, missingParameter, appNotInstalled, generic
-    │   → 복구 힌트를 프롬프트에 주입 (list_apps 제안 등)
-    │   → 실행 간 초기화, 툴별 최대 1회 재시도
-    └─ 루프 반복 (최대 8회) 또는 Answer 반환
-```
+**역할**: Domain 인터페이스의 구현체. 외부 API, DB, 파일시스템, 네이티브 채널 접근.
 
-### Chat Mode (순수 채팅)
+| 하위 디렉토리 | 역할 |
+|--------------|------|
+| `repositories/` | Domain Repository 구현체 |
+| `datasources/local/` | 로컬 저장소 (Drift/SQLite) |
+| `datasources/remote/` | 원격 API (GitHub Releases 등) |
+| `providers/` | 외부 엔진 추상화 (llamadart, MethodChannel) |
 
-```
-User Input → ChatNotifier.sendMessage()
-  → LlmRepository.sendMessage()
-    → LlamaEngineProvider.generate() (Isolate, llamadart)
-      → Stream<String> (토큰 단위 스트리밍)
-    → ChatState 업데이트 (currentResponse 누적)
-  → _finalizeResponse() → ChatMessage 저장 (Drift DB)
-```
+**규칙**:
+- Data는 Domain을 참조 가능
+- Data는 Presentation을 참조하지 않음
+- Repository 구현체는 Domain의 인터페이스를 구현
 
-### Update Flow
+### Presentation (`lib/presentation/`)
 
-```
-UpdateScreen → UpdateNotifier.checkForUpdates()
-  → UpdateRepositoryImpl → GitHubApi.getLatestRelease()
-  → 버전 비교 (package_info_plus)
-  → APK 다운로드 (Dio) → 설치 Intent
-```
+**역할**: UI와 상태 관리. Riverpod으로 Domain/Data 계층 사용.
+
+| 하위 디렉토리 | 역할 |
+|--------------|------|
+| `screens/` | 화면 단위 Widget (기능별 서브디렉토리) |
+| `widgets/` | 재사용 UI 컴포넌트 |
+| `providers/` | Riverpod Provider + StateNotifier + State 클래스 |
+
+**규칙**:
+- Presentation은 Domain 인터페이스를 통해서만 Data에 접근
+- 직접 DataSource 참조 금지
+- 상태 관리는 Riverpod만 사용 (GetX, Bloc, Provider 금지)
+- 라우팅은 GoRouter만 사용
+
+### Agent Tools (`lib/agent/tools/`)
+
+**역할**: 독립적인 Tool 구현체. Domain의 `AgentTool` 또는 `ExtendedTool` 인터페이스 구현.
+
+**Tool 인터페이스**:
+
+| 인터페이스 | 용도 |
+|-----------|------|
+| `AgentTool` | 플랫폼 채널 불필요 (순수 Dart 계산 등) |
+| `ExtendedTool` | MethodChannel 필요 (화면 조작, 앱 실행 등) |
+
+**규칙**:
+- Tool에서 예외 throw 금지 → `"Error: ..."` 문자열 반환
+- 각 Tool은 `execute()`, `validate()`, `toolPrompt`, `phaseContext()` 구현
+- 새 Tool 추가 시 `agent_provider.dart`에 등록 + `RiskClassifier`에 위험도 분류 추가
+
+### Core (`lib/core/`)
+
+**역할**: 모든 계층에서 공유하는 유틸리티.
+
+| 하위 디렉토리 | 역할 |
+|--------------|------|
+| `router/` | GoRouter 화면 라우팅 설정 |
+| `theme/` | 색상 상수, ThemeData (Light/Dark) |
 
 ## Agent System
 
-### 2-Phase ReAct 구조
+### 네이티브 툴 콜링 ReAct 루프
 
-Phase 1은 최소 프롬프트(~80 토큰)로 LLM에게 tool 선택만 요청.
-Phase 2는 선택된 tool의 전용 프롬프트 + 컨텍스트로 args 포맷팅.
-Multi-tool chaining: 이전 Observation 결과를 다음 tool 실행에 전달.
+llamadart의 네이티브 tool-calling API를 사용하는 **단일 루프** 구조입니다.
 
 ```
-PromptBuilder
-  ├─ buildRoutingPrompt(manifest, conversationContext, toolPreferences)
-  │   → Phase 1 system prompt
-  │   — Multi-tool chaining examples 포함
-  │   — "Use data from previous observations" rule
-  │   — ConversationContext: 이전 대화 맥락 (최근 5턴)
-  │   — ToolPreferenceTracker: 자주 사용하는 tool (top 3)
-  └─ buildToolPrompt(name, toolPrompt, extraContext) → Phase 2 system prompt
-
-ReactStrategy
-  ├─ Phase 1: _generateResponse(routingSystem)
-  │   → ParseAction(toolName, args={})  → Phase 2로
-  │   → ParseAction(toolName, args={..}) → 바로 _executeTool()
-  │   → ParseAnswer(text) → 최종 응답
-  │   → ParseEmpty → 넛지 후 재시도
-  ├─ Phase 2: _phase2Execute(toolName)
-  │   → Tool.phaseContext()로 컨텍스트 fetch (예: 앱 리스트)
-  │   → _buildPhase2UserMessage() — 모든 이전 Observation 포함
-  │   → LLM이 Action + Args 포맷팅
-  │   → _executeTool() 실행
-  └─ Context Tracking
-      → _recordTurn() — execute 완료 후 대화 턴 기록
-      → ToolPreferenceTracker.recordToolUse() — tool 사용 빈도 추적
-      → ConversationContext — 최근 5턴 대화 맥락 유지
-  └─ Error Recovery
-      → ErrorRecovery.analyze() — 에러 분류 및 복구 전략 결정
-      → 8가지 에러 타입: toolNotFound, appNotInstalled, serviceUnavailable,
-        permissionDenied, invalidAction, missingParameter, cancelled, generic
-      → 복구 힌트(RecoveryHint)를 프롬프트에 주입
-      → 툴별 최대 1회 재시도, 실행 간 초기화
+User Input → ChatNotifier → ReactStrategy.execute()
+  → for 루프 (최대 8회, 타임아웃 120초):
+      1. ChatSession.chat() — LLM에 tool schemas 전달, streaming 응답 수신
+      2. LLM 응답이 tool_calls → Safety Pipeline 통과 후 실행
+      3. LLM 응답이 text → Answer 반환 (루프 종료)
+      4. LLM 응답이 비어있음 → 넛지 후 재시도 (max 2회)
 ```
 
-### Tool 인터페이스
-
-| 인터페이스 | 용도 | 메서드 |
-|-----------|------|--------|
-| `AgentTool` | 플랫폼 채널 불필요 | `execute()`, `validate()`, `toolPrompt`, `phaseContext()` |
-| `ExtendedTool` | MethodChannel 필요 | `execute(args, ToolContext)`, `validate(args, ToolContext)`, `toolPrompt`, `phaseContext(args, ToolContext)` |
+**핵심 원칙**:
+- LLM이 직접 tool 선택 및 args 생성 (텍스트 파싱 불필요)
+- llamadart가 `LlmToolSchema` 기반으로 `LlmToolCallDelta` 스트리밍
+- `_ToolCallAccumulator`가 chunk를 누적하여 완전한 tool call 구성
+- Multi-tool chaining: 이전 Tool 결과가 자동으로 다음 LLM 호출에 포함
+- Context Tracking: 대화 맥락(최근 5턴)과 Tool 사용 빈도(top 3)가 system prompt에 주입
+- 빈 args 추론: calculator/notepad/timer에 한해 heuristic 추론 (`_inferToolArgs`)
 
 ### Safety Pipeline
 
-모든 Tool 실행 전:
+모든 Tool 실행은 아래 순서를 거칩니다:
 
-1. **RiskClassifier** — tool name + args 기반 위험도 분류 (LOW/MEDIUM/HIGH/CRITICAL)
-2. **Tool.validate()** — args 검증 (package 존재 여부, 필수 파라미터 등)
+1. **RiskClassifier** — tool + args 기반 위험도 분류
+2. **Tool.validate()** — args 유효성 검증
 3. **ConfirmationGate** — HIGH/CRITICAL 위험도 시 사용자 승인 요청
-4. **LoopDetector** — 동일 tool + 유사 args 반복 감지 → 넛지 또는 강제 종료
-5. **ErrorRecovery** — Tool 실행 실패 시 에러 분류 및 복구 힌트 제공
-6. **AuditLog** — 모든 tool 실행 기록
+4. **Tool.execute()** — 실제 실행
+5. **AuditLog** — 실행 기록
+6. **ErrorRecovery** — 실패 시 에러 분류 및 복구 힌트
+7. **LoopDetector** — 반복 감지 및 강제 종료
+
+### Error Recovery 규칙
+
+- 에러 분류 후 복구 가능한 경우에만 재시도
+- Tool별 최대 1회 재시도
+- 실행 간 복구 상태 초기화
 
 ## State Management
 
-### ServiceState (LlmRepository)
+### ServiceState
 
 ```
 idle → loadingModel → ready ↔ generating → ready
-                          ↘ error ↗
+  │        │              ↘ error ↗       │
+  │        └────→ error                   │
+  └───────────────────────────────────────┘
+                        (releaseModel → idle from any state)
 ```
 
 ### Riverpod Provider 스코프
 
-- **keepAlive: true**: Repository, DataSource, LlmEngine (싱글톤)
-- **Screen-scoped**: Notifier, UI 상태 (화면 전환 시 재생성)
+| 스코프 | 용도 | 예시 |
+|--------|------|------|
+| `keepAlive: true` | 앱 전역 싱글톤 | Repository, DataSource, LlmEngine |
+| Screen-scoped | 화면 단위 상태 | Notifier, UI State |
 
 ## Threading
 
-- **CPU 집약 작업 (LLM 추론)**: `LlamaEngine`이 별도 Isolate에서 처리
-- **플랫폼 채널**: MethodChannel / EventChannel (Android 네이티브 연동)
-- **UI 업데이트**: Main Isolate (기본값, 별도 처리 불필요)
-- **에이전트 실행**: LlmEngine Isolate에서 실행, Stream으로 UI에 전달
-- **취소**: 취소 플래그 + StreamController.close() 조합
-- **참고**: saveState/loadState는 아직 llamadart에서 미지원
-
-## UX Polish
-
-### Onboarding
-
-첫 실행 시 설정 가이드 표시 (4페이지):
-1. Welcome - 앱 소개 및 핵심 기능 안내
-2. Model Setup - GGUF 모델 가져오기 안내
-3. Permissions - 필요 권한 안내
-4. Ready - 설정 완료
-
-```
-ChatScreen.initState()
-  → _checkOnboarding()
-    → settings.onboardingCompleted == false
-      → context.go('/onboarding')
-        → OnboardingScreen (PageView)
-          → complete() → settings.setOnboardingCompleted()
-            → context.go('/')
-```
-
-### User-Friendly Error Messages
-
-```
-UserMessageMapper.map(technicalError)
-  → 키워드 매칭으로 사용자 친화적 메시지 반환
-  → 모델 오류, 권한, 네트워크, 타임아웃, SMS, 전화, 앱 미설치 등
-```
-
-### Light/Dark Theme
-
-```
-SettingsState.themeMode (ThemeMode)
-  → SettingsRepository에 'light'/'dark'/'system' 문자열로 저장
-  → AIOSApp.build()에서 aiosThemeOf(mode)로 테마 선택
-  → SettingsScreen에 Appearance 섹션에서 SegmentedButton으로 전환
-```
-
-### Permission Management
-
-SettingsScreen의 Permissions 섹션에서 각 권한 상태 표시:
-- Storage, Notifications, Contacts, Phone, SMS
-- 권한 부여 상태를 아이콘으로 표시 (check_circle / Grant 버튼)
+| 역할 | 위치 |
+|------|------|
+| LLM 추론 | 별도 Isolate (llamadart) |
+| 에이전트 실행 | LLM Isolate에서 실행, Stream으로 UI 전달 |
+| 플랫폼 채널 | MethodChannel / EventChannel (Android 네이티브) |
+| UI 업데이트 | Main Isolate |
+| 취소 | 취소 플래그 + StreamController.close() |
 
 ## Key Design Decisions
 
-### Why 2-Phase ReAct?
+### Why Native Tool Calling?
 
-- **Phase 1 최소 프롬프트** (~80 토큰)로 빠른 tool 선택
-- **Phase 2 tool 전용 프롬프트**로 정확한 args 포맷팅
-- 전체 시스템 프롬프트를 매번 보내지 않아 **토큰 절약**
-- `phaseContext()`로 tool 실행에 필요한 컨텍스트를 동적 fetch
+- 텍스트 파싱(Action:/Answer:) 없이 LLM이 직접 tool 선택
+- 프롬프트 엔지니어링 부담 감소 (포맷 넛지, 재시도 로직 불필요)
+- llamadart가 tool 스키마 기반으로 args 검증 처리
 
 ### Why Flutter?
 
 - JNI + C++ ~1500줄 → llamadart ~20줄
 - 단일 언어 (Dart)로 유지보수 간소화
 - Isolate 기반으로 Foreground Service 불필요
-- KV-cache, Context shift 등 고급 기능 패키지에서 지원
 
 ### Why ReAct?
 
-- 투명한 추론 과정 (visible "thought" steps)
+- 투명한 추론 과정 (visible thought/action/observation steps)
 - 관찰 기반 Tool 사용
-- 자연스러운 종료 조건 (Answer output)
-- 구현/디버그 단순
+- 자연스러운 종료 조건 (LLM이 text 응답 시 루프 종료)
+- Multi-tool chaining 지원

@@ -41,7 +41,7 @@ class PhoneCallerTool extends ExtendedTool {
             'makeCall',
             {'action': action, 'number': number},
           ) ??
-          'Error';
+          'Error: phone call failed - no response from platform';
     } on Object catch (e) {
       return 'Error: $e';
     }

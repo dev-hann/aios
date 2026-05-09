@@ -18,6 +18,7 @@ class SettingsState with _$SettingsState {
     @Default([]) List<ModelInfo> availableModels,
     @Default(false) bool isLoadingModel,
     @Default(false) bool onboardingCompleted,
+
   }) = _SettingsState;
 
   factory SettingsState.initial() => SettingsState(

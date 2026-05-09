@@ -9,11 +9,11 @@ import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/agent/tools/screen_reader_tool.dart';
 import 'package:aios/agent/tools/sms_sender_tool.dart';
 import 'package:aios/agent/tools/timer_tool.dart';
-import 'package:aios/data/providers/real_llama_engine_provider.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
+import 'package:aios/domain/agent/llm_engine.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
@@ -33,15 +33,15 @@ final toolPreferenceTrackerProvider =
   return ToolPreferenceTracker();
 });
 
-final engineProvider = Provider<RealLlamaEngineProvider>((ref) {
-  throw UnimplementedError('engineProvider must be overridden');
+final agentEngineProvider = Provider<LlmEngine?>((ref) {
+  throw UnimplementedError('agentEngineProvider must be overridden');
 });
 
 final modelLoadedPathProvider = StateProvider<String?>((ref) => null);
 
 final agentProvider = Provider<AgentStrategy>((ref) {
   ref.watch(modelLoadedPathProvider);
-  final engineProviderInstance = ref.watch(engineProvider);
+  final engine = ref.watch(agentEngineProvider);
   final toolContext = ref.watch(toolContextProvider);
   final conversationContext =
       ref.watch(conversationContextProvider);
@@ -68,7 +68,6 @@ final agentProvider = Provider<AgentStrategy>((ref) {
     'device_info': DeviceInfoTool(),
   };
 
-  final engine = engineProviderInstance.engine;
   if (engine == null) {
     return _PlaceholderStrategy();
   }
@@ -102,6 +101,9 @@ class _PlaceholderStrategy implements AgentStrategy {
 
   @override
   void cancel() {}
+
+  @override
+  Future<void> warmup() async {}
 
   @override
   void resolveConfirmation(bool approved) {}

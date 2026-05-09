@@ -74,7 +74,7 @@ class ScreenActionTool extends ExtendedTool {
     final text = json['text']?.toString() ?? '';
     if (text.isNotEmpty) {
       return await toolContext.invokeMethod('tapByText', {'text': text}) ??
-          'Error';
+          'Error: tap by text failed - no response from platform';
     }
     final x = _toDouble(json['x'], -1);
     final y = _toDouble(json['y'], -1);
@@ -83,7 +83,7 @@ class ScreenActionTool extends ExtendedTool {
             'x': x,
             'y': y,
           }) ??
-          'Error';
+          'Error: tap by coordinates failed - no response from platform';
     }
     return "Error: 'text' required";
   }
@@ -98,7 +98,7 @@ class ScreenActionTool extends ExtendedTool {
           'longClickByText',
           {'text': text},
         ) ??
-        'Error';
+        'Error: long click failed - no response from platform';
   }
 
   Future<String> _handleType(
@@ -112,7 +112,7 @@ class ScreenActionTool extends ExtendedTool {
           'content': content,
           'target': target,
         }) ??
-        'Error';
+        'Error: type text failed - no response from platform';
   }
 
   Future<String> _handleScroll(
@@ -124,7 +124,7 @@ class ScreenActionTool extends ExtendedTool {
           'scroll',
           {'direction': direction},
         ) ??
-        'Error';
+        'Error: scroll failed - no response from platform';
   }
 
   Future<String> _handleSwipe(
@@ -138,7 +138,7 @@ class ScreenActionTool extends ExtendedTool {
           'start_y': _toDouble(json['start_y'], 1500),
           'distance': _toDouble(json['distance'], 500),
         }) ??
-        'Error';
+        'Error: swipe failed - no response from platform';
   }
 
   Future<String> _handleGlobal(
@@ -153,7 +153,7 @@ class ScreenActionTool extends ExtendedTool {
           'performGlobalAction',
           {'action': action},
         ) ??
-        'Error';
+        'Error: global action failed - no response from platform';
   }
 
   double _toDouble(dynamic value, double defaultValue) {

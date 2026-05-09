@@ -3,7 +3,23 @@
 기기 테스트 시 AGENTS.md §0의 기기 명령어(설치, 실행, 스크린샷, logcat)와
 아래의 테스트용 adb 패턴을 조합하여 유동적으로 수행한다.
 
-## 1. 스모크 테스트 (빌드 후 필수)
+## 1. 자동화된 통합 테스트 (기기 필요)
+
+`flutter test integration_test/` 로 실행 (기기 연결 + GGUF 모델 필요):
+
+| 파일 | 테스트 항목 |
+|------|-----------|
+| `tool_execution_test.dart` | LLM이 calculator/notepad/timer/device_info 선택·실행, 다중 tool chaining |
+| `agent_integration_test.dart` | ReactStrategy 실행, cancel, clearHistory |
+| `chat_pipeline_test.dart` | LlmRepository sendMessage, token stream |
+| `user_flow_test.dart` | 모델 로드→채팅→정지→삭제 전체 플로우 |
+| `model_test.dart` | GGUF 모델 로드/추론/해제 |
+| `app_test.dart` | ChatScreen/SettingsScreen UI |
+| `database_integration_test.dart` | Drift SQLite CRUD |
+| `settings_persistence_test.dart` | SharedPreferences 영속성 |
+| `conversation_persistence_test.dart` | 대화 저장/로드 |
+
+## 2. 스모크 테스트 (빌드 후 필수)
 
 빌드→설치 후 **반드시** 전부 확인:
 
@@ -15,7 +31,7 @@
 | 4 | calculator | "calculate 15 plus 27" | `[AIOS-React]` + `calculator` + 정답 (42) |
 | 5 | app_launcher | "open youtube" | `[AIOS-AppLauncher]` + 앱 실행 |
 
-## 2. 기능 테스트 (변경 관련 시 수행)
+## 3. 기능 테스트 (변경 관련 시 수행)
 
 | # | 항목 | 입력 | 검증 |
 |---|------|------|------|
@@ -29,7 +45,7 @@
 | 13 | 설정 진입 | 설정 버튼 | 설정 화면 표시 |
 | 14 | 모델 정보 | 설정 → 모델 정보 | 모델명/컨텍스트 크기 표시 |
 
-## 3. 심화 테스트 (필요시 수행)
+## 4. 심화 테스트 (필요시 수행)
 
 | # | 항목 | 입력/시나리오 | 검증 |
 |---|------|--------------|------|
@@ -38,7 +54,7 @@
 | 17 | 긴 입력 | 100자 이상 메시지 | 정상 처리 및 응답 |
 | 18 | 취소 | 긴 응답 생성 중 정지 | 즉시 중단 |
 
-## 4. adb 테스트 패턴
+## 5. adb 테스트 패턴
 
 ### UI 조작
 
@@ -81,7 +97,7 @@ adb -s {DEVICE} logcat -d | grep "패턴"
 adb -s {DEVICE} shell appops set com.agent.aios MANAGE_EXTERNAL_STORAGE allow
 ```
 
-## 5. UIAutomator 제약사항
+## 6. UIAutomator 제약사항
 
 - Flutter 앱은 `resource-id` 없음 → `text`나 `bounds`로 요소 식별
 - `uiautomator dump` 실행 시 앱이 1-2초 멈춤

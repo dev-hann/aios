@@ -10,6 +10,8 @@ abstract class AgentStrategy {
     void Function(AgentStep)? onStep,
   });
 
+  Future<void> warmup();
+
   void cancel();
 
   void resolveConfirmation(bool approved);

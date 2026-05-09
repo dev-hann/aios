@@ -111,6 +111,7 @@ print('[AIOS-{Component}] ERROR: message - $e');
 | Provider | `presentation/providers/` |
 | DataSource | `data/datasources/` |
 | Engine Provider | `data/providers/` |
+| Service | `data/services/` |
 | Theme | `core/theme/` |
 
 ---
@@ -153,33 +154,52 @@ print('[AIOS-{Component}] ERROR: message - $e');
 
 (없음)
 
-### 3-Phase ReAct 구조
+### Native Tool-Calling Agent 구조
 
 ```
 User Input → ReactStrategy.execute()
-  ├─ Phase 0: Intent Classification (~30 토큰, LLM)
-  │   → "CONVERSATION" 또는 "TASK" 한 단어 응답
-  │   → CONVERSATION → Answer Phase (직접 응답)
-  │   → TASK → Phase 1으로 진행
-  │   → 재시도: max 1회, 폴백 시 TASK로 간주
-  │   → Step types: phase0_classifying, phase0_result, phase0_retry
+  ├─ LlmChatSession 재사용: _ensureSession()으로 세션 캐시
+  │   → 동일 세션 내 KV cache 유지, clearHistory() 시 초기화
+  │   → Tool schemas도 캐시 (_cachedToolSchemas)
   │
-  ├─ Answer Phase (대화 응답, ~30 토큰)
-  │   → buildAnswerPrompt()으로 직접 응답 생성
-  │   → Action:/Answer: 포맷이면 재시도 (max 1회)
-  │   → Step types: phase_answer, phase_answer_retry
+  ├─ LLM Warmup: ServiceState.ready 시 _agent.warmup() 실행
+  │   → 첫 inference 전 1토큰 dummy generation으로 메모리 할당 완료
   │
-  ├─ Phase 1: Routing (~80 토큰)
-  │   → 12개 툴 (이름+한줄 설명) + 균형 잡힌 예제 (Action 3 : Answer 3)
-  │   → LLM이 "Action: tool_name" 또는 "Answer: text" 응답
-  │   → ParseEmpty 시 점진적 넛지 (max 2회 재시도)
-  │   → ConversationContext + ToolPreferenceTracker 포함
-  │   → Step types: phase1_retry
+  ├─ DB Fire-and-Forget: sendMessage()에서 appendMessage/updateTitle 비동기
+  │   → agent 실행 전 DB 대기 제거
   │
-  ├─ Phase 2: Tool-specific execution (~60 토큰, args가 비어있을 때만)
-  │   → toolPrompt로 LLM이 args 포맷팅
-  │   → 재시도: max 2회, 포맷 리마인더와 함께
-  │   → Step types: (기존 action/observation)
+  ├─ Auto Session Init: ServiceState.ready → initializeSession() 자동 호출
+  │   → ChatScreen.initState()의 microtask는 fallback으로 유지
+  │
+  ├─ System Prompt
+  │   → 기본: "AIOS on-device assistant" + 응답 규칙
+  │   → ConversationContext 주입: 최근 5턴 대화 기록 (있을 때만)
+  │   → ToolPreferenceTracker 주입: 자주 사용하는 Tool top 3 (있을 때만)
+  │
+  ├─ 단일 루프 (최대 8회, 타임아웃 120초)
+  │   → LLM에 12개 Tool schema (LlmToolSchema) 전달
+  │   → llamadart가 streaming으로 LlmToolCallDelta 수신
+  │   → _ToolCallAccumulator가 chunk를 누적하여 완전한 tool call 구성
+  │   │
+  │   ├─ LLM 응답이 tool_calls인 경우:
+  │   │   1. RiskClassifier → 위험도 분류 (LOW/MEDIUM/HIGH/CRITICAL)
+  │   │   2. Tool.validate() → args 유효성 검증
+  │   │   3. ConfirmationGate → HIGH/CRITICAL 시 사용자 승인 요청
+  │   │   4. Tool.execute() → 실제 실행
+  │   │   5. AuditLog → 실행 기록
+  │   │   6. ErrorRecovery → 실패 시 에러 분류 + 복구 넛지
+  │   │   7. LoopDetector → 반복 감지 시 강제 종료
+  │   │   8. session.addToolResult() → 결과를 대화에 추가
+  │   │   9. 다음 iteration 계속 (userParts = [])
+  │   │
+  │   ├─ LLM 응답이 text인 경우 (tool_calls 없음):
+  │   │   → Answer 반환 (루프 종료)
+  │   │
+  │   └─ LLM 응답이 비어있는 경우:
+  │       → "Please use a tool or provide a direct answer" 넛지
+  │       → 최대 2회 재시도 (phase1_retry step type)
+  │
+  ├─ 빈 args 추론: _inferToolArgs()로 calculator/notepad/timer에 한해 heuristic 추론
   │
   ├─ Error Recovery
   │   → ErrorRecovery.analyze()로 에러 분류 (8가지 타입)
@@ -187,7 +207,7 @@ User Input → ReactStrategy.execute()
   │   → 복구 힌트를 프롬프트에 주입
   │   → 실행 간 초기화, 툴별 최대 1회 재시도
   │
-  └─ Tool 실행 → Observation → 루프 반복 (최대 8회) 또는 Answer 반환
+  └─ _recordTurn() → ConversationContext에 대화 기록 (다음 실행 시 system prompt에 반영)
 ```
 
 ### System Annotation (채팅 UI)
@@ -197,7 +217,7 @@ _SystemAnnotation (presentation/screens/chat/chat_screen.dart)
   → 각 Phase/Step을 간략한 주석 형태로 채팅 내 표시
   → 회색 12sp 이탤릭, 가운데 정렬, 아이콘 포함
   → 숨김 처리: thought, thinking_start, thinking_end
-  → 표시: phase0_*, phase1_retry, phase_answer*, action, observation, confirmation_required
+  → 표시: phase1_retry, action, observation, confirmation_required
 
 SessionDrawer (presentation/widgets/session_drawer.dart)
   → 왼쪽 Drawer로 세션 관리
