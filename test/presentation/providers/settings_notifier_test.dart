@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:aios/domain/entities/llm_provider_config.dart';
-import 'package:aios/domain/entities/service_state.dart';
-import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
 import '../../helpers/mock_llm_repository.dart';
 import '../../helpers/mock_settings_repository.dart';

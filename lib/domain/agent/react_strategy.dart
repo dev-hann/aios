@@ -75,7 +75,6 @@ class ReactStrategy implements AgentStrategy {
   }
 
   static const _tag = 'AIOS-React';
-  static const _maxToolRetries = 1;
 
   String get _systemPrompt {
     final base = StringBuffer();

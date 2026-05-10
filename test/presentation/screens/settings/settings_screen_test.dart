@@ -1,6 +1,3 @@
-import 'dart:async';
-
-import 'package:aios/domain/entities/update_info.dart';
 import '../../../helpers/mock_llm_repository.dart';
 import '../../../helpers/mock_settings_repository.dart';
 import '../../../helpers/mock_update_repository.dart';

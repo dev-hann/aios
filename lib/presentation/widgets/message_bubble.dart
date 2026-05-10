@@ -62,16 +62,14 @@ class MessageBubble extends StatelessWidget {
             const SizedBox(height: 8),
             _ToolInfo(message: message),
           ],
-          if (message.createdAt != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              _formatTime(message.createdAt!),
-              style: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha: 0.5),
-                fontSize: 11,
-              ),
+          const SizedBox(height: 4),
+          Text(
+            _formatTime(message.createdAt),
+            style: TextStyle(
+              color: AppColors.textSecondary.withValues(alpha: 0.5),
+              fontSize: 11,
             ),
-          ],
+          ),
         ],
       ),
     );

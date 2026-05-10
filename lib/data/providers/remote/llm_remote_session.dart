@@ -29,7 +29,6 @@ class LlmRemoteSession implements LlmChatSession {
     ];
 
     String fullContent = '';
-    String fullThinking = '';
     final Map<int, _AccEntry> toolCallAcc = {};
 
     await for (final chunk in _client.streamChat(
@@ -38,7 +37,6 @@ class LlmRemoteSession implements LlmChatSession {
       tools: tools,
     )) {
       if (chunk.text != null) fullContent += chunk.text!;
-      if (chunk.thinking != null) fullThinking += chunk.thinking!;
 
       if (chunk.toolCallDeltas != null) {
         for (final tc in chunk.toolCallDeltas!) {

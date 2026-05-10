@@ -72,7 +72,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     _conversationRepository
         .appendMessage(userMessage)
         .catchError(
-          (e) => print('[$_tag] WARN: appendMessage fire-forget - $e'),
+          (Object e) => print('[$_tag] WARN: appendMessage fire-forget - $e'),
         );
 
     if (state.currentConversationTitle == '새 대화' &&
@@ -86,7 +86,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         _conversationRepository
             .updateConversationTitle(convId, title)
             .catchError(
-              (e) => print('[$_tag] WARN: updateTitle fire-forget - $e'),
+              (Object e) => print('[$_tag] WARN: updateTitle fire-forget - $e'),
             );
       }
     }
@@ -164,7 +164,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   String? _actionToStatus(AgentStep step) {
     final toolName = step.toolName;
-    if (toolName == null || toolName.isEmpty) return null;
+    if (toolName.isEmpty) return null;
     return switch (toolName) {
       'app_launcher' => '앱 실행 중...',
       'screen_action' => _screenActionStatus(step.toolArgs),
@@ -214,7 +214,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   String? _observationToStatus(AgentStep step) {
     final toolName = step.toolName;
-    if (toolName == null) return null;
+    if (toolName.isEmpty) return null;
     final result = step.toolResult;
     if (result.startsWith('Error')) return null;
     return switch (toolName) {

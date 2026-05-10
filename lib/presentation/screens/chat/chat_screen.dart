@@ -4,11 +4,9 @@ import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/agent/user_message_mapper.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/service_state.dart';
-import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/chat_providers.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
-import 'package:aios/presentation/providers/settings_state.dart';
 import 'package:aios/presentation/widgets/connection_status_badge.dart';
 import 'package:aios/presentation/widgets/input_bar.dart';
 import 'package:aios/presentation/widgets/loading_indicator.dart';
@@ -140,7 +138,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             Expanded(
               child: Text(
-                chatState.currentConversationTitle ?? Strings.appName,
+                chatState.currentConversationTitle,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 16,
@@ -484,20 +482,17 @@ class _SystemAnnotation extends StatelessWidget {
         return step.content;
       case 'phase0_retry':
         return Strings.annotation.analyzingRetry(
-          step.retryAttempt ?? 0,
-          step.maxRetries ?? 0,
+          step.retryAttempt,
+          step.maxRetries,
         );
       case 'phase1_retry':
-        return Strings.annotation.taskRetry(
-          step.retryAttempt ?? 0,
-          step.maxRetries ?? 0,
-        );
+        return Strings.annotation.taskRetry(step.retryAttempt, step.maxRetries);
       case 'phase_answer':
         return Strings.annotation.generatingAnswer;
       case 'phase_answer_retry':
         return Strings.annotation.answerRetry(
-          step.retryAttempt ?? 0,
-          step.maxRetries ?? 0,
+          step.retryAttempt,
+          step.maxRetries,
         );
       case 'action':
         final name = step.toolName.isNotEmpty ? step.toolName : 'tool';
@@ -522,13 +517,13 @@ class _SystemAnnotation extends StatelessWidget {
   }
 }
 
-class _PermissionCard extends StatelessWidget {
+class _PermissionCard extends ConsumerWidget {
   const _PermissionCard({required this.step});
 
   final AgentStep step;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final perm = ToolPermissionMapper.getByKey(step.permission);
     final isService = perm?.isService ?? false;
     final displayName = perm?.displayName ?? step.content;
@@ -571,7 +566,9 @@ class _PermissionCard extends StatelessWidget {
               children: [
                 TextButton(
                   onPressed: () {
-                    _resolve(context, false);
+                    ref
+                        .read(chatStateProvider.notifier)
+                        .resolvePermission(false);
                   },
                   child: const Text(
                     '\uB098\uC911\uC5D0',
@@ -582,32 +579,28 @@ class _PermissionCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Consumer(
-                  builder: (context, ref, _) {
-                    return TextButton(
-                      onPressed: () {
-                        _resolve(context, true);
-                      },
-                      style: TextButton.styleFrom(
-                        backgroundColor: AppColors.primary.withValues(
-                          alpha: 0.15,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                      ),
-                      child: Text(
-                        isService
-                            ? '\uC124\uC815\uC73C\uB85C \uC774\uB3D9'
-                            : '\uD5C8\uC6A9\uD558\uAE30',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
+                TextButton(
+                  onPressed: () {
+                    ref
+                        .read(chatStateProvider.notifier)
+                        .resolvePermission(true);
                   },
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                  ),
+                  child: Text(
+                    isService
+                        ? '\uC124\uC815\uC73C\uB85C \uC774\uB3D9'
+                        : '\uD5C8\uC6A9\uD558\uAE30',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -615,11 +608,6 @@ class _PermissionCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  void _resolve(BuildContext context, bool granted) {
-    final notifier = context.findAncestorStateOfType<_ChatScreenState>();
-    notifier?.ref.read(chatStateProvider.notifier).resolvePermission(granted);
   }
 }
 

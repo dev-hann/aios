@@ -1,7 +1,6 @@
 import 'package:aios/data/services/foreground_service.dart';
 import 'package:aios/data/services/overlay_service.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
-import 'package:aios/domain/entities/agent_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class OverlayAssistantNotifier extends StateNotifier<bool> {

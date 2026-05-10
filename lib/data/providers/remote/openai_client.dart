@@ -45,8 +45,6 @@ class OpenAiClient {
         ),
       );
 
-      String fullContent = '';
-      String fullThinking = '';
       final Map<int, _ToolCallBuilder> toolCallBuilders = {};
       String buffer = '';
 
@@ -72,12 +70,10 @@ class OpenAiClient {
             final reasoningContent = delta['reasoning_content'] as String?;
 
             if (delta['content'] != null) {
-              fullContent += delta['content'] as String;
               yield LlmResponseChunk(text: delta['content'] as String);
             }
 
             if (reasoningContent != null) {
-              fullThinking += reasoningContent;
               yield LlmResponseChunk(thinking: reasoningContent);
             }
 
@@ -164,7 +160,7 @@ class OpenAiClient {
 
   Future<bool> testConnection() async {
     try {
-      await _dio.post(
+      await _dio.post<void>(
         _config.chatEndpoint,
         data: jsonEncode({
           'model': _config.model,

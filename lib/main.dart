@@ -9,7 +9,6 @@ import 'package:aios/data/repositories/llm_repository_impl.dart';
 import 'package:aios/data/repositories/note_repository_impl.dart';
 import 'package:aios/data/repositories/settings_repository_impl.dart';
 import 'package:aios/data/repositories/update_repository_impl.dart';
-import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';

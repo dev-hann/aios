@@ -86,7 +86,7 @@ class ScreenActionTool extends ExtendedTool {
 
   Future<String?> _observeScreen(ToolContext toolContext) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
       return await toolContext.invokeMethod('getScreenText');
     } on Object {
       return null;

@@ -5,37 +5,37 @@ void main() {
   group('tryParseToolJson', () {
     test('tryParseToolJson_validJsonObject_returnsMap', () {
       final result = tryParseToolJson('{"key": "value"}', 'AIOS-Test');
-      expect(result, {'key': 'value'});
+      expect(result, <String, dynamic>{'key': 'value'});
     });
 
     test('tryParseToolJson_emptyObject_returnsEmptyMap', () {
       final result = tryParseToolJson('{}', 'AIOS-Test');
-      expect(result, {});
+      expect(result, <String, dynamic>{});
     });
 
     test('tryParseToolJson_invalidJson_returnsEmptyMap', () {
       final result = tryParseToolJson('not json', 'AIOS-Test');
-      expect(result, {});
+      expect(result, <String, dynamic>{});
     });
 
     test('tryParseToolJson_emptyString_returnsEmptyMap', () {
       final result = tryParseToolJson('', 'AIOS-Test');
-      expect(result, {});
+      expect(result, <String, dynamic>{});
     });
 
     test('tryParseToolJson_jsonArray_returnsEmptyMap', () {
       final result = tryParseToolJson('[1, 2, 3]', 'AIOS-Test');
-      expect(result, {});
+      expect(result, <String, dynamic>{});
     });
 
     test('tryParseToolJson_jsonString_returnsEmptyMap', () {
       final result = tryParseToolJson('"hello"', 'AIOS-Test');
-      expect(result, {});
+      expect(result, <String, dynamic>{});
     });
 
     test('tryParseToolJson_jsonNumber_returnsEmptyMap', () {
       final result = tryParseToolJson('42', 'AIOS-Test');
-      expect(result, {});
+      expect(result, <String, dynamic>{});
     });
 
     test('tryParseToolJson_nestedObject_returnsNestedMap', () {

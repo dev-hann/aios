@@ -48,7 +48,7 @@ class _PermissionManagementScreenState
   Future<void> _openAccessibilitySettings() async {
     try {
       await _channel.invokeMethod<void>('openAccessibilitySettings');
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
       await _checkPermissions();
     } on Object {
       if (mounted) {

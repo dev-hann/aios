@@ -5,6 +5,7 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:aios/data/datasources/remote/github_api.dart';
+import 'package:aios/domain/agent/version_util.dart';
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
 
@@ -116,24 +117,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
     }
   }
 
-  String _stripVersionPrefix(String version) {
-    if (version.startsWith('v')) {
-      return version.substring(1);
-    }
-    return version;
-  }
+  String _stripVersionPrefix(String version) => stripVersionPrefix(version);
 
-  int _compareVersions(String a, String b) {
-    final partsA = a.split('.').map(int.parse).toList();
-    final partsB = b.split('.').map(int.parse).toList();
-
-    for (var i = 0; i < partsA.length || i < partsB.length; i++) {
-      final valA = i < partsA.length ? partsA[i] : 0;
-      final valB = i < partsB.length ? partsB[i] : 0;
-      if (valA != valB) {
-        return valA.compareTo(valB);
-      }
-    }
-    return 0;
-  }
+  int _compareVersions(String a, String b) => compareVersions(a, b);
 }

@@ -10,8 +10,6 @@ class ConversationRepositoryImpl implements ConversationRepository {
   final db.AppDatabase _db;
   String _activeConversationId = 'default';
 
-  static const _tag = 'AIOS-ConversationRepo';
-
   String get activeConversationId => _activeConversationId;
 
   @override

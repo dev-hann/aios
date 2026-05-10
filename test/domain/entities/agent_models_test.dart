@@ -238,7 +238,7 @@ void main() {
       final json = result.toJson();
 
       expect(json['success'], isTrue);
-      expect(json['steps'], isA<List>());
+      expect(json['steps'], isA<List<dynamic>>());
     });
 
     test('fromJson_deserializesCorrectly', () {
