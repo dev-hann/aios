@@ -1,6 +1,5 @@
-import 'dart:convert';
-
 import 'package:aios/domain/agent/agent_tool.dart';
+import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_result.dart';
 
 class TimerEntry {
@@ -53,7 +52,7 @@ class TimerTool extends AgentTool {
   @override
   Future<ToolResult> execute(String args) async {
     try {
-      final json = _tryParseJson(args);
+      final json = tryParseToolJson(args, _tag);
       final action = json['action']?.toString().toLowerCase() ?? '';
       return switch (action) {
         'set' => _set(json),
@@ -131,17 +130,5 @@ class TimerTool extends AgentTool {
     if (value is int) return value;
     if (value is String) return int.tryParse(value);
     return null;
-  }
-
-  Map<String, dynamic> _tryParseJson(String args) {
-    try {
-      final decoded = json.decode(args);
-      if (decoded is Map<String, dynamic>) return decoded;
-      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
-      return {};
-    } on Object catch (e) {
-      print('[$_tag] WARN: JSON parse error: $e');
-      return {};
-    }
   }
 }

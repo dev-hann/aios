@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_result.dart';
 import 'package:flutter/foundation.dart';
 import 'package:installed_apps/app_info.dart';
@@ -61,12 +60,9 @@ class AppLauncherTool extends ExtendedTool {
   @visibleForTesting
   bool testLooksLikeUrl(String s) => _looksLikeUrl(s);
 
-  @visibleForTesting
-  Map<String, dynamic> testTryParseJson(String args) => _tryParseJson(args);
-
   @override
   Future<String?> validate(String args, ToolContext toolContext) async {
-    final json = _tryParseJson(args);
+    final json = tryParseToolJson(args, _tag);
     final target = json['target']?.toString() ?? '';
     if (target.isEmpty) return "Error: 'target' required";
     return null;
@@ -75,7 +71,7 @@ class AppLauncherTool extends ExtendedTool {
   @override
   Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
-      final json = _tryParseJson(args);
+      final json = tryParseToolJson(args, _tag);
       final target = json['target']?.toString() ?? '';
 
       if (target.isEmpty) return const ToolResult.err("'target' required");
@@ -235,17 +231,5 @@ class AppLauncherTool extends ExtendedTool {
       return ToolResult.ok('Opened $finalUrl');
     }
     return const ToolResult.err('Cannot open URL');
-  }
-
-  Map<String, dynamic> _tryParseJson(String args) {
-    try {
-      final decoded = json.decode(args);
-      if (decoded is Map<String, dynamic>) return decoded;
-      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
-      return {};
-    } on Object catch (e) {
-      print('[$_tag] WARN: JSON parse error: $e');
-      return {};
-    }
   }
 }

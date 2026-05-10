@@ -1,12 +1,11 @@
-import 'dart:convert';
-
+import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 
 class RiskClassifier {
   static const _tag = 'AIOS-RiskClassifier';
 
   ToolRisk classify(String toolName, String args) {
-    final json = _tryParseJson(args);
+    final json = tryParseToolJson(args, _tag);
     final action = json['action']?.toString().toLowerCase() ?? '';
 
     return switch (toolName) {
@@ -64,16 +63,4 @@ class RiskClassifier {
     'dial' => ToolRisk.high,
     _ => ToolRisk.high,
   };
-
-  Map<String, dynamic> _tryParseJson(String args) {
-    try {
-      final decoded = json.decode(args);
-      if (decoded is Map<String, dynamic>) return decoded;
-      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
-      return {};
-    } on Object catch (e) {
-      print('[$_tag] WARN: JSON parse error: $e');
-      return {};
-    }
-  }
 }

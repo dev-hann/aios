@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_result.dart';
 
 class PhoneCallerTool extends ExtendedTool {
@@ -33,7 +32,7 @@ class PhoneCallerTool extends ExtendedTool {
   @override
   Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
-      final json = _tryParseJson(args);
+      final json = tryParseToolJson(args, _tag);
       final action = json['action']?.toString().toLowerCase() ?? 'dial';
       final number = json['number']?.toString().trim() ?? '';
       if (number.isEmpty) return const ToolResult.err("'number' required");
@@ -49,18 +48,6 @@ class PhoneCallerTool extends ExtendedTool {
       return ToolResult.ok(result);
     } on Object catch (e) {
       return ToolResult.err('$e');
-    }
-  }
-
-  Map<String, dynamic> _tryParseJson(String args) {
-    try {
-      final decoded = json.decode(args);
-      if (decoded is Map<String, dynamic>) return decoded;
-      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
-      return {};
-    } on Object catch (e) {
-      print('[$_tag] WARN: JSON parse error: $e');
-      return {};
     }
   }
 }

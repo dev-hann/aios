@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_result.dart';
 
 class NotificationTool extends ExtendedTool {
@@ -38,8 +37,7 @@ class NotificationTool extends ExtendedTool {
   @override
   Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
-      final json = _tryParseJson(args);
-      final action = json['action']?.toString().toLowerCase() ?? 'list';
+      final json = tryParseToolJson(args, _tag);
       final app = json['app']?.toString() ?? '';
       final maxCount = _parseInt(json['max_count']) ?? 20;
 
@@ -70,17 +68,5 @@ class NotificationTool extends ExtendedTool {
     if (value is int) return value;
     if (value is String) return int.tryParse(value);
     return null;
-  }
-
-  Map<String, dynamic> _tryParseJson(String args) {
-    try {
-      final decoded = json.decode(args);
-      if (decoded is Map<String, dynamic>) return decoded;
-      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
-      return {};
-    } on Object catch (e) {
-      print('[$_tag] WARN: JSON parse error: $e');
-      return {};
-    }
   }
 }

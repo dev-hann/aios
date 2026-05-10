@@ -8,12 +8,31 @@ import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/repositories/note_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'model_test.dart'
     show ensureProviderAvailable, providerReady, testConfig;
+
+class _InMemoryNoteRepository implements NoteRepository {
+  final Map<String, String> _notes = {};
+
+  Map<String, String> get all => Map.unmodifiable(_notes);
+
+  @override
+  Future<void> save(String key, String value) async => _notes[key] = value;
+
+  @override
+  Future<String?> get(String key) async => _notes[key];
+
+  @override
+  Future<Map<String, String>> getAll() async => Map.from(_notes);
+
+  @override
+  Future<bool> delete(String key) async => _notes.remove(key) != null;
+}
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -75,8 +94,10 @@ void main() {
       testWidgets('agent_selectsNotepad_forWriteNote', (tester) async {
         if (!providerReady) return;
 
-        final notes = <String, String>{};
-        strategy = _createStrategy(basicTools: {'notepad': NotePadTool(notes)});
+        final noteRepo = _InMemoryNoteRepository();
+        strategy = _createStrategy(
+          basicTools: {'notepad': NotePadTool(noteRepo)},
+        );
 
         final result = await strategy.execute(
           'Write a note: buy milk',
@@ -88,6 +109,7 @@ void main() {
           (s) => s.type == 'action' && s.toolName == 'notepad',
         );
         debugPrint('Notepad used: $usedNotepad');
+        final notes = await noteRepo.getAll();
         debugPrint('Notes stored: $notes');
 
         expect(result.steps, isNotEmpty);
@@ -97,8 +119,11 @@ void main() {
       testWidgets('agent_selectsNotepad_forListNotes', (tester) async {
         if (!providerReady) return;
 
-        final notes = <String, String>{'test': 'hello world'};
-        strategy = _createStrategy(basicTools: {'notepad': NotePadTool(notes)});
+        final noteRepo = _InMemoryNoteRepository();
+        await noteRepo.save('test', 'hello world');
+        strategy = _createStrategy(
+          basicTools: {'notepad': NotePadTool(noteRepo)},
+        );
 
         final result = await strategy.execute(
           'Show my notes',
@@ -173,12 +198,12 @@ void main() {
       testWidgets('agent_respondsDirectly_forGreeting', (tester) async {
         if (!providerReady) return;
 
-        final notes = <String, String>{};
+        final noteRepo = _InMemoryNoteRepository();
         final timers = <String, TimerEntry>{};
         strategy = _createStrategy(
           basicTools: {
             'calculator': CalculatorTool(),
-            'notepad': NotePadTool(notes),
+            'notepad': NotePadTool(noteRepo),
             'timer': TimerTool(timers),
           },
         );
@@ -203,11 +228,11 @@ void main() {
       ) async {
         if (!providerReady) return;
 
-        final notes = <String, String>{};
+        final noteRepo = _InMemoryNoteRepository();
         strategy = _createStrategy(
           basicTools: {
             'calculator': CalculatorTool(),
-            'notepad': NotePadTool(notes),
+            'notepad': NotePadTool(noteRepo),
           },
         );
 
@@ -222,6 +247,7 @@ void main() {
             .map((s) => s.toolName)
             .toList();
         debugPrint('Tool chain: $toolActions');
+        final notes = await noteRepo.getAll();
         debugPrint('Notes after: $notes');
 
         expect(result.steps, isNotEmpty);

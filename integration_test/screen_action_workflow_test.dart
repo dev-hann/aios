@@ -5,7 +5,6 @@ import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/agent/tools/screen_reader_tool.dart';
 import 'package:aios/data/providers/remote/llm_remote_engine.dart';
 import 'package:aios/data/providers/tool_context_impl.dart';
-import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:flutter/foundation.dart';
@@ -34,6 +33,26 @@ void main() {
     print('[TEST] Starting with ${config.model}');
     final engine = LlmRemoteEngine(config);
     final toolContext = ToolContextImpl();
+
+    print('[TEST] Waiting for accessibility service...');
+    bool accessibilityReady = false;
+    for (int i = 0; i < 30; i++) {
+      final ready = await toolContext.isAccessibilityEnabled();
+      if (ready) {
+        print('[TEST] Accessibility service ready after ${i + 1}s');
+        accessibilityReady = true;
+        break;
+      }
+      if (i == 29) {
+        print('[TEST] WARN: Accessibility service not ready after 30s');
+      }
+      await Future.delayed(const Duration(seconds: 1));
+    }
+
+    if (!accessibilityReady) {
+      print('[TEST] SKIPPED: Accessibility service not enabled');
+      return;
+    }
 
     final strategy = ReactStrategy(
       engine: engine,
