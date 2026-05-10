@@ -46,7 +46,7 @@ void main() {
       if (i == 29) {
         print('[TEST] WARN: Accessibility service not ready after 30s');
       }
-      await Future.delayed(const Duration(seconds: 1));
+      await Future<void>.delayed(const Duration(seconds: 1));
     }
 
     if (!accessibilityReady) {

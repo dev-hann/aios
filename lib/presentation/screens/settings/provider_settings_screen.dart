@@ -28,14 +28,19 @@ class _ProviderSettingsScreenState
   @override
   void initState() {
     super.initState();
-    final config = ref.read(settingsProvider).providerConfig;
-    if (config != null) {
-      _selectedType = config.type;
-      _apiKeyController.text = config.apiKey;
-      _baseUrlController.text = config.baseUrl ?? '';
-      _selectedModel = config.model;
-      _loadModels();
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final config = ref.read(settingsProvider).providerConfig;
+      if (config != null) {
+        setState(() {
+          _selectedType = config.type;
+          _apiKeyController.text = config.apiKey;
+          _baseUrlController.text = config.baseUrl ?? '';
+          _selectedModel = config.model;
+        });
+        _loadModels();
+      }
+    });
   }
 
   @override
