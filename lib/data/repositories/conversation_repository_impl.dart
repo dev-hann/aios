@@ -1,4 +1,4 @@
-import 'package:aios/data/datasources/local/database.dart' hide Conversation;
+import 'package:aios/data/datasources/local/database.dart' as db;
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/conversation.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
@@ -7,7 +7,7 @@ import 'package:drift/drift.dart';
 class ConversationRepositoryImpl implements ConversationRepository {
   ConversationRepositoryImpl(this._db);
 
-  final AppDatabase _db;
+  final db.AppDatabase _db;
   String _activeConversationId = 'default';
 
   static const _tag = 'AIOS-ConversationRepo';
@@ -45,7 +45,7 @@ class ConversationRepositoryImpl implements ConversationRepository {
   Future<Conversation> createConversation({String? title}) async {
     final id = 'conv_${DateTime.now().millisecondsSinceEpoch}';
     await _db.insertConversation(
-      ConversationsCompanion.insert(id: id, title: Value(title ?? '새 대화')),
+      db.ConversationsCompanion.insert(id: id, title: Value(title ?? '새 대화')),
     );
     _activeConversationId = id;
     return Conversation(
@@ -59,16 +59,7 @@ class ConversationRepositoryImpl implements ConversationRepository {
   @override
   Future<List<Conversation>> getAllConversations() async {
     final rows = await _db.getAllConversations();
-    return rows
-        .map(
-          (r) => Conversation(
-            id: r.id,
-            title: r.title,
-            createdAt: r.createdAt,
-            updatedAt: r.updatedAt,
-          ),
-        )
-        .toList();
+    return rows.map(_rowToConversation).toList();
   }
 
   @override
@@ -101,16 +92,7 @@ class ConversationRepositoryImpl implements ConversationRepository {
   @override
   Stream<List<Conversation>> watchAllConversations() {
     return _db.watchAllConversations().map(
-      (rows) => rows
-          .map(
-            (r) => Conversation(
-              id: r.id,
-              title: r.title,
-              createdAt: r.createdAt,
-              updatedAt: r.updatedAt,
-            ),
-          )
-          .toList(),
+      (rows) => rows.map(_rowToConversation).toList(),
     );
   }
 
@@ -118,16 +100,25 @@ class ConversationRepositoryImpl implements ConversationRepository {
     _activeConversationId = id;
   }
 
+  Conversation _rowToConversation(db.Conversation row) {
+    return Conversation(
+      id: row.id,
+      title: row.title,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
   Future<void> _ensureConversation(String id) async {
     final conversations = await _db.getAllConversations();
     final exists = conversations.any((c) => c.id == id);
     if (!exists) {
-      await _db.insertConversation(ConversationsCompanion.insert(id: id));
+      await _db.insertConversation(db.ConversationsCompanion.insert(id: id));
     }
   }
 
-  MessagesCompanion _toCompanion(ChatMessage msg) {
-    return MessagesCompanion.insert(
+  db.MessagesCompanion _toCompanion(ChatMessage msg) {
+    return db.MessagesCompanion.insert(
       id: msg.id,
       conversationId: _activeConversationId,
       role: msg.role,
@@ -139,7 +130,7 @@ class ConversationRepositoryImpl implements ConversationRepository {
     );
   }
 
-  ChatMessage _fromRow(Message row) {
+  ChatMessage _fromRow(db.Message row) {
     return ChatMessage(
       id: row.id,
       role: row.role,

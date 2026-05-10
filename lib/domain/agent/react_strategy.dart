@@ -123,27 +123,23 @@ class ReactStrategy implements AgentStrategy {
   List<LlmToolSchema> _buildToolSchemas() {
     final schemas = <LlmToolSchema>[];
     for (final tool in _basicTools.values) {
-      schemas.add(_basicToolToSchema(tool));
+      schemas.add(_toolToSchema(tool.name, tool.toolPrompt, tool.parameters));
     }
     for (final tool in _extendedTools.values) {
-      schemas.add(_extendedToolToSchema(tool));
+      schemas.add(_toolToSchema(tool.name, tool.toolPrompt, tool.parameters));
     }
     return schemas;
   }
 
-  LlmToolSchema _basicToolToSchema(AgentTool tool) {
+  LlmToolSchema _toolToSchema(
+    String name,
+    String toolPrompt,
+    String parameters,
+  ) {
     return LlmToolSchema(
-      name: tool.name,
-      description: tool.toolPrompt,
-      parameters: _parseParams(tool.parameters),
-    );
-  }
-
-  LlmToolSchema _extendedToolToSchema(ExtendedTool tool) {
-    return LlmToolSchema(
-      name: tool.name,
-      description: tool.toolPrompt,
-      parameters: _parseParams(tool.parameters),
+      name: name,
+      description: toolPrompt,
+      parameters: _parseParams(parameters),
     );
   }
 
