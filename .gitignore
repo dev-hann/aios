@@ -1,28 +1,25 @@
-# Flutter
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
+# Dependencies
+node_modules/
+lib/node_modules/
+
+# Build
 **/build/
-*.lock
-!pubspec.lock
+dist/
 
 # Android
-android/app/libs/*.aar
-android/aios-release.jks
 android/.gradle/
 android/local.properties
+android/app/libs/
+android/aios-release.jks
 **/*.iml
 
 # IDE
 .idea/
-*.iml
 .vscode/
 
-# Native (removed)
-native/
-
-# Test secrets
+# Secrets
 .env.test
+lib/.env
 
 # General
 .DS_Store
@@ -30,9 +27,5 @@ native/
 *.swo
 *~
 
-# Generated
-*.g.dart
-*.freezed.dart
-*.mocks.dart
-android/aios-release.jks
-android/app/libs/
+# OS
+Thumbs.db

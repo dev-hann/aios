@@ -3,120 +3,83 @@
 ## 최종 목표
 
 사용자가 자연어로 Android 폰을 완전히 제어할 수 있는 AI 에이전트.
-LLM 추론은 Remote OpenAI-compatible API를 사용 (glm-4.5-air via z.ai).
+React + TypeScript (Gyo Framework) 기반 WebView 앱.
 
 ## 기능 목록
 
-### F01: app_launcher 안정화
-- Phase 1 routing 프롬프트가 소형 LLM에서 안정적으로 tool 선택
-- Phase 2 tool 프롬프트가 open_app vs open_url 정확히 구분
-- 앱 이름(한글/영문) → package_name 정확 매칭
-- 앱이 설치되지 않은 경우 안내 메시지
-- "open youtube", "카카오톡 켜줘", "유튜브 실행" 등 자연어 입력 처리
+### F01: app_launcher — 앱 실행
+- Gyo Bridge → PackageManager 연동 필요
+- 앱 이름(한글/영문) → package_name 매칭
+- URL 감지 및 브라우저 실행
 
 ### F02: screen_action — 화면 제어
-- 화면 탭 (좌표 기반, 텍스트 기반)
-- 스와이프 (방향 + 거리)
-- 롱클릭
-- 텍스트 입력 (입력창 지정)
-- 접근성 서비스 연동
-- "화면에서 확인 버튼 눌러줘", "위로 스크롤해줘" 등
+- Gyo Bridge → AccessibilityService 연동 필요
+- tap, long_click, type, scroll, swipe, global actions
 
 ### F03: screen_reader — 화면 읽기
-- 화면 전체 텍스트 읽기
-- 특정 영역/버튼 텍스트 읽기
-- 화면 상태 파악 (어떤 앱이 켜져있는지)
-- 접근성 서비스 연동
-- "지금 화면에 뭐 보여?", "메시지 내용 읽어줘" 등
+- Gyo Bridge → AccessibilityService 연동 필요
+- 화면 전체 텍스트, 특정 영역/버튼 텍스트
 
 ### F04: notification — 알림
-- 알림 목록 읽기
-- 알림 내용 읽기
-- 알림 답장 (지원 앱)
-- 알림 서비스 연동
-- "알림 뭐왔어", "카톡 알림 읽어줘" 등
+- Gyo Bridge → NotificationListenerService 연동 필요
+- 알림 목록/내용 읽기
 
 ### F05: sms_sender — SMS 전송
-- SMS/MMS 전송
-- 연락처 기반 수신자 지정
-- 전송 전 확인 (위험도 CRITICAL)
-- "010-1234-5678으로 안부 문자 보내줘" 등
+- Gyo Bridge → SmsManager 연동 필요
+- 위험도 CRITICAL (사용자 승인 필수)
 
 ### F06: phone_caller — 전화
-- 전화 걸기
-- 전화 끊기
-- 통화 중 상태 확인
-- 위험도 CRITICAL (사용자 승인 필수)
-- "엄마한테 전화해줘" 등
+- Gyo Bridge → TelephonyManager 연동 필요
+- 위험도 CRITICAL
 
 ### F07: contact_search — 연락처
-- 이름으로 연락처 검색
-- 전화번호, 이메일 조회
-- 부분 일치 검색
-- "홍길동 전화번호 알려줘" 등
+- Gyo Bridge → ContactsProvider 연동 필요
 
-### F08: calculator — 수학 계산
-- 사칙연산
-- 퍼센트, 제곱근
-- 복잡한 수식 파싱
-- "385 곱하기 22 얼마야" 등
+### F08: calculator — 수학 계산 ✅
+- **활성** (순수 TS)
+- 사칙연산, 퍼센트, 제곱근
 
-### F09: notepad — 메모
-- 메모 작성
-- 메모 읽기/목록
-- 메모 삭제
-- "오늘 할 일 적어줘: 장보기, 운동가기" 등
+### F09: notepad — 메모 ✅
+- **활성** (순수 TS)
+- 메모 작성/조회/목록/삭제
 
-### F10: timer — 타이머/알람
-- 타이머 설정 (최대 300초)
-- 남은 시간 확인
-- 타이머 취소
-- "5분 타이머 설정해줘" 등
+### F10: timer — 타이머/알람 ✅
+- **활성** (순수 TS)
+- 타이머 설정/확인/취소/목록
 
 ### F11: device_info — 기기 정보
-- 기기 모델, OS 버전
-- 배터리 상태
-- 저장공간
-- 메모리 사용량
-- "내 폰 배터리 몇퍼센트야" 등
+- Gyo Bridge → Build/Settings 연동 필요
 
-### F12: multi-tool chaining
-- 여러 Tool 연속 사용 (예: "연락처에서 홍길동 찾아서 전화해줘")
-- Tool 간 데이터 전달 (contact_search 결과 → phone_caller 입력)
-- Observation 기반 다음 Tool 자동 선택
-- 루프 감지 및 방지
+### F12: multi-tool chaining ✅
+- ReAct 루프에서 자동 처리
+- LoopDetector로 무한 루프 방지
 
-### F13: context awareness
-- 대화 맥락 유지 (이전 질문 참조)
-- 대화 중 기능 전환 (질문 → 명령 → 질문)
-- 사용자 선호도 학습 (자주 쓰는 앱 등)
+### F13: context awareness ✅
+- ConversationContext: 최근 5턴 대화 기록
+- ToolPreferenceTracker: 자주 사용하는 Tool top 3
 
-### F14: error recovery
-- Tool 실행 실패 시 자동 복구
-- 대체 경로 시도 (예: 앱 이름 매칭 실패 → list_apps로 검색)
-- 사용자에게 에러 원인 설명
-- 네트워크/서비스 미연결 시 안내
+### F14: error recovery ✅
+- ErrorRecovery: 8가지 에러 타입 분류
+- 복구 힌트 주입, 재시도 추적
 
 ### F15: UX polish
-- 로딩 상태 표시 (모델 로딩, 추론 중)
-- 권한 요청 UX (접근성, 알림, 연락처)
-- 오류 메시지 사용자 친화적 표시
-- 다크모드/라이트모드 안정화
+- 로딩 상태 표시
+- 스트리밍 응답 시 토큰 단위 표시
+- 다크 테마 안정화
 
-### F16: 백그라운드 모드 (플로팅 어시스턴트)
-- 플로팅 버튼 오버레이 (다른 앱 위에서 접근)
-- 텍스트 입력 오버레이로 명령 전송
-- 백그라운드에서 Agent 실행 및 결과 표시
-- 설정 화면에서 백그라운드 모드 토글
+### F16: 백그라운드 모드
+- 플로팅 버튼 오버레이
+- Gyo Bridge → SYSTEM_ALERT_WINDOW 필요
 
-## 마일스톤 (배포 단위)
+## 마일스톤
 
 | 마일스톤 | 기능 | 설명 | 상태 |
 |-----------|------|------|------|
-| M1 | F01 | 앱 실행 안정화 | **완성** |
-| M2 | F02, F03 | 화면 제어 + 읽기 | **완성** |
-| M3 | F04, F05, F06, F07 | 커뮤니케이션 | **완성** |
-| M4 | F08, F09, F10, F11 | 유틸리티 | **완성** |
-| M5 | F12, F13, F14 | 에이전트 지능 | **완성** |
-| M6 | F15 | UX 마무리 | **완성** |
-| M7 | F16 | 백그라운드 플로팅 어시스턴트 | **완성** |
+| M1 | — | Gyo 마이그레이션 (React+TS+WebView) | **완성** |
+| M2 | F08, F09, F10 | 순수 TS Tool 3개 | **완성** |
+| M3 | F12, F13, F14 | 에이전트 지능 (ReAct 루프) | **완성** |
+| M4 | F15 | UX 마무리 | **진행중** |
+| M5 | F01 | Gyo Bridge + app_launcher | **예정** |
+| M6 | F02, F03 | Gyo Bridge + 화면 제어/읽기 | **예정** |
+| M7 | F04-F07, F11 | Gyo Bridge + 커뮤니케이션/기기 | **예정** |
+| M8 | F16 | 백그라운드 플로팅 어시스턴트 | **예정** |

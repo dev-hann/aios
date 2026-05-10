@@ -1,0 +1,53 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --color-background: #0E0E10;
+  --color-surface: #18181B;
+  --color-surface-elevated: #1F1F23;
+  --color-surface-modal: #252528;
+  --color-primary: #9146FF;
+  --color-primary-hover: #A970FF;
+  --color-secondary: #BF94FF;
+  --color-text-primary: #EFEFF1;
+  --color-text-secondary: #ADADB8;
+  --color-error: #EB0400;
+  --color-success: #00C853;
+  --color-warning: #FFCA28;
+  --color-divider: #2F2F35;
+  --color-user-bubble: #9146FF;
+  --color-assistant-bubble: #1F1F23;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  --spacing-xs: 4px;
+  --spacing-s: 8px;
+  --spacing-m: 10px;
+  --spacing-l: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+  --spacing-xxxl: 32px;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

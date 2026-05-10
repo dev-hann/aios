@@ -1,0 +1,238 @@
+.session-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100%;
+  background-color: var(--color-surface);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.session-drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-l) var(--spacing-s) var(--spacing-m) var(--spacing-l);
+}
+
+.drawer-logo {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.drawer-title {
+  flex: 1;
+  margin-left: var(--spacing-m);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.drawer-new-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: var(--spacing-s);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-new-btn:hover {
+  color: var(--color-primary-hover);
+}
+
+.drawer-divider {
+  height: 1px;
+  background-color: var(--color-divider);
+}
+
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-xs);
+}
+
+.session-empty {
+  color: var(--color-text-secondary);
+  padding: var(--spacing-l);
+  text-align: center;
+  font-size: 13px;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-s);
+  padding: var(--spacing-s) var(--spacing-m);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  transition: background-color 0.15s;
+}
+
+.session-item:hover {
+  background-color: var(--color-surface-elevated);
+}
+
+.session-item.active {
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+}
+
+.session-item.active .session-title {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.session-item .session-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.session-item .session-icon.active-icon {
+  color: var(--color-primary);
+}
+
+.session-item .session-icon.inactive-icon {
+  color: var(--color-text-secondary);
+}
+
+.session-item .session-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-item .session-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-item .session-date {
+  font-size: 11px;
+  color: rgba(173, 173, 184, 0.6);
+}
+
+.session-item .delete-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.session-item .delete-btn:hover {
+  color: var(--color-error);
+  opacity: 1;
+}
+
+.drawer-footer {
+  border-top: 1px solid var(--color-divider);
+}
+
+.drawer-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-m);
+  width: 100%;
+  padding: var(--spacing-m) var(--spacing-l);
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.drawer-footer-btn:hover {
+  background-color: var(--color-surface-elevated);
+}
+
+.delete-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-dialog {
+  background-color: var(--color-surface-modal);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.delete-dialog h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-m);
+}
+
+.delete-dialog p {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-l);
+}
+
+.delete-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-s);
+}
+
+.delete-dialog-actions button {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--spacing-s) var(--spacing-m);
+  border-radius: var(--radius-sm);
+}
+
+.dialog-cancel {
+  color: var(--color-text-primary);
+}
+
+.dialog-delete {
+  color: var(--color-error);
+}

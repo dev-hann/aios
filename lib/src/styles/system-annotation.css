@@ -1,0 +1,22 @@
+.system-annotation {
+  padding: 2px 24px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.system-annotation-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.system-annotation-text {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}

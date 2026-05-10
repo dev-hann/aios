@@ -3,7 +3,7 @@ name: aios-dev
 description: AIOS autonomous development - main thread runs sub-tasks, each sub-task reads roadmap, analyzes, implements, tests, commits, and deploys
 metadata:
   project: aios
-  stack: flutter/dart
+  stack: react/typescript
   target: natural-language phone control
 ---
 
@@ -40,16 +40,16 @@ metadata:
 
 ```
 0. 기존 테스트 상태 확인:
-   - ./scripts/test.sh 실행 → 실패 시 기존 테스트 수정 우선
+   - cd lib && npm run verify 실행 → 실패 시 기존 코드 수정 우선
    - all green 확인 후 다음 단계 진행
 1. AGENTS.md, CONTRIBUTING.md, TESTING.md, docs/architecture.md 읽기 → 규약 숙지
 2. git log --oneline -20 → 최근 변경사항 파악
 3. 코드베이스 분석 → 개선/리팩토링 후보 전체 탐색:
    a. 중복 코드 (동일한 헬퍼/로직이 여러 파일에 있는지 grep)
    b. 과도하게 긴 메서드/클래스 (100줄+)
-   c. 누락된 테스트 (lib/ 대 test/ 비교, 미커버 모듈 식별)
+   c. 누락된 테스트 (src/ 대 __tests__/ 비교, 미커버 모듈 식별)
    d. 에러 핸들링 (빈 catch, 잘못된 에러 반환, unsafe cast)
-   e. 성능 (불필요한 리빌드, O(n) 복사, 매번 새 인스턴스 생성)
+   e. 성능 (불필요한 리렌더, O(n) 복사, 매번 새 인스턴스 생성)
    f. 미사용 의존성, dead code, TODO/FIXME/HACK 주석
    → 발견된 항목을 우선순위(HIGH > MEDIUM > LOW)로 정렬
    → 전체 항목을 작업 리스트로 작성
@@ -57,19 +57,18 @@ metadata:
 4. 관련 기존 코드 분석:
    - 수정 대상 파일의 주변 컨텍스트 읽기
    - 기존 테스트 파일 패턴 파악
-   - 의존성 주입 방식 (provider 등록) 확인
+   - 의존성 주입 방식 (Zustand store) 확인
 5. 작업 리스트의 각 항목에 대해 TDD 수행:
    a. 테스트 코드 작성 (RED)
    b. 기능 구현/수정 (GREEN)
-   c. ./scripts/test.sh 실행 → 실패 시 수정
+   c. npm run test 실행 → 실패 시 수정
    d. 리팩토링 (REFACTOR)
-6. ./scripts/test.sh 전체 실행 → 반드시 0 실패 확인
-7. 커밋 전 필수 체크 (CONTRIBUTING.md 참고):
-   - flutter analyze → 0 warnings
-   - dart format . --set-exit-if-changed → no diff
-   - dart run build_runner build → 코드 생성 성공
+6. npm run verify 전체 실행 → 반드시 0 실패 확인
+7. 커밋 전 필수 체크:
+   - npm run type-check → 0 errors
+   - npm run build → 성공
 8. 기기 연결 시 (AGENTS.md §0 기기 명령어 참고):
-   a. flutter build apk --debug
+   a. cd android && ./gradlew assembleDebug
    b. adb 설치 → 실행
    c. 스크린샷 → read로 화면 확인
    d. logcat에서 [AIOS-] 로그 확인

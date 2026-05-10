@@ -1,0 +1,70 @@
+.confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirmation-dialog {
+  background-color: var(--color-surface-modal);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-l);
+  min-width: 280px;
+  max-width: 340px;
+}
+
+.confirmation-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-s);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-m);
+}
+
+.confirmation-tool {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-s);
+}
+
+.confirmation-args {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-s);
+  margin-top: var(--spacing-l);
+}
+
+.confirmation-actions button {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--spacing-s) var(--spacing-m);
+}
+
+.btn-deny {
+  color: var(--color-error);
+}
+
+.btn-approve {
+  color: var(--color-primary);
+}
