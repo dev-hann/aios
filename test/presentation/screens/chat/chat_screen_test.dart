@@ -11,6 +11,7 @@ import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
+import '../../../helpers/mock_llm_repository.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
@@ -20,49 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _MockLlmRepository implements LlmRepository {
-  final _stateController = StreamController<ServiceState>.broadcast();
-  bool connected = false;
-
-  @override
-  Stream<ServiceState> get state => _stateController.stream;
-
-  @override
-  Future<bool> connect(LlmProviderConfig config) async {
-    connected = true;
-    _stateController.add(ServiceState.ready);
-    return true;
-  }
-
-  @override
-  Future<void> disconnect() async {
-    connected = false;
-    _stateController.add(ServiceState.idle);
-  }
-
-  @override
-  bool get isConnected => connected;
-
-  @override
-  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
-    return [];
-  }
-
-  @override
-  Future<bool> testConnection(LlmProviderConfig config) async => true;
-
-  @override
-  Future<void> stopGeneration() async {}
-
-  @override
-  Future<void> loadModel(String path, {int? contextSize}) async {}
-
-  void emitState(ServiceState s) => _stateController.add(s);
-
-  void dispose() {
-    _stateController.close();
-  }
-}
+typedef _MockLlmRepository = MockLlmRepository;
 
 class _MockConversationRepository implements ConversationRepository {
   @override

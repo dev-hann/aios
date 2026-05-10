@@ -1,3 +1,5 @@
+import 'package:aios/domain/entities/llm_provider_config.dart';
+
 class _ChatStrings {
   const _ChatStrings();
   String get inputHint => '메시지를 입력하세요...';
@@ -63,9 +65,17 @@ class _ProviderStrings {
   String get title => 'AI 제공자 설정';
   String get selectProvider => '제공자 선택';
   String get zai => 'Z.AI (GLM)';
+  String get zaiCoding => 'Z.AI (Coding)';
   String get openai => 'OpenAI';
   String get anthropic => 'Anthropic';
   String get custom => 'Custom (OpenAI 호환)';
+  String nameForType(LlmProviderType type) => switch (type) {
+    LlmProviderType.zai => zai,
+    LlmProviderType.zaiCoding => zaiCoding,
+    LlmProviderType.openai => openai,
+    LlmProviderType.anthropic => anthropic,
+    LlmProviderType.custom => custom,
+  };
   String get comingSoon => '준비 중';
   String get apiKey => 'API 키';
   String get enterApiKey => 'API 키를 입력하세요';

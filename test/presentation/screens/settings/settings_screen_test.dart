@@ -1,11 +1,10 @@
 import 'dart:async';
 
 import 'package:aios/domain/entities/llm_provider_config.dart';
-import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/entities/update_info.dart';
-import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
+import '../../../helpers/mock_llm_repository.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/settings_notifier.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
@@ -56,35 +55,7 @@ class _MockSettingsRepository implements SettingsRepository {
   Future<void> setOnboardingCompleted() async => _onboardingCompleted = true;
 }
 
-class _MockLlmRepository implements LlmRepository {
-  final _stateController = StreamController<ServiceState>.broadcast();
-
-  @override
-  Stream<ServiceState> get state => _stateController.stream;
-
-  @override
-  Future<bool> connect(LlmProviderConfig config) async => true;
-
-  @override
-  Future<void> disconnect() async {}
-
-  @override
-  bool get isConnected => false;
-
-  @override
-  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
-    return [];
-  }
-
-  @override
-  Future<bool> testConnection(LlmProviderConfig config) async => true;
-
-  @override
-  Future<void> stopGeneration() async {}
-
-  @override
-  Future<void> loadModel(String path, {int? contextSize}) async {}
-}
+typedef _MockLlmRepository = MockLlmRepository;
 
 class _MockUpdateRepository implements UpdateRepository {
   @override

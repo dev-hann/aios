@@ -47,14 +47,6 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-String _providerName(LlmProviderType type) => switch (type) {
-  LlmProviderType.zai => Strings.provider.zai,
-  LlmProviderType.zaiCoding => 'Z.AI (Coding)',
-  LlmProviderType.openai => Strings.provider.openai,
-  LlmProviderType.anthropic => Strings.provider.anthropic,
-  LlmProviderType.custom => Strings.provider.custom,
-};
-
 class _ProviderSection extends StatelessWidget {
   const _ProviderSection({required this.state});
 
@@ -125,7 +117,7 @@ class _ConnectedRow extends StatelessWidget {
                 ),
               ),
               Text(
-                _providerName(config.type),
+                Strings.provider.nameForType(config.type),
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 12,
@@ -276,9 +268,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = state.status;
-    if (status == UpdateStatus.idle) {
-      return SizedBox(
+    return switch (state.status) {
+      UpdateStatus.idle => SizedBox(
         width: double.infinity,
         child: Semantics(
           label: 'check_for_updates_button',
@@ -289,10 +280,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
             label: Text(Strings.settings.checkUpdates),
           ),
         ),
-      );
-    }
-    if (status == UpdateStatus.checking) {
-      return Row(
+      ),
+      UpdateStatus.checking => Row(
         children: [
           const SizedBox(
             width: 16,
@@ -311,10 +300,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
             ),
           ),
         ],
-      );
-    }
-    if (status == UpdateStatus.available) {
-      return Column(
+      ),
+      UpdateStatus.available => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -346,10 +333,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
             ),
           ),
         ],
-      );
-    }
-    if (status == UpdateStatus.downloading) {
-      return Column(
+      ),
+      UpdateStatus.downloading => Column(
         children: [
           LinearProgressIndicator(
             value: state.downloadProgress,
@@ -366,10 +351,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
             ),
           ),
         ],
-      );
-    }
-    if (status == UpdateStatus.downloaded) {
-      return SizedBox(
+      ),
+      UpdateStatus.downloaded => SizedBox(
         width: double.infinity,
         child: ElevatedButton.icon(
           onPressed: () => ref.read(updateProvider.notifier).installApk(),
@@ -380,10 +363,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
             foregroundColor: AppColors.textPrimary,
           ),
         ),
-      );
-    }
-    if (status == UpdateStatus.installing) {
-      return Row(
+      ),
+      UpdateStatus.installing => Row(
         children: [
           const SizedBox(
             width: 16,
@@ -402,10 +383,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
             ),
           ),
         ],
-      );
-    }
-    if (status == UpdateStatus.installed) {
-      return Row(
+      ),
+      UpdateStatus.installed => Row(
         children: [
           const Icon(Icons.check_circle, color: AppColors.success, size: 18),
           const SizedBox(width: 8),
@@ -414,10 +393,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
             style: const TextStyle(color: AppColors.success, fontSize: 13),
           ),
         ],
-      );
-    }
-    if (status == UpdateStatus.notAvailable) {
-      return Column(
+      ),
+      UpdateStatus.notAvailable => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -445,10 +422,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
             ),
           ),
         ],
-      );
-    }
-    if (status == UpdateStatus.error) {
-      return Column(
+      ),
+      UpdateStatus.error => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -470,8 +445,7 @@ class _InlineUpdateStatus extends ConsumerWidget {
             ),
           ),
         ],
-      );
-    }
-    return const SizedBox.shrink();
+      ),
+    };
   }
 }

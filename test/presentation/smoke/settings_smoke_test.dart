@@ -7,12 +7,11 @@ import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/conversation.dart';
 import 'package:aios/domain/entities/llm_provider_config.dart';
-import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
-import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
+import '../../helpers/mock_llm_repository.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
@@ -66,39 +65,7 @@ class _MockUpdateRepository implements UpdateRepository {
   Future<bool> installApk(String apkPath) async => false;
 }
 
-class _MockLlmRepository implements LlmRepository {
-  final _stateController = StreamController<ServiceState>.broadcast();
-
-  @override
-  Stream<ServiceState> get state => _stateController.stream;
-
-  @override
-  Future<bool> connect(LlmProviderConfig config) async => true;
-
-  @override
-  Future<void> disconnect() async {}
-
-  @override
-  bool get isConnected => false;
-
-  @override
-  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
-    return [];
-  }
-
-  @override
-  Future<bool> testConnection(LlmProviderConfig config) async => true;
-
-  @override
-  Future<void> stopGeneration() async {}
-
-  @override
-  Future<void> loadModel(String path, {int? contextSize}) async {}
-
-  void dispose() {
-    _stateController.close();
-  }
-}
+typedef _MockLlmRepository = MockLlmRepository;
 
 class _MockConversationRepository implements ConversationRepository {
   @override

@@ -76,8 +76,16 @@ class DeviceInfoTool extends ExtendedTool {
   ) async {
     final raw = await ctx.invokeMethod(method);
     if (raw == null) return const ToolResult.err('No result');
-    final data = json.decode(raw) as Map<String, dynamic>;
-    return ToolResult.ok(formatter(data));
+    try {
+      final decoded = json.decode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return const ToolResult.err('Invalid response format');
+      }
+      return ToolResult.ok(formatter(decoded));
+    } on Object catch (e) {
+      print('[$_tag] ERROR: parse response - $e');
+      return ToolResult.err('Failed to parse response');
+    }
   }
 
   String _formatDeviceInfo(Map<String, dynamic> d) {

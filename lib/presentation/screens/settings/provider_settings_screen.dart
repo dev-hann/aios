@@ -208,14 +208,6 @@ class _ProviderSettingsScreenState
   }
 }
 
-String _providerName(LlmProviderType type) => switch (type) {
-  LlmProviderType.zai => Strings.provider.zai,
-  LlmProviderType.zaiCoding => 'Z.AI (Coding)',
-  LlmProviderType.openai => Strings.provider.openai,
-  LlmProviderType.anthropic => Strings.provider.anthropic,
-  LlmProviderType.custom => Strings.provider.custom,
-};
-
 class _ProviderTypeSection extends StatelessWidget {
   const _ProviderTypeSection({
     required this.selectedType,
@@ -237,7 +229,7 @@ class _ProviderTypeSection extends StatelessWidget {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 title: Text(
-                  _providerName(type),
+                  Strings.provider.nameForType(type),
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 14,

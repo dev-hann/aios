@@ -3,52 +3,13 @@ import 'dart:async';
 import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
+import '../../helpers/mock_llm_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _MockLlmRepository implements LlmRepository {
-  final _stateController = StreamController<ServiceState>.broadcast();
-
-  bool connected = false;
-
-  @override
-  Stream<ServiceState> get state => _stateController.stream;
-
-  @override
-  Future<bool> connect(LlmProviderConfig config) async {
-    connected = true;
-    _stateController.add(ServiceState.ready);
-    return true;
-  }
-
-  @override
-  Future<void> disconnect() async {
-    connected = false;
-    _stateController.add(ServiceState.idle);
-  }
-
-  @override
-  bool get isConnected => connected;
-
+class _MockLlmRepository extends MockLlmRepository {
   @override
   Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
     return [const LlmModelInfo(id: 'gpt-4o', displayName: 'GPT-4o')];
-  }
-
-  @override
-  Future<bool> testConnection(LlmProviderConfig config) async {
-    return true;
-  }
-
-  @override
-  Future<void> stopGeneration() async {}
-
-  @override
-  Future<void> loadModel(String path, {int? contextSize}) async {}
-
-  void emitState(ServiceState s) => _stateController.add(s);
-
-  void dispose() {
-    _stateController.close();
   }
 }
 

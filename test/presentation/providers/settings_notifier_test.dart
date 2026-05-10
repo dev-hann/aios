@@ -4,6 +4,7 @@ import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
+import '../../helpers/mock_llm_repository.dart';
 import 'package:aios/presentation/providers/settings_notifier.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,84 +46,17 @@ class _MockSettingsRepository implements SettingsRepository {
   Future<void> setOnboardingCompleted() async => _onboardingCompleted = true;
 }
 
-class _MockLlmRepository implements LlmRepository {
-  final _stateController = StreamController<ServiceState>.broadcast();
-  bool connected = false;
-  LlmProviderConfig? lastConfig;
-
-  @override
-  Stream<ServiceState> get state => _stateController.stream;
-
-  @override
-  Future<bool> connect(LlmProviderConfig config) async {
-    lastConfig = config;
-    connected = true;
-    _stateController.add(ServiceState.ready);
-    return true;
-  }
-
-  @override
-  Future<void> disconnect() async {
-    connected = false;
-    _stateController.add(ServiceState.idle);
-  }
-
-  @override
-  bool get isConnected => connected;
-
+class _MockLlmRepository extends MockLlmRepository {
   @override
   Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
     return [const LlmModelInfo(id: 'gpt-4o', displayName: 'GPT-4o')];
   }
-
-  @override
-  Future<bool> testConnection(LlmProviderConfig config) async => true;
-
-  @override
-  Future<void> stopGeneration() async {}
-
-  @override
-  Future<void> loadModel(String path, {int? contextSize}) async {}
-
-  void dispose() {
-    _stateController.close();
-  }
 }
 
-class _FailingLlmRepository implements LlmRepository {
-  final _stateController = StreamController<ServiceState>.broadcast();
-
-  @override
-  Stream<ServiceState> get state => _stateController.stream;
-
-  @override
-  Future<bool> connect(LlmProviderConfig config) async {
-    _stateController.add(ServiceState.error);
-    return false;
-  }
-
-  @override
-  Future<void> disconnect() async {}
-
-  @override
-  bool get isConnected => false;
-
-  @override
-  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
-    return [];
-  }
-
-  @override
-  Future<bool> testConnection(LlmProviderConfig config) async => false;
-
-  @override
-  Future<void> stopGeneration() async {}
-
-  @override
-  Future<void> loadModel(String path, {int? contextSize}) async {}
-
-  void dispose() {
-    _stateController.close();
+class _FailingLlmRepository extends MockLlmRepository {
+  _FailingLlmRepository() {
+    connectResult = false;
+    testResult = false;
   }
 }
 
