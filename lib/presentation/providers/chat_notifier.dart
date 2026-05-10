@@ -139,12 +139,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     state = state.copyWith(
       agentSteps: [...state.agentSteps, step],
-      isConfirming: step.type == 'confirmation_required'
-          ? true
-          : state.isConfirming,
-      isAwaitingPermission: step.type == 'permission_required'
-          ? true
-          : state.isAwaitingPermission,
+      isConfirming: step.type == 'confirmation_required' || state.isConfirming,
+      isAwaitingPermission:
+          step.type == 'permission_required' || state.isAwaitingPermission,
     );
   }
 

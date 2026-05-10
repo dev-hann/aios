@@ -230,7 +230,7 @@ void main() {
   group('cancel', () {
     test('cancel_doesNotThrow', () {
       final strategy = ReactStrategy(engine: _FakeEngine());
-      expect(() => strategy.cancel(), returnsNormally);
+      expect(strategy.cancel, returnsNormally);
     });
 
     test('cancel_multipleTimes_doesNotThrow', () {
@@ -292,7 +292,7 @@ void main() {
   group('clearHistory', () {
     test('clearHistory_doesNotThrow', () {
       final strategy = ReactStrategy(engine: _FakeEngine());
-      expect(() => strategy.clearHistory(), returnsNormally);
+      expect(strategy.clearHistory, returnsNormally);
     });
   });
 
@@ -328,7 +328,7 @@ void main() {
       strategy.setConversationContext(context);
       strategy.setToolPreferenceTracker(null);
 
-      strategy.execute('test', onStep: (_) {});
+      unawaited(strategy.execute('test', onStep: (_) {}));
 
       expect(engine.capturedSystemPrompt, contains('CONVERSATION HISTORY'));
       expect(engine.capturedSystemPrompt, contains('open youtube'));
@@ -344,7 +344,7 @@ void main() {
       strategy.setConversationContext(null);
       strategy.setToolPreferenceTracker(tracker);
 
-      strategy.execute('test', onStep: (_) {});
+      unawaited(strategy.execute('test', onStep: (_) {}));
 
       expect(engine.capturedSystemPrompt, contains('FREQUENTLY USED TOOLS'));
       expect(engine.capturedSystemPrompt, contains('calculator'));
@@ -361,7 +361,7 @@ void main() {
       strategy.setConversationContext(context);
       strategy.setToolPreferenceTracker(tracker);
 
-      strategy.execute('test', onStep: (_) {});
+      unawaited(strategy.execute('test', onStep: (_) {}));
 
       expect(engine.capturedSystemPrompt, contains('CONVERSATION HISTORY'));
       expect(engine.capturedSystemPrompt, contains('FREQUENTLY USED TOOLS'));

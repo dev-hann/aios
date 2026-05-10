@@ -75,7 +75,7 @@ void main() {
       String argsDisplay = '';
       if (step.toolArgs.isNotEmpty) {
         try {
-          final d = jsonDecode(step.toolArgs);
+          final d = jsonDecode(step.toolArgs) as Map<String, dynamic>;
           argsDisplay =
               ' a=${d['action']} c=${d['content']} t=${d['text']} g=${d['global_action']}';
         } on Object {
@@ -94,7 +94,7 @@ void main() {
         .where((s) => s.type == 'action' && s.toolName == 'screen_action')
         .map((s) {
           try {
-            return jsonDecode(s.toolArgs)['action'];
+            return (jsonDecode(s.toolArgs) as Map<String, dynamic>)['action'];
           } on Object {
             return null;
           }
@@ -106,7 +106,7 @@ void main() {
     final hasEnter = result.steps.any((s) {
       if (s.toolName != 'screen_action' || s.type != 'action') return false;
       try {
-        final d = jsonDecode(s.toolArgs);
+        final d = jsonDecode(s.toolArgs) as Map<String, dynamic>;
         return d['action'] == 'global' && d['global_action'] == 'enter';
       } on Object {
         return false;

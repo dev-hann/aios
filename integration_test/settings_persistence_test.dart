@@ -87,7 +87,7 @@ void main() {
 
       testWidgets('all settings persist together', (tester) async {
         await repo.setMaxTokens(2048);
-        await repo.setTemperature(1.0);
+        await repo.setTemperature(1);
         await repo.setTopP(0.8);
         await repo.setAgentMaxIterations(5);
         await repo.setProviderConfig(

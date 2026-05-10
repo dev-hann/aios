@@ -37,7 +37,7 @@ class LoadingIndicator extends StatelessWidget {
           if (isReady)
             const Icon(Icons.check_circle, size: 48, color: AppColors.success)
           else
-            SizedBox(
+            const SizedBox(
               width: 48,
               height: 48,
               child: CircularProgressIndicator(

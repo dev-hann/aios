@@ -14,7 +14,7 @@ abstract class SettingsRepository {
   Future<void> clearProviderConfig();
   Future<void> setOnboardingCompleted();
 
-  static const double defaultTemperature = 1.0;
+  static const double defaultTemperature = 1;
   static const double defaultTopP = 0.95;
   static const int defaultMaxTokens = 512;
   static const int defaultAgentMaxIterations = 8;

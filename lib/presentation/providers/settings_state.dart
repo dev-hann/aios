@@ -18,7 +18,7 @@ class SettingsState with _$SettingsState {
     @Default(false) bool onboardingCompleted,
   }) = _SettingsState;
 
-  factory SettingsState.initial() => SettingsState(
+  factory SettingsState.initial() => const SettingsState(
     temperature: SettingsRepository.defaultTemperature,
     topP: SettingsRepository.defaultTopP,
     maxTokens: SettingsRepository.defaultMaxTokens,

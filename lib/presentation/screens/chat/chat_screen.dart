@@ -273,7 +273,7 @@ class _WelcomeView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            Text(
+            const Text(
               Strings.appName,
               style: const TextStyle(
                 color: AppColors.textPrimary,
@@ -652,6 +652,6 @@ class _ModelLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LoadingIndicator(phase: LoadingPhase.loadingModel);
+    return const LoadingIndicator(phase: LoadingPhase.loadingModel);
   }
 }

@@ -81,7 +81,7 @@ void main() {
       repo.dispose();
 
       expect(sub.isPaused, isFalse);
-      sub.cancel();
+      await sub.cancel();
     });
   });
 }

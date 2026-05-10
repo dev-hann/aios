@@ -8,35 +8,41 @@ void main() {
 
   group('ForegroundService', () {
     test('start_returnsTrueOnSuccess', () async {
-      MethodChannel('com.agent.aios/service').setMockMethodCallHandler((
-        call,
-      ) async {
-        if (call.method == 'startForegroundService') return true;
-        return null;
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.agent.aios/service'),
+            (call) async {
+              if (call.method == 'startForegroundService') return true;
+              return null;
+            },
+          );
 
       final result = await ForegroundService.start();
       expect(result, isTrue);
     });
 
     test('stop_returnsTrueOnSuccess', () async {
-      MethodChannel('com.agent.aios/service').setMockMethodCallHandler((
-        call,
-      ) async {
-        if (call.method == 'stopForegroundService') return true;
-        return null;
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.agent.aios/service'),
+            (call) async {
+              if (call.method == 'stopForegroundService') return true;
+              return null;
+            },
+          );
 
       final result = await ForegroundService.stop();
       expect(result, isTrue);
     });
 
     test('isRunning_returnsFalseOnPlatformError', () async {
-      MethodChannel('com.agent.aios/service').setMockMethodCallHandler((
-        call,
-      ) async {
-        throw PlatformException(code: 'ERROR', message: 'test');
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.agent.aios/service'),
+            (call) async {
+              throw PlatformException(code: 'ERROR', message: 'test');
+            },
+          );
 
       final result = await ForegroundService.isRunning();
       expect(result, isFalse);
@@ -55,24 +61,28 @@ void main() {
     });
 
     test('startOverlay_returnsTrueOnSuccess', () async {
-      MethodChannel('com.agent.aios/overlay').setMockMethodCallHandler((
-        call,
-      ) async {
-        if (call.method == 'startOverlay') return true;
-        return null;
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.agent.aios/overlay'),
+            (call) async {
+              if (call.method == 'startOverlay') return true;
+              return null;
+            },
+          );
 
       final result = await service.startOverlay();
       expect(result, isTrue);
     });
 
     test('stopOverlay_returnsTrueOnSuccess', () async {
-      MethodChannel('com.agent.aios/overlay').setMockMethodCallHandler((
-        call,
-      ) async {
-        if (call.method == 'stopOverlay') return true;
-        return null;
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.agent.aios/overlay'),
+            (call) async {
+              if (call.method == 'stopOverlay') return true;
+              return null;
+            },
+          );
 
       final result = await service.stopOverlay();
       expect(result, isTrue);
@@ -80,27 +90,31 @@ void main() {
 
     test('updateResult_passesTextToNative', () async {
       String? capturedArg;
-      MethodChannel('com.agent.aios/overlay').setMockMethodCallHandler((
-        call,
-      ) async {
-        if (call.method == 'updateResult') {
-          capturedArg = call.arguments as String?;
-          return true;
-        }
-        return null;
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.agent.aios/overlay'),
+            (call) async {
+              if (call.method == 'updateResult') {
+                capturedArg = call.arguments as String?;
+                return true;
+              }
+              return null;
+            },
+          );
 
       await service.updateResult('test result');
       expect(capturedArg, 'test result');
     });
 
     test('isOverlayPermissionGranted_returnsTrue', () async {
-      MethodChannel('com.agent.aios/overlay').setMockMethodCallHandler((
-        call,
-      ) async {
-        if (call.method == 'isOverlayPermissionGranted') return true;
-        return null;
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.agent.aios/overlay'),
+            (call) async {
+              if (call.method == 'isOverlayPermissionGranted') return true;
+              return null;
+            },
+          );
 
       final result = await service.isOverlayPermissionGranted();
       expect(result, isTrue);
@@ -125,11 +139,13 @@ void main() {
     });
 
     test('startOverlay_returnsFalseOnPlatformError', () async {
-      MethodChannel('com.agent.aios/overlay').setMockMethodCallHandler((
-        call,
-      ) async {
-        throw PlatformException(code: 'ERROR', message: 'test');
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('com.agent.aios/overlay'),
+            (call) async {
+              throw PlatformException(code: 'ERROR', message: 'test');
+            },
+          );
 
       final result = await service.startOverlay();
       expect(result, isFalse);

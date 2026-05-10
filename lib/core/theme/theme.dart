@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 final aiosDarkTheme = ThemeData.dark().copyWith(
   scaffoldBackgroundColor: AppColors.background,
-  colorScheme: ColorScheme.dark(
+  colorScheme: const ColorScheme.dark(
     primary: AppColors.primary,
     secondary: AppColors.secondary,
     surface: AppColors.surface,
@@ -79,7 +79,7 @@ final aiosDarkTheme = ThemeData.dark().copyWith(
       color: AppColors.textSecondary,
     ),
   ),
-  appBarTheme: AppBarTheme(
+  appBarTheme: const AppBarTheme(
     backgroundColor: AppColors.surface,
     foregroundColor: AppColors.textPrimary,
     elevation: 0,

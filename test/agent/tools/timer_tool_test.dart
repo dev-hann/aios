@@ -89,7 +89,7 @@ void main() {
 
     test('execute_checkNonExistentTimer_returnsError', () async {
       final result = await tool.execute('{"action": "check"}');
-      expect(result.toContent(), "Error: No timer found");
+      expect(result.toContent(), 'Error: No timer found');
     });
 
     test('execute_checkExpiredTimer_returnsExpired', () async {

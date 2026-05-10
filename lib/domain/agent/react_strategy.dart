@@ -154,7 +154,7 @@ class ReactStrategy implements AgentStrategy {
         if (desc.contains('|')) {
           final values = desc
               .split('|')
-              .map((v) => v.replaceAll(RegExp(r'[^a-z_]'), ''))
+              .map((v) => v.replaceAll(RegExp('[^a-z_]'), ''))
               .where((v) => v.isNotEmpty)
               .toList();
           if (values.isNotEmpty) {
@@ -276,7 +276,7 @@ class ReactStrategy implements AgentStrategy {
               for (final tc in chunk.toolCallDeltas!) {
                 toolCallBuilders.putIfAbsent(
                   tc.index,
-                  () => _ToolCallAccumulator(),
+                  _ToolCallAccumulator.new,
                 );
                 final builder = toolCallBuilders[tc.index]!;
                 if (tc.id != null) builder.id = tc.id;
@@ -317,14 +317,14 @@ class ReactStrategy implements AgentStrategy {
             );
             onStep?.call(steps.last);
             userParts = [
-              LlmContentPart.text(
+              const LlmContentPart.text(
                 'Please use a tool or provide a direct answer.',
               ),
             ];
             continue;
           }
 
-          steps.add(AgentStep('answer', '요청을 처리하지 못했습니다.'));
+          steps.add(const AgentStep('answer', '요청을 처리하지 못했습니다.'));
           onStep?.call(steps.last);
           break;
         }
@@ -481,7 +481,7 @@ class ReactStrategy implements AgentStrategy {
             toolResult,
           );
           if (loopResult is LoopForceBreak) {
-            steps.add(AgentStep('answer', '작업이 반복 감지로 중단되었습니다.'));
+            steps.add(const AgentStep('answer', '작업이 반복 감지로 중단되었습니다.'));
             onStep?.call(steps.last);
             _recordTurn(prompt, steps);
             return AgentResult(steps: steps, success: false);
@@ -492,7 +492,7 @@ class ReactStrategy implements AgentStrategy {
       }
 
       if (steps.every((s) => s.type != 'answer')) {
-        steps.add(AgentStep('answer', '작업을 완료하지 못했습니다.'));
+        steps.add(const AgentStep('answer', '작업을 완료하지 못했습니다.'));
         onStep?.call(steps.last);
       }
     } on Object catch (e) {

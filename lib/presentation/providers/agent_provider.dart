@@ -112,7 +112,7 @@ class _PlaceholderStrategy implements AgentStrategy {
     int maxTokens = 512,
     void Function(AgentStep)? onStep,
   }) async {
-    return AgentResult(
+    return const AgentResult(
       steps: [const AgentStep('answer', 'API 설정을 먼저 완료해주세요.')],
       success: false,
     );

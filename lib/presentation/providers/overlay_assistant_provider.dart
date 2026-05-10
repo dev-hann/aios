@@ -50,8 +50,6 @@ class OverlayAssistantNotifier extends StateNotifier<bool> {
     try {
       final result = await _agent.execute(
         text,
-        maxIterations: 8,
-        maxTokens: 512,
         onStep: (step) {
           if (step.type == 'answer') {
             _overlayService.updateResult(step.content);

@@ -41,7 +41,7 @@ class RiskClassifier {
         'cvv',
         'otp',
       ];
-      if (sensitive.any((s) => content.contains(s))) {
+      if (sensitive.any(content.contains)) {
         return ToolRisk.critical;
       }
       return ToolRisk.low;

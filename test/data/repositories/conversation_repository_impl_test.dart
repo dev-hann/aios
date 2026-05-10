@@ -89,7 +89,7 @@ void main() {
 
       await repository.clear();
 
-      expect((await repository.load()), isEmpty);
+      expect(await repository.load(), isEmpty);
     });
 
     test('save_overwritesPrevious', () async {

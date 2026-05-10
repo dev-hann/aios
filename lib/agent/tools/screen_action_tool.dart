@@ -75,7 +75,6 @@ class ScreenActionTool extends ExtendedTool {
       final observation = await _observeScreen(toolContext);
       return ToolResult(
         output: result.output,
-        error: null,
         system: result.system,
         observation: observation,
       );

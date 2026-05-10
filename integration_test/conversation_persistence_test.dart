@@ -163,7 +163,7 @@ void main() {
           await repo.appendMessage(
             ChatMessage(
               id: 'msg-$i',
-              role: i % 2 == 0 ? 'user' : 'assistant',
+              role: i.isEven ? 'user' : 'assistant',
               content: 'Message $i',
               createdAt: now,
             ),

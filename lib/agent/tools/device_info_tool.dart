@@ -84,7 +84,7 @@ class DeviceInfoTool extends ExtendedTool {
       return ToolResult.ok(formatter(decoded));
     } on Object catch (e) {
       print('[$_tag] ERROR: parse response - $e');
-      return ToolResult.err('Failed to parse response');
+      return const ToolResult.err('Failed to parse response');
     }
   }
 

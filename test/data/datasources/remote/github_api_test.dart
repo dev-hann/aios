@@ -19,7 +19,7 @@ class _FakeAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     if (error != null) {
-      throw error!;
+      throw error! as Exception;
     }
     final bytes = utf8.encode(jsonEncode(body));
     return ResponseBody(

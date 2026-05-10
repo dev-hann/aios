@@ -18,7 +18,7 @@ class _FakeGitHubApi extends GitHubApi {
   @override
   Future<GitHubRelease> getLatestRelease() async {
     if (_errorToThrow != null) {
-      throw _errorToThrow!;
+      throw _errorToThrow! as Exception;
     }
     if (_releaseToReturn != null) {
       return _releaseToReturn!;

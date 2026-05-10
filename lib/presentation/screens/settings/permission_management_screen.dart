@@ -153,7 +153,7 @@ class _PermissionManagementScreenState
             title: Strings.permission.accessibility,
             description: Strings.permission.accessibilityDesc,
             granted: _statuses['accessibility'] ?? false,
-            onRequest: () => _openAccessibilitySettings(),
+            onRequest: _openAccessibilitySettings,
           ),
           const SizedBox(height: 16),
         ],

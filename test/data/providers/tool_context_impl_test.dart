@@ -201,8 +201,9 @@ void main() {
             .setMockMethodCallHandler(
               const MethodChannel('com.agent.aios/tools'),
               (call) async {
-                if (call.method == 'isNotificationListenerEnabled')
+                if (call.method == 'isNotificationListenerEnabled') {
                   return false;
+                }
                 return null;
               },
             );
