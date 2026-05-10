@@ -102,6 +102,21 @@ void main() {
         final perm = ToolPermissionMapper.getByKey('contacts');
         expect(perm, isNotNull);
         expect(perm!.key, 'contacts');
+        expect(perm.isService, isFalse);
+      });
+
+      test('getByKey_phone_returnsPermission', () {
+        final perm = ToolPermissionMapper.getByKey('phone');
+        expect(perm, isNotNull);
+        expect(perm!.key, 'phone');
+        expect(perm.isService, isFalse);
+      });
+
+      test('getByKey_sms_returnsPermission', () {
+        final perm = ToolPermissionMapper.getByKey('sms');
+        expect(perm, isNotNull);
+        expect(perm!.key, 'sms');
+        expect(perm.isService, isFalse);
       });
 
       test('getByKey_accessibility_returnsServicePermission', () {
@@ -110,9 +125,30 @@ void main() {
         expect(perm!.isService, isTrue);
       });
 
+      test('getByKey_notification_returnsServicePermission', () {
+        final perm = ToolPermissionMapper.getByKey('notification');
+        expect(perm, isNotNull);
+        expect(perm!.isService, isTrue);
+      });
+
       test('getByKey_unknown_returnsNull', () {
         final perm = ToolPermissionMapper.getByKey('nonexistent');
         expect(perm, isNull);
+      });
+
+      test('getByKey_returnsSameInstanceForSameKey', () {
+        final a = ToolPermissionMapper.getByKey('contacts');
+        final b = ToolPermissionMapper.getByKey('contacts');
+        expect(identical(a, b), isTrue);
+      });
+
+      test('getRequiredPermission_sharesInstanceWithGetByKey', () {
+        final fromGetByKey = ToolPermissionMapper.getByKey('contacts');
+        final fromRequired = ToolPermissionMapper.getRequiredPermission(
+          'contact_search',
+          '{}',
+        );
+        expect(identical(fromGetByKey, fromRequired), isTrue);
       });
     });
 

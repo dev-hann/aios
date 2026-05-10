@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:aios/core/permission_utils.dart';
 import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/data/services/overlay_service.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
@@ -312,18 +313,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  Permission? _mapToPermission(String key) {
-    switch (key) {
-      case 'contacts':
-        return Permission.contacts;
-      case 'phone':
-        return Permission.phone;
-      case 'sms':
-        return Permission.sms;
-      default:
-        return null;
-    }
-  }
+  Permission? _mapToPermission(String key) => permissionFromKey(key);
 
   Future<void> stopGeneration() async {
     _agent.cancel();

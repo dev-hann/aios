@@ -15,46 +15,54 @@ class RequiredPermission {
 class ToolPermissionMapper {
   const ToolPermissionMapper._();
 
+  static final _contacts = RequiredPermission(
+    key: 'contacts',
+    displayName: Strings.permDisplay.contacts,
+    isService: false,
+  );
+
+  static final _phone = RequiredPermission(
+    key: 'phone',
+    displayName: Strings.permDisplay.phone,
+    isService: false,
+  );
+
+  static final _sms = RequiredPermission(
+    key: 'sms',
+    displayName: Strings.permDisplay.sms,
+    isService: false,
+  );
+
+  static final _accessibility = RequiredPermission(
+    key: 'accessibility',
+    displayName: Strings.permDisplay.accessibilityService,
+    isService: true,
+  );
+
+  static final _notification = RequiredPermission(
+    key: 'notification',
+    displayName: Strings.permDisplay.notificationAccess,
+    isService: true,
+  );
+
   static RequiredPermission? getRequiredPermission(
     String toolName,
     String argsJson,
   ) {
     switch (toolName) {
       case 'contact_search':
-        return RequiredPermission(
-          key: 'contacts',
-          displayName: Strings.permDisplay.contacts,
-          isService: false,
-        );
+        return _contacts;
       case 'phone_caller':
-        if (argsJson.contains('"call"')) {
-          return RequiredPermission(
-            key: 'phone',
-            displayName: Strings.permDisplay.phone,
-            isService: false,
-          );
-        }
+        if (argsJson.contains('"call"')) return _phone;
         return null;
       case 'sms_sender':
-        return RequiredPermission(
-          key: 'sms',
-          displayName: Strings.permDisplay.sms,
-          isService: false,
-        );
+        return _sms;
       case 'screen_action':
       case 'screen_reader':
       case 'screen_find':
-        return RequiredPermission(
-          key: 'accessibility',
-          displayName: Strings.permDisplay.accessibilityService,
-          isService: true,
-        );
+        return _accessibility;
       case 'notification_reader':
-        return RequiredPermission(
-          key: 'notification',
-          displayName: Strings.permDisplay.notificationAccess,
-          isService: true,
-        );
+        return _notification;
       default:
         return null;
     }
@@ -62,31 +70,11 @@ class ToolPermissionMapper {
 
   static RequiredPermission? getByKey(String key) {
     return switch (key) {
-      'contacts' => RequiredPermission(
-        key: 'contacts',
-        displayName: Strings.permDisplay.contacts,
-        isService: false,
-      ),
-      'phone' => RequiredPermission(
-        key: 'phone',
-        displayName: Strings.permDisplay.phone,
-        isService: false,
-      ),
-      'sms' => RequiredPermission(
-        key: 'sms',
-        displayName: Strings.permDisplay.sms,
-        isService: false,
-      ),
-      'accessibility' => RequiredPermission(
-        key: 'accessibility',
-        displayName: Strings.permDisplay.accessibilityService,
-        isService: true,
-      ),
-      'notification' => RequiredPermission(
-        key: 'notification',
-        displayName: Strings.permDisplay.notificationAccess,
-        isService: true,
-      ),
+      'contacts' => _contacts,
+      'phone' => _phone,
+      'sms' => _sms,
+      'accessibility' => _accessibility,
+      'notification' => _notification,
       _ => null,
     };
   }

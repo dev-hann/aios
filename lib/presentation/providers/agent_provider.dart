@@ -9,6 +9,7 @@ import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/agent/tools/screen_reader_tool.dart';
 import 'package:aios/agent/tools/sms_sender_tool.dart';
 import 'package:aios/agent/tools/timer_tool.dart';
+import 'package:aios/core/permission_utils.dart';
 import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
@@ -49,16 +50,9 @@ final agentEngineProvider = Provider<LlmEngine?>((ref) {
 final modelLoadedPathProvider = StateProvider<String?>((ref) => null);
 
 Future<bool> _defaultPermissionChecker(String permissionKey) async {
-  switch (permissionKey) {
-    case 'contacts':
-      return Permission.contacts.status.isGranted;
-    case 'phone':
-      return Permission.phone.status.isGranted;
-    case 'sms':
-      return Permission.sms.status.isGranted;
-    default:
-      return true;
-  }
+  final permission = permissionFromKey(permissionKey);
+  if (permission == null) return true;
+  return permission.status.isGranted;
 }
 
 final agentProvider = Provider<AgentStrategy>((ref) {
