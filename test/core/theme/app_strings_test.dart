@@ -240,4 +240,11 @@ void main() {
       expect(Strings.permDisplay.notificationAccess, '알림 접근');
     });
   });
+
+  group('Strings.provider', () {
+    test('baseUrlHint_isValidUrl', () {
+      expect(Strings.provider.baseUrlHint, 'https://api.example.com/v1');
+      expect(Strings.provider.baseUrlHint, startsWith('https://'));
+    });
+  });
 }

@@ -19,8 +19,9 @@
 
 ## 2. Current Status
 
-- **933 단위/위젯 테스트** (전체 통과)
-- **11개 통합 테스트 파일** (기기 + .env.test API key 필요)
+- **1042 단위/위젯 테스트** (전체 통과)
+- 테스트 프레임워크: **flutter_test** + **mockito**
+- 82 테스트 파일, 0 실패
 
 ## 3. Test Scope
 
@@ -28,11 +29,12 @@
 
 | Module | File | Test 항목 |
 |--------|------|-----------|
-| LlmRepositoryImpl | `lib/data/repositories/llm_repository_impl.dart` | 모델 로드/해제, 추론 호출, 에러 처리, 세션 저장/로드 |
-| ChatNotifier | `lib/presentation/providers/chat_notifier.dart` | sendMessage, stopGeneration, loadModel, state 일관성 |
 | ReactStrategy | `lib/domain/agent/react_strategy.dart` | native tool-calling 루프, tool 실행, 빈 응답 넛지, 루프 감지, multi-tool chaining, context awareness 주입, error recovery |
+| OpenAiClient | `lib/data/providers/remote/openai_client.dart` | SSE tool_calls 파싱, tool schema 변환, enum/optional/example 파라미터 |
+| LlmRemoteSession | `lib/data/providers/remote/llm_remote_session.dart` | 메시지 히스토리, addToolResult, tool_call_id 추적 |
 | ConversationContext | `lib/domain/agent/conversation_context.dart` | 대화 맥락 유지, 턴 기록/조회, maxTurns, toPromptContext |
 | ToolPreferenceTracker | `lib/domain/agent/tool_preference_tracker.dart` | tool 사용 빈도 추적, getMostUsed, toPromptContext |
+| ChatNotifier | `lib/presentation/providers/chat_notifier.dart` | sendMessage, stopGeneration, state 일관성, 세션 관리 |
 
 ### P1: Agent System (필수)
 
@@ -42,6 +44,8 @@
 | LoopDetector | `lib/domain/agent/loop_detector.dart` | 반복 감지, 넛지/강제종료 |
 | ErrorRecovery | `lib/domain/agent/error_recovery.dart` | 에러 분류, 복구 힌트, 재시도 추적, 사용자 메시지 |
 | UserMessageMapper | `lib/domain/agent/user_message_mapper.dart` | 기술적 에러 → 사용자 친화적 메시지 변환 |
+| ToolJsonParser | `lib/domain/agent/tool_json_parser.dart` | JSON 인수 파싱, parseIntDynamic, parseDoubleDynamic |
+| ToolArgInference | `lib/domain/agent/tool_arg_inference.dart` | 빈 args 휴리스틱 추론 |
 | AppLauncherTool | `lib/agent/tools/app_launcher_tool.dart` | 단일 `open` 액션, 퍼지 매칭, URL 감지 |
 | ScreenActionTool | `lib/agent/tools/screen_action_tool.dart` | tap/long_click/type/scroll/swipe/global, 에러 처리 |
 | ScreenReaderTool | `lib/agent/tools/screen_reader_tool.dart` | 화면 텍스트 읽기, UI 요소 검색, toolPrompt |
@@ -51,6 +55,8 @@
 | ContactSearchTool | `lib/agent/tools/contact_search_tool.dart` | 연락처 검색, toolPrompt |
 | NotePadTool | `lib/agent/tools/notepad_tool.dart` | 메모 작성/조회/목록/삭제, toolPrompt |
 | TimerTool | `lib/agent/tools/timer_tool.dart` | 타이머 설정/확인/취소/목록, toolPrompt |
+| CalculatorTool | `lib/agent/tools/calculator_tool.dart` | 사칙연산, 퍼센트, 제곱근, 에러 |
+| DeviceInfoTool | `lib/agent/tools/device_info_tool.dart` | 기기 정보 조회, toolPrompt |
 
 ### P2: State Management (필수)
 
@@ -61,25 +67,34 @@
 
 ### P3: UI (필수)
 
-| Screen | File | Test 항목 |
-|--------|------|-----------|
+| Screen/Widget | File | Test 항목 |
+|---------------|------|-----------|
 | ChatScreen | `lib/presentation/screens/chat/chat_screen.dart` | 메시지 전송, 정지 버튼, 입력바 가시성 |
-| SettingsScreen | `lib/presentation/screens/settings/settings_screen.dart` | 권한 설정, 테마 전환, 고급 옵션 토글 |
-| UpdateScreen | `lib/presentation/screens/update/update_screen.dart` | 상태 전이, 다운로드 진행률 |
+| SettingsScreen | `lib/presentation/screens/settings/settings_screen.dart` | 설정 항목 렌더링, 업데이트 상태 |
+| ProviderSettingsScreen | `lib/presentation/screens/settings/provider_settings_screen.dart` | 제공자 선택, API 키, 모델 선택, 연결 테스트 |
+| InferenceSettingsScreen | `lib/presentation/screens/settings/inference_settings_screen.dart` | 슬라이더, 기본값 리셋 |
+| PermissionManagementScreen | `lib/presentation/screens/settings/permission_management_screen.dart` | 권한 상태 표시 |
+| MessageBubble | `lib/presentation/widgets/message_bubble.dart` | 유저/어시스턴트 말풍선, tool info 렌더링 |
+| InputBar | `lib/presentation/widgets/input_bar.dart` | 입력, 전송, 정지 |
+| SessionDrawer | `lib/presentation/widgets/session_drawer.dart` | 세션 목록, 전환, 삭제 |
+| ConnectionStatusBadge | `lib/presentation/widgets/connection_status_badge.dart` | 연결 상태 표시 |
+| LoadingIndicator | `lib/presentation/widgets/loading_indicator.dart` | 로딩 단계 표시 |
+| SectionCard | `lib/presentation/widgets/section_card.dart` | 섹션 카드 렌더링 |
+| NavTile | `lib/presentation/widgets/nav_tile.dart` | 네비게이션 타일 |
 
-### P4: Integration (기기 필요)
+### P4: Data Layer (필수)
 
-| Module | File | What to Test |
-|--------|------|--------------|
-| Remote API agent | `agent_integration_test.dart` | ReactStrategy 실행, cancel, clearHistory |
-| Chat pipeline | `chat_pipeline_test.dart` | LlmRepository sendMessage, token stream, history |
-| Tool execution E2E | `tool_execution_test.dart` | LLM이 calculator/notepad/timer/device_info 선택·실행 |
-| Screen action workflow | `screen_action_workflow_test.dart` | YouTube search: tap → type → enter |
-| User flow E2E | `user_flow_test.dart` | 채팅→정지→삭제 전체 플로우 |
-| App launch | `app_test.dart` | ChatScreen/SettingsScreen UI 네비게이션 |
-| Database | `database_integration_test.dart` | Drift SQLite CRUD |
-| Settings persistence | `settings_persistence_test.dart` | SharedPreferences 영속성 |
-| Conversation persistence | `conversation_persistence_test.dart` | 대화 저장/로드 |
+| Module | File | Test 항목 |
+|--------|------|-----------|
+| Database | `lib/data/datasources/local/database.dart` | Drift SQLite CRUD, 마이그레이션 |
+| GitHubApi | `lib/data/datasources/remote/github_api.dart` | 릴리즈 조회, 버전 파싱 |
+| ConversationRepositoryImpl | `lib/data/repositories/conversation_repository_impl.dart` | 대화 CRUD, 세션 관리 |
+| LlmRepositoryImpl | `lib/data/repositories/llm_repository_impl.dart` | 상태 관리, 세션 생성 |
+| SettingsRepositoryImpl | `lib/data/repositories/settings_repository_impl.dart` | SharedPreferences 영속성 |
+| NoteRepositoryImpl | `lib/data/repositories/note_repository_impl.dart` | 메모 CRUD |
+| UpdateRepositoryImpl | `lib/data/repositories/update_repository_impl.dart` | APK 다운로드, 설치 |
+| OverlayService | `lib/data/services/overlay_service.dart` | 오버레이 상태 표시/숨김 |
+| ForegroundService | `lib/data/services/foreground_service.dart` | 포그라운드 서비스 제어 |
 
 ## 4. Test Categories
 
@@ -168,19 +183,31 @@ testWidgets('with provider override', (tester) async {
 });
 ```
 
-### Agent Strategy Testing (Fake LlmRepository)
+### Agent Strategy Testing (Mock LlmRepository)
 
 ```dart
-test('phase2 with empty args triggers tool prompt', () async {
-  final engine = _FakeLlamaEngine();
-  final tool = _FakeExtendedTool('app_launcher');
+test('execute with tool calls processes correctly', () async {
+  final mockEngine = _MockLlmEngine();
   final strategy = ReactStrategy(
-    engine: engine,
-    toolContext: toolContext,
-    extendedTools: {'app_launcher': tool},
+    engine: mockEngine,
+    basicTools: {'calculator': _MockTool()},
   );
-  final result = await strategy.execute('open youtube');
+  final result = await strategy.execute('calculate 2+3');
   expect(result.success, isTrue);
+});
+```
+
+### Notifier Testing (StateNotifier + Mock Repository)
+
+```dart
+test('checkForUpdate transitions to available', () async {
+  final mockRepo = MockUpdateRepository();
+  mockRepo.checkResult = UpdateResult.success(info);
+  final notifier = UpdateNotifier(mockRepo, '1.0.0');
+
+  await notifier.checkForUpdate();
+
+  expect(notifier.state.status, UpdateStatus.available);
 });
 ```
 
@@ -202,4 +229,6 @@ dev_dependencies:
 - 특정 파일만: `flutter test test/path/to/test.dart`
 - Integration 테스트: `flutter test integration_test/`
 - 정적 분석: `flutter analyze`
+- 포맷팅: `dart format . --set-exit-if-changed`
+- 코드 생성: `dart run build_runner build`
 - 테스트 실패 시 작업 중단, 다음 단계로 넘어가지 않음

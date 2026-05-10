@@ -307,7 +307,7 @@ class _InlineUpdateStatus extends ConsumerWidget {
         children: [
           Text(
             '${Strings.settings.updateAvailable}: '
-            'v${state.updateInfo!.latestVersion}',
+            'v${state.updateInfo?.latestVersion ?? '?'}',
             style: const TextStyle(
               color: AppColors.success,
               fontSize: 13,
@@ -316,7 +316,7 @@ class _InlineUpdateStatus extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            state.updateInfo!.releaseNotes,
+            state.updateInfo?.releaseNotes ?? '',
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 12,

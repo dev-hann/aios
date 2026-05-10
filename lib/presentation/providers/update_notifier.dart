@@ -38,7 +38,8 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
   }
 
   Future<void> downloadApk() async {
-    if (state.updateInfo == null) return;
+    final updateInfo = state.updateInfo;
+    if (updateInfo == null) return;
     state = state.copyWith(
       status: UpdateStatus.downloading,
       downloadProgress: 0,
@@ -46,7 +47,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     print('[$_tag] Downloading APK...');
 
     final file = await _updateRepository.downloadApk(
-      state.updateInfo!.downloadUrl,
+      updateInfo.downloadUrl,
       'aios-update.apk',
       onProgress: (p) => state = state.copyWith(downloadProgress: p),
     );
@@ -67,7 +68,8 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
   }
 
   Future<void> installApk() async {
-    if (state.downloadedFilePath == null) return;
+    final filePath = state.downloadedFilePath;
+    if (filePath == null) return;
     state = state.copyWith(status: UpdateStatus.installing);
     print('[$_tag] Installing APK...');
 
@@ -85,9 +87,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       }
     }
 
-    final success = await _updateRepository.installApk(
-      state.downloadedFilePath!,
-    );
+    final success = await _updateRepository.installApk(filePath);
     if (success) {
       print('[$_tag] Install intent launched');
       state = state.copyWith(status: UpdateStatus.installed);

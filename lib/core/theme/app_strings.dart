@@ -80,6 +80,7 @@ class _ProviderStrings {
   String get apiKey => 'API 키';
   String get enterApiKey => 'API 키를 입력하세요';
   String get baseUrl => 'Base URL';
+  String get baseUrlHint => 'https://api.example.com/v1';
   String get testConnection => '연결 테스트';
   String get testing => '테스트 중...';
   String get connectionSuccess => '연결 성공!';

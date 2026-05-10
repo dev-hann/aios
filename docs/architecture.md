@@ -4,29 +4,46 @@ AIOS의 내부 아키텍처를 설명합니다.
 
 ## System Overview
 
-AIOS는 **Dart Layer** (UI + logic)와 **Remote OpenAI-compatible API** (LLM 추론) 두 파트로 구성됩니다.
+AIOS는 **Flutter** (Dart) 기반 Android AI 에이전트 앱입니다.
 
-Dart Layer 내부는 Clean Architecture 기반 **3계층 + Core** 구조를 따릅니다.
+Clean Architecture + Riverpod 상태관리 + Remote OpenAI-compatible API (LLM 추론) 구조를 사용합니다.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                        Dart Layer                             │
+│                     Presentation Layer (Flutter)              │
 │                                                               │
 │  ┌────────────────────────────────────────────────────────┐  │
-│  │  Presentation                                          │  │
-│  │  Flutter Widgets + Riverpod + GoRouter                 │  │
+│  │  Screens & Widgets                                     │  │
+│  │  ChatScreen + MessageBubble + InputBar + SessionDrawer │  │
 │  └──────────────────────────┬─────────────────────────────┘  │
 │                             │                                  │
 │  ┌──────────────────────────▼─────────────────────────────┐  │
-│  │  Domain                                                 │  │
-│  │  Entities (freezed) + Repository Interfaces (abstract)  │  │
-│  │  Agent System: Strategy, Tools, Safety Pipeline         │  │
+│  │  Providers (Riverpod StateNotifier)                    │  │
+│  │  ChatNotifier + SettingsNotifier + UpdateNotifier      │  │
+│  └──────────────────────────┬─────────────────────────────┘  │
+└─────────────────────────────┼────────────────────────────────┘
+                              │
+┌─────────────────────────────┼────────────────────────────────┐
+│                     Domain Layer                              │
+│                             │                                  │
+│  ┌──────────────────────────▼─────────────────────────────┐  │
+│  │  Agent                                                  │  │
+│  │  ReactStrategy + Tools + Safety Pipeline                │  │
 │  └──────────────────────────┬─────────────────────────────┘  │
 │                             │                                  │
 │  ┌──────────────────────────▼─────────────────────────────┐  │
-│  │  Data                                                   │  │
-│  │  Repository Impls + DataSource (Drift, Dio)             │  │
-│  │  LlmRemoteEngine + OpenAiClient + ToolContextImpl       │  │
+│  │  Entities & Repository Interfaces                       │  │
+│  │  ChatMessage + Conversation + LlmEngine + Repositories  │  │
+│  └────────────────────────────────────────────────────────┘  │
+└─────────────────────────────┼────────────────────────────────┘
+                              │
+┌─────────────────────────────┼────────────────────────────────┐
+│                     Data Layer                                │
+│                             │                                  │
+│  ┌──────────────────────────▼─────────────────────────────┐  │
+│  │  Providers & Repositories                               │  │
+│  │  OpenAiClient (Dio+SSE) + Database (Drift/SQLite)       │  │
+│  │  SharedPreferences + GitHubApi + OverlayService          │  │
 │  └──────────────────────────┬─────────────────────────────┘  │
 └─────────────────────────────┼────────────────────────────────┘
                               │
@@ -35,141 +52,194 @@ Dart Layer 내부는 Clean Architecture 기반 **3계층 + Core** 구조를 따�
 ┌─────────────────────┐               ┌─────────────────────────┐
 │  Remote LLM API     │               │  Android Native          │
 │  OpenAI-compatible  │               │  AccessibilityService    │
-│  (glm-4.5-air       │               │  OverlayService          │
-│   via z.ai)         │               │  MethodChannel           │
-│  HTTP/SSE streaming │               └─────────────────────────┘
-└─────────────────────┘
+│  (GLM-4 via z.ai)   │               │  PackageManager          │
+│  Dio + SSE streaming│               │  MethodChannel           │
+└─────────────────────┘               └─────────────────────────┘
 ```
 
 ## Layer Rules
 
-### Domain (`lib/domain/`)
+### `lib/domain/agent/` — 에이전트 로직
 
-**역할**: 비즈니스 로직의 핸심. 외부 의존성 없이 순수 Dart로만 구성.
+**역할**: ReAct 전략, 에러 복구, 루프 감지 등 에이전트 핵심 로직.
 
-| 하위 디렉토리 | 역할 |
-|--------------|------|
-| `entities/` | 불변 데이터 모델 (freezed) |
-| `repositories/` | Repository 인터페이스 (abstract class) |
-| `agent/` | 에이전트 전략, Safety Pipeline, 컨텍스트 추적 |
+| 파일 | 역할 |
+|------|------|
+| `react_strategy.dart` | ReAct 루프 (최대 8회 반복, tool-calling) |
+| `error_recovery.dart` | 에러 분류 (8가지 타입) + 복구 힌트 |
+| `loop_detector.dart` | 반복 감지 (3-strike) |
+| `risk_classifier.dart` | Tool 위험도 분류 (safe/low/high/critical) |
+| `confirmation_gate.dart` | 고위험 도구 사용자 승인 게이트 |
+| `permission_gate.dart` | 런타임 권한 요청 게이트 |
+| `gate_completer.dart` | Completer 기반 게이트 공통 베이스 |
+| `conversation_context.dart` | 최근 5턴 대화 기록 |
+| `tool_preference_tracker.dart` | Tool 사용 빈도 추적 |
+| `tool_json_parser.dart` | JSON 인수 파싱 유틸리티 (parseIntDynamic, parseDoubleDynamic) |
+| `tool_arg_inference.dart` | 빈 args 휴리스틱 추론 |
+| `tool_permission_mapper.dart` | Tool → Android 권한 매핑 |
+| `user_message_mapper.dart` | 기술적 에러 → 사용자 친화적 메시지 변환 |
+| `truncate.dart` | 문자열 자르기 유틸리티 |
+| `version_util.dart` | 버전 문자열 비교 유틸리티 |
+| `audit_log.dart` | 도구 실행 감사 로그 |
+| `tool_result.dart` | ToolResult (success/error) sealed class |
+| `llm_engine.dart` | LLM 엔진 인터페이스 |
+| `agent_strategy.dart` | Agent 전략 인터페이스 |
+| `agent_tool.dart` | 기본 Tool 인터페이스 |
+| `extended_tool.dart` | 네이티브 접근이 필요한 Tool 인터페이스 |
+| `tool_context.dart` | 네이티브 MethodChannel 인터페이스 |
 
-**규칙**:
-- Domain은 Data, Presentation, 외부 패키지를 import하지 않음
-- 모든 외부 접근은 Repository 인터페이스를 통해 추상화
+### `lib/agent/tools/` — 에이전트 Tool 구현체
 
-### Data (`lib/data/`)
+| Tool | 파일 | 타입 | 상태 |
+|------|------|------|------|
+| `calculator` | `calculator_tool.dart` | AgentTool | **활성** |
+| `notepad` | `notepad_tool.dart` | AgentTool | **활성** |
+| `timer` | `timer_tool.dart` | AgentTool | **활성** |
+| `app_launcher` | `app_launcher_tool.dart` | ExtendedTool | **활성** (패키지 매니저 필요) |
+| `screen_action` | `screen_action_tool.dart` | ExtendedTool | **활성** (접근성 서비스 필요) |
+| `screen_reader` | `screen_reader_tool.dart` | ExtendedTool | **활성** (접근성 서비스 필요) |
+| `notification_reader` | `notification_tool.dart` | ExtendedTool | **활성** (알림 접근 필요) |
+| `sms_sender` | `sms_sender_tool.dart` | ExtendedTool | **활성** (SMS 권한 필요) |
+| `phone_caller` | `phone_caller_tool.dart` | ExtendedTool | **활성** (전화 권한 필요) |
+| `contact_search` | `contact_search_tool.dart` | ExtendedTool | **활성** (연락처 권한 필요) |
+| `device_info` | `device_info_tool.dart` | ExtendedTool | **활성** |
 
-**역할**: Domain 인터페이스의 구현체. 외부 API, DB, 파일시스템, 네이티브 채널 접근.
+### `lib/data/` — 데이터 계층
 
-| 하위 디렉토리 | 역할 |
-|--------------|------|
-| `repositories/` | Domain Repository 구현체 |
-| `datasources/local/` | 로컬 저장소 (Drift/SQLite) |
-| `datasources/remote/` | 원격 API (GitHub Releases 등) |
-| `providers/remote/` | LLM 엔진 (LlmRemoteEngine, OpenAiClient) |
-| `providers/` | ToolContextImpl (MethodChannel) |
-| `services/` | OverlayService 등 플랫폼 서비스 |
+**역할**: Repository 구현체, 데이터 소스, 외부 API 통신.
 
-**규칙**:
-- Data는 Domain을 참조 가능
-- Data는 Presentation을 참조하지 않음
-- Repository 구현체는 Domain의 인터페이스를 구현
+#### Providers (LLM 통신)
 
-### Presentation (`lib/presentation/`)
+| 파일 | 역할 |
+|------|------|
+| `openai_client.dart` | Dio HTTP + SSE 스트리밍 파싱, tool schema 변환 |
+| `llm_remote_session.dart` | 메시지 히스토리 관리 + tool result 주입 |
+| `llm_remote_engine.dart` | LlmEngine 구현체, 세션 생성/관리 |
+| `tool_context_impl.dart` | MethodChannel 기반 ToolContext 구현 |
 
-**역할**: UI와 상태 관리. Riverpod으로 Domain/Data 계층 사용.
+#### Repositories
 
-| 하위 디렉토리 | 역할 |
-|--------------|------|
-| `screens/` | 화면 단위 Widget (기능별 서브디렉토리) |
-| `widgets/` | 재사용 UI 컴포넌트 |
-| `providers/` | Riverpod Provider + StateNotifier + State 클래스 |
+| 파일 | 역할 |
+|------|------|
+| `conversation_repository_impl.dart` | 대화/메시지 CRUD (Drift SQLite) |
+| `llm_repository_impl.dart` | LLM 상태 관리, 세션 생성 |
+| `settings_repository_impl.dart` | SharedPreferences 기반 설정 영속성 |
+| `note_repository_impl.dart` | 메모 CRUD (Drift SQLite) |
+| `update_repository_impl.dart` | APK 다운로드/설치 (GitHub Releases) |
 
-**규칙**:
-- Presentation은 Domain 인터페이스를 통해서만 Data에 접근
-- 직접 DataSource 참조 금지
-- 상태 관리는 Riverpod만 사용 (GetX, Bloc, Provider 금지)
-- 라우팅은 GoRouter만 사용
+#### Data Sources
 
-### Agent Tools (`lib/agent/tools/`)
+| 파일 | 역할 |
+|------|------|
+| `database.dart` | Drift SQLite 데이터베이스 |
+| `tables.dart` | 테이블 정의 |
+| `github_api.dart` | GitHub Releases API |
 
-**역할**: 독립적인 Tool 구현체. Domain의 `AgentTool` 또는 `ExtendedTool` 인터페이스 구현.
+#### Services
 
-**Tool 인터페이스**:
+| 파일 | 역할 |
+|------|------|
+| `overlay_service.dart` | 오버레이 상태 표시/숨김 |
+| `foreground_service.dart` | 포그라운드 서비스 제어 |
 
-| 인터페이스 | 용도 |
-|-----------|------|
-| `AgentTool` | 플랫폼 채널 불필요 (순수 Dart 계산 등) |
-| `ExtendedTool` | MethodChannel 필요 (화면 조작, 앱 실행 등) |
+### `lib/domain/entities/` — 엔티티 (Freezed)
 
-**규칙**:
-- Tool에서 예외 throw 금지 → `"Error: ..."` 문자열 반환
-- 각 Tool은 `execute()`, `validate()`, `toolPrompt`, `phaseContext()` 구현
-- 새 Tool 추가 시 `agent_provider.dart`에 등록 + `RiskClassifier`에 위험도 분류 추가
+| 파일 | 역할 |
+|------|------|
+| `agent_models.dart` | AgentStep, AgentResult |
+| `chat_message.dart` | ChatMessage |
+| `conversation.dart` | Conversation |
+| `llm_provider_config.dart` | LlmProviderConfig, LlmModelInfo |
+| `service_state.dart` | ServiceState enum |
+| `update_info.dart` | UpdateInfo |
 
-### Core (`lib/core/`)
+### `lib/domain/repositories/` — Repository 인터페이스
 
-**역할**: 모든 계층에서 공유하는 유틸리티.
+| 파일 | 역할 |
+|------|------|
+| `conversation_repository.dart` | 대화/메시지 CRUD 인터페이스 |
+| `llm_repository.dart` | LLM 상태/세션 인터페이스 |
+| `settings_repository.dart` | 설정 읽기/쓰기 인터페이스 |
+| `note_repository.dart` | 메모 CRUD 인터페이스 |
+| `update_repository.dart` | 업데이트 확인/다운로드/설치 인터페이스 |
 
-| 하위 디렉토리 | 역할 |
-|--------------|------|
-| `router/` | GoRouter 화면 라우팅 설정 |
-| `theme/` | 색상 상수, ThemeData (Light/Dark) |
+### `lib/presentation/` — 프레젠테이션 계층
+
+#### Providers (Riverpod)
+
+| 파일 | 역할 |
+|------|------|
+| `chat_notifier.dart` | 채팅 상태 관리, 메시지 송수신 |
+| `settings_notifier.dart` | 설정 상태 관리 |
+| `update_notifier.dart` | 업데이트 상태 관리 |
+| `agent_provider.dart` | AgentStrategy Provider |
+| `conversation_provider.dart` | ConversationRepository Provider |
+| `llm_provider.dart` | LlmRepository Provider |
+| `settings_provider.dart` | SettingsRepository Provider |
+| `update_provider.dart` | UpdateRepository Provider |
+| `overlay_assistant_provider.dart` | 오버레이 보조 Provider |
+| `chat_providers.dart` | ChatState Provider |
+| `chat_state.dart` | ChatState (Freezed) |
+| `settings_state.dart` | SettingsState (Freezed) |
+| `update_state.dart` | UpdateState (Freezed) |
+
+#### Screens
+
+| 파일 | 역할 |
+|------|------|
+| `chat_screen.dart` | 메인 채팅 화면 |
+| `settings_screen.dart` | 설정 메인 화면 |
+| `provider_settings_screen.dart` | AI 제공자 설정 화면 |
+| `inference_settings_screen.dart` | 추론 파라미터 설정 화면 |
+| `permission_management_screen.dart` | 권한 관리 화면 |
+
+#### Widgets
+
+| 파일 | 역할 |
+|------|------|
+| `message_bubble.dart` | 유저/어시스턴트 말풍선 |
+| `input_bar.dart` | 메시지 입력 + 전송/정지 |
+| `session_drawer.dart` | 세션 관리 Drawer |
+| `connection_status_badge.dart` | 연결 상태 뱃지 |
+| `loading_indicator.dart` | 로딩 인디케이터 |
+| `section_card.dart` | 설정 섹션 카드 |
+| `nav_tile.dart` | 네비게이션 타일 |
+
+### `lib/core/` — 공통 유틸리티
+
+| 파일 | 역할 |
+|------|------|
+| `theme/theme.dart` | Material ThemeData |
+| `theme/app_colors.dart` | 색상 상수 |
+| `theme/app_strings.dart` | 중앙화된 한국어 문자열 |
+| `theme/time_formatter.dart` | 시간 포맷 유틸리티 |
+| `router/router.dart` | GoRouter 라우팅 |
 
 ## LLM Engine Architecture
 
-### Remote API 구조
+### Dio + SSE 구조
 
 ```
 ReactStrategy
   │
-  ├─ LlmEngine (abstract interface, domain/agent/llm_engine.dart)
-  │   ├─ LlmToolSchema: tool 이름, 설명, 파라미터 스키마
-  │   ├─ LlmChatSession: 대화 히스토리 + tool result 주입
-  │   └─ LlmResponseChunk: streaming 응답 (text + toolCallDeltas)
+  ├─ OpenAiClient (Dio HTTP)
+  │   → POST /v1/chat/completions with stream: true
+  │   → ResponseBody stream → SSE data: lines → LlmResponseChunk 파싱
+  │   → Tool schemas를 OpenAI function-calling JSON으로 변환
   │
-  └─ LlmRemoteEngine (concrete, data/providers/remote/)
-      ├─ OpenAiClient: HTTP/SSE → OpenAI-compatible API
-      │   → POST /chat/completions with stream: true
-      │   → SSE data: lines → LlmResponseChunk 파싱
-      │   → Tool schemas를 OpenAI function-calling JSON으로 변환
-      │
-      └─ LlmRemoteSession: 메시지 히스토리 관리
-          → _messages: List<Map<String, dynamic>> (OpenAI format)
-          → addToolResult(): tool 결과를 role: tool 메시지로 추가
-          → chat(): userParts + 전체 히스토리를 API에 전송
-```
-
-### Tool Schema 변환
-
-```dart
-// Dart LlmToolSchema → OpenAI function format
-{
-  "type": "function",
-  "function": {
-    "name": "screen_action",
-    "description": "Control the device screen...",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "action": {"type": "string", "enum": ["tap","type","scroll",...]},
-        "content": {"type": "string", "description": "..."}
-      },
-      "required": ["action"]
-    }
-  }
-}
+  └─ LlmRemoteSession
+      → _messages: List<Map<String, dynamic>> (OpenAI format)
+      → addToolResult(): tool 결과를 role: tool 메시지로 추가
+      → chat(): userParts + 전체 히스토리를 API에 전송
 ```
 
 ### Streaming Flow
 
 ```
-OpenAiClient.streamChat()
-  → Dio POST with responseType: ResponseType.stream
+Dio.post() → ResponseBody stream → utf8 decode
   → SSE data: lines → JSON 파싱
   → delta.tool_calls[] 추출
-  → LlmResponseChunk(toolCallDeltas: [LlmToolCallDelta(index, id, name, arguments)])
-  → ReactStrategy._ToolCallAccumulator가 chunk 누적
+  → Map<int, _ToolCallBuilder>가 chunk 누적
   → 완전한 tool call 구성 후 실행
 ```
 
@@ -177,87 +247,101 @@ OpenAiClient.streamChat()
 
 ### 단일 루프 ReAct 구조
 
-OpenAI function-calling API를 사용하는 **단일 루프** 구조입니다.
-
 ```
-User Input → ChatNotifier → ReactStrategy.execute()
+User Input → ChatNotifier.sendMessage() → ReactStrategy.execute()
   → for 루프 (최대 8회, 타임아웃 120초):
-      1. LlmRemoteSession.chat() — LLM에 tool schemas 전달, SSE streaming 응답 수신
+      1. LlmRemoteSession.chat() — LLM에 tool schemas 전달, SSE 응답 수신
       2. LLM 응답이 tool_calls → Safety Pipeline 통과 후 실행
       3. LLM 응답이 text → Answer 반환 (루프 종료)
       4. LLM 응답이 비어있음 → 넛지 후 재시도 (max 2회)
 ```
 
-**핵심 원칙**:
-- LLM이 직접 tool 선택 및 args 생성 (OpenAI function-calling)
-- SSE streaming으로 LlmToolCallDelta 수신
-- `_ToolCallAccumulator`가 chunk를 누적하여 완전한 tool call 구성
-- Multi-tool chaining: 이전 Tool 결과가 자동으로 다음 LLM 호출에 포함
-- Context Tracking: 대화 맥락(최근 5턴)과 Tool 사용 빈도(top 3)가 system prompt에 주입
-- 빈 args 추론: calculator/notepad/timer에 한해 heuristic 추론 (`_inferToolArgs`)
-
 ### Safety Pipeline
 
-모든 Tool 실행은 아래 순서를 거칩니다:
-
-1. **PermissionGate** — Android 권한 확인 (카메라, 연락처 등)
-2. **RiskClassifier** — tool + args 기반 위험도 분류 (safe/low/high/critical)
+1. **PermissionGate** — Android 런타임 권한 확인/요청
+2. **RiskClassifier** — tool + args 기반 위험도 분류
 3. **Tool.validate()** — args 유효성 검증
 4. **ConfirmationGate** — HIGH/CRITICAL 위험도 시 사용자 승인 요청
 5. **Tool.execute()** — 실제 실행
-6. **AuditLog** — 실행 기록
-7. **ErrorRecovery** — 실패 시 에러 분류 및 복구 힌트 (8가지 타입)
-8. **LoopDetector** — 반복 감지 및 강제 종료 (3-strike)
+6. **ErrorRecovery** — 실패 시 에러 분류 + 복구 힌트
+7. **LoopDetector** — 반복 감지 (3-strike)
+8. **AuditLog** — 실행 감사 로그 기록
 
-### Error Recovery 규칙
+## State Management (Riverpod)
 
-- 에러 분류 후 복구 가능한 경우에만 재시도
-- Tool별 최대 1회 재시도
-- 실행 간 복구 상태 초기화
-- 에러 판별: `"Error:"` 문자열 prefix로 감지
+```
+ChatNotifier (StateNotifier<ChatState>)
+├─ messages: List<ChatMessage>
+├─ currentResponse: String
+├─ serviceState: ServiceState
+├─ errorMessage: String?
+├─ agentSteps: List<AgentStep>
+├─ isConfirming: bool
+├─ isAwaitingPermission: bool
+├─ currentConversationId: String?
+├─ currentConversationTitle: String
+│
+├─ sendMessage(text, {temperature, maxTokens, topP, agentMaxIterations})
+├─ stopGeneration()
+├─ resolveConfirmation(approved)
+├─ resolvePermission(userTappedGrant)
+├─ createNewChat()
+├─ switchConversation(id, title)
+├─ deleteConversation(id)
+└─ initializeSession()
 
-## State Management
+SettingsNotifier (StateNotifier<SettingsState>)
+├─ providerConfig: LlmProviderConfig?
+├─ temperature, topP, maxTokens, agentMaxIterations
+├─ connect/disconnect provider
+└─ update inference parameters
 
-### Riverpod Provider 스코프
+UpdateNotifier (StateNotifier<UpdateState>)
+├─ status: UpdateStatus
+├─ updateInfo: UpdateInfo?
+├─ downloadProgress: double
+├─ downloadedFilePath: String?
+└─ checkForUpdate/downloadApk/installApk
+```
 
-| 스코프 | 용도 | 예시 |
-|--------|------|------|
-| `keepAlive: true` | 앱 전역 싱글톤 | Repository, DataSource, LlmEngine |
-| Screen-scoped | 화면 단위 상태 | Notifier, UI State |
+## Storage (Drift SQLite)
 
-## Threading
-
-| 역할 | 위치 |
-|------|------|
-| LLM 추론 | 원격 API (HTTP/SSE) |
-| 에이전트 실행 | Main Isolate에서 실행, Stream으로 UI 전달 |
-| 플랫폼 채널 | MethodChannel / EventChannel (Android 네이티브) |
-| UI 업데이트 | Main Isolate |
-| 취소 | 취소 플래그 + StreamController.close() |
+```
+Database: aios_db
+├── conversations: { id (PK), title, createdAt, updatedAt }
+├── messages: { id (PK), conversationId (index), role, content, createdAt, toolName, toolArgs, toolResult }
+└── notes: { key (PK), value, updatedAt }
+```
 
 ## Key Design Decisions
 
-### Why OpenAI-compatible Tool Calling?
-
-- 텍스트 파싱(Action:/Answer:) 없이 LLM이 직접 tool 선택
-- 프롬프트 엔지니어링 부담 감소 (포맷 넛지, 재시도 로직 불필요)
-- OpenAI function-calling 표준으로 다양한 LLM 백엔드 교체 가능
-
-### Why Remote API over On-device?
-
-- 소형 온디바이스 모델 대비 높은 tool-calling 정확도
-- 기기 리소스(CPU/메모리/배터리) 절약
-- 모델 업데이트 시 앱 업데이트 불필요
-
 ### Why Flutter?
 
-- 단일 언어 (Dart)로 유지보수 간소화
-- Android/iOS 크로스 플랫폼
-- 접근성 서비스 + MethodChannel으로 네이티브 제어
+- 크로스 플랫폼 (Android 우선, iOS 확장 가능)
+- 네이티브 접근 (MethodChannel, AccessibilityService)
+- 풍부한 UI 프레임워크 + 핫 리로드
+- Dart의 강력한 타입 시스템
 
-### Why ReAct?
+### Why Riverpod?
 
-- 투명한 추론 과정 (visible thought/action/observation steps)
-- 관찰 기반 Tool 사용
-- 자연스러운 종료 조건 (LLM이 text 응답 시 루프 종료)
-- Multi-tool chaining 지원
+- 컴파일 타임 안전성 (Provider key 중복 방지)
+- StateNotifier로 명확한 상태 전이
+- 의존성 주입 (Provider override로 테스트 용이)
+
+### Why Freezed?
+
+- Immutable 데이터 클래스 자동 생성
+- copyWith, equality, toString 보일러플레이트 제거
+- sealed class 패턴으로 상태 모델링
+
+### Why Drift (SQLite)?
+
+- Flutter 네이티브 SQLite 지원
+- 타입 안전한 쿼리 빌더
+- 마이그레이션 관리
+
+### Why Dio + SSE?
+
+- 스트리밍 응답 처리 (ReadableStream)
+- HTTP 클라이언트 고급 기능 (인터셉터, 타임아웃)
+- 추가 의존성 없이 스트리밍 가능

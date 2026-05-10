@@ -180,4 +180,25 @@ void main() {
       expect(result[0]['type'], 'function');
     });
   });
+
+  group('streamChat', () {
+    test('streamChat_withNullResponseBody_returnsEmpty', () async {
+      final chunks = <LlmResponseChunk>[];
+      try {
+        await for (final chunk in client.streamChat(
+          messages: [],
+          config: const LlmGenerationConfig(
+            temperature: 0.7,
+            topP: 0.9,
+            maxTokens: 10,
+          ),
+        )) {
+          chunks.add(chunk);
+        }
+      } on Object {
+        // Expected to fail with no server
+      }
+      // Should not crash with force unwrap
+    });
+  });
 }

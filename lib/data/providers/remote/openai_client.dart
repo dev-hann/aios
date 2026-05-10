@@ -49,7 +49,13 @@ class OpenAiClient {
       final buffer = StringBuffer();
       var remaining = '';
 
-      await for (final chunk in response.data!.stream) {
+      final responseBody = response.data;
+      if (responseBody == null) {
+        print('[$_tag] ERROR: response body is null');
+        return;
+      }
+
+      await for (final chunk in responseBody.stream) {
         buffer.write(utf8.decode(chunk, allowMalformed: true));
         remaining = buffer.toString();
 

@@ -288,20 +288,7 @@ class _ApiKeySection extends StatelessWidget {
         controller: controller,
         obscureText: true,
         style: const TextStyle(color: AppColors.textPrimary),
-        decoration: InputDecoration(
-          hintText: Strings.provider.enterApiKey,
-          hintStyle: const TextStyle(color: AppColors.textSecondary),
-          filled: true,
-          fillColor: AppColors.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            borderSide: const BorderSide(color: AppColors.divider),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            borderSide: const BorderSide(color: AppColors.divider),
-          ),
-        ),
+        decoration: InputDecoration(hintText: Strings.provider.enterApiKey),
         onChanged: (_) => onChanged(),
       ),
     );
@@ -321,20 +308,7 @@ class _BaseUrlSection extends StatelessWidget {
       child: TextField(
         controller: controller,
         style: const TextStyle(color: AppColors.textPrimary),
-        decoration: InputDecoration(
-          hintText: 'https://api.example.com/v1',
-          hintStyle: const TextStyle(color: AppColors.textSecondary),
-          filled: true,
-          fillColor: AppColors.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            borderSide: const BorderSide(color: AppColors.divider),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            borderSide: const BorderSide(color: AppColors.divider),
-          ),
-        ),
+        decoration: InputDecoration(hintText: Strings.provider.baseUrlHint),
       ),
     );
   }

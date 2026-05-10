@@ -137,7 +137,7 @@ class _ToolInfo extends StatelessWidget {
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
-                  message.toolName!,
+                  message.toolName ?? '',
                   style: const TextStyle(
                     color: AppColors.secondary,
                     fontWeight: FontWeight.w600,

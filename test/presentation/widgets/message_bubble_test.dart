@@ -127,6 +127,17 @@ void main() {
       expect(find.byType(MessageBubble), findsOneWidget);
     });
 
+    testWidgets('assistantMessage_noToolName_noCrash', (tester) async {
+      final message = _makeMessage(role: 'assistant', content: 'Hello');
+
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
+
+      expect(find.text('Hello'), findsOneWidget);
+      expect(find.byType(Text), findsWidgets);
+    });
+
     testWidgets('message_showsTimestamp', (tester) async {
       final message = _makeMessage(role: 'assistant', content: 'Hello');
 

@@ -142,6 +142,27 @@ void main() {
       expect(notifier.state.status, UpdateStatus.idle);
     });
 
+    test('downloadApk_stateClearedBetweenCalls_doesNotCrash', () async {
+      mockRepo
+        ..checkResult = UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025),
+          ),
+        )
+        ..downloadPath = '/tmp/test-apk.apk';
+
+      await notifier.checkForUpdate();
+      notifier.reset();
+      await notifier.downloadApk();
+
+      expect(notifier.state.status, UpdateStatus.idle);
+    });
+
     test('installApk_transitionsToInstalled', () async {
       mockRepo
         ..checkResult = UpdateResult.success(
@@ -187,6 +208,28 @@ void main() {
     });
 
     test('installApk_doesNothingWhenNoDownloadedFile', () async {
+      await notifier.installApk();
+
+      expect(notifier.state.status, UpdateStatus.idle);
+    });
+
+    test('installApk_stateClearedBetweenCalls_doesNotCrash', () async {
+      mockRepo
+        ..checkResult = UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025),
+          ),
+        )
+        ..downloadPath = '/tmp/test-apk.apk';
+
+      await notifier.checkForUpdate();
+      await notifier.downloadApk();
+      notifier.reset();
       await notifier.installApk();
 
       expect(notifier.state.status, UpdateStatus.idle);
