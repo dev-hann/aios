@@ -401,16 +401,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       final conv = await _conversationRepository.createConversation();
       _agent.clearHistory();
       if (!mounted) return;
-      state = state.copyWith(
-        messages: [],
-        currentResponse: '',
-        errorMessage: null,
-        agentSteps: [],
-        isConfirming: false,
-        isAwaitingPermission: false,
-        currentConversationId: conv.id,
-        currentConversationTitle: conv.title,
-      );
+      state = _resetWithConversation(conv.id, conv.title);
       print('[$_tag] Created new conversation: ${conv.id}');
     } on Object catch (e) {
       print('[$_tag] ERROR: createNewChat failed - $e');
@@ -451,16 +442,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         } else {
           final conv = await _conversationRepository.createConversation();
           _agent.clearHistory();
-          state = state.copyWith(
-            messages: [],
-            currentResponse: '',
-            errorMessage: null,
-            agentSteps: [],
-            isConfirming: false,
-            isAwaitingPermission: false,
-            currentConversationId: conv.id,
-            currentConversationTitle: conv.title,
-          );
+          state = _resetWithConversation(conv.id, conv.title);
         }
       }
       print('[$_tag] Deleted conversation: $id');
@@ -477,6 +459,19 @@ class ChatNotifier extends StateNotifier<ChatState> {
     _agent.clearHistory();
     await _conversationRepository.clear();
     state = const ChatState();
+  }
+
+  ChatState _resetWithConversation(String id, String title) {
+    return state.copyWith(
+      messages: [],
+      currentResponse: '',
+      errorMessage: null,
+      agentSteps: [],
+      isConfirming: false,
+      isAwaitingPermission: false,
+      currentConversationId: id,
+      currentConversationTitle: title,
+    );
   }
 
   @override

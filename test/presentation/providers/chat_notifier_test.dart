@@ -555,5 +555,153 @@ void main() {
 
       expect(notifier.state.serviceState, ServiceState.ready);
     });
+
+    group('createNewChat', () {
+      test('createsConversation_resetsState', () async {
+        agent.resultToReturn = const AgentResult(
+          steps: [AgentStep('answer', 'Hi')],
+          success: true,
+        );
+        await notifier.sendMessage('Hello');
+        expect(notifier.state.messages, isNotEmpty);
+
+        await notifier.createNewChat();
+
+        expect(notifier.state.messages, isEmpty);
+        expect(notifier.state.currentResponse, isEmpty);
+        expect(notifier.state.errorMessage, isNull);
+        expect(notifier.state.agentSteps, isEmpty);
+        expect(notifier.state.isConfirming, isFalse);
+        expect(notifier.state.isAwaitingPermission, isFalse);
+        expect(notifier.state.currentConversationId, isNotNull);
+        expect(notifier.state.currentConversationTitle, '새 대화');
+      });
+
+      test('clearsAgentHistory', () async {
+        await notifier.createNewChat();
+      });
+
+      test('createsConversationInRepository', () async {
+        await notifier.createNewChat();
+
+        expect(conversationRepo.conversations, isNotEmpty);
+      });
+    });
+
+    group('switchConversation', () {
+      test('loadsMessagesAndUpdatesState', () async {
+        final messages = [
+          ChatMessage(
+            id: '1',
+            role: 'user',
+            content: 'Switched msg',
+            createdAt: DateTime.now(),
+          ),
+        ];
+        conversationRepo.messages.addAll(messages);
+
+        await notifier.switchConversation('conv_99', 'Test Title');
+
+        expect(notifier.state.currentConversationId, 'conv_99');
+        expect(notifier.state.currentConversationTitle, 'Test Title');
+        expect(notifier.state.messages, isNotEmpty);
+        expect(notifier.state.messages.first.content, 'Switched msg');
+      });
+
+      test('resetsTransientState', () async {
+        await notifier.switchConversation('conv_1', 'Title');
+
+        expect(notifier.state.currentResponse, isEmpty);
+        expect(notifier.state.errorMessage, isNull);
+        expect(notifier.state.agentSteps, isEmpty);
+        expect(notifier.state.isConfirming, isFalse);
+        expect(notifier.state.isAwaitingPermission, isFalse);
+      });
+
+      test('setsActiveConversationIdInRepository', () async {
+        await notifier.switchConversation('conv_42', 'Title');
+
+        expect(conversationRepo.activeConversationId, 'conv_42');
+      });
+
+      test('clearsAgentHistory', () async {
+        await notifier.switchConversation('conv_1', 'Title');
+      });
+    });
+
+    group('deleteConversation', () {
+      test('deletesFromRepository', () async {
+        final conv = await conversationRepo.createConversation();
+        expect(conversationRepo.conversations, contains(conv));
+
+        await notifier.deleteConversation(conv.id);
+
+        expect(conversationRepo.conversations, isNot(contains(conv)));
+      });
+
+      test('switchesToAnotherConversation_whenDeletingCurrent', () async {
+        final conv1 = await conversationRepo.createConversation();
+        final conv2 = await conversationRepo.createConversation();
+        await notifier.switchConversation(conv1.id, conv1.title);
+
+        await notifier.deleteConversation(conv1.id);
+
+        expect(notifier.state.currentConversationId, conv2.id);
+        expect(notifier.state.messages, isEmpty);
+      });
+
+      test('createsNewConversation_whenNoRemaining', () async {
+        final conv = await conversationRepo.createConversation();
+        await notifier.switchConversation(conv.id, conv.title);
+
+        await notifier.deleteConversation(conv.id);
+
+        expect(conversationRepo.conversations, isNotEmpty);
+        expect(notifier.state.currentConversationId, isNotNull);
+        expect(notifier.state.messages, isEmpty);
+      });
+
+      test('keepsCurrentConversation_whenDeletingOther', () async {
+        final conv1 = await conversationRepo.createConversation();
+        final conv2 = await conversationRepo.createConversation();
+        await notifier.switchConversation(conv1.id, conv1.title);
+
+        await notifier.deleteConversation(conv2.id);
+
+        expect(notifier.state.currentConversationId, conv1.id);
+      });
+    });
+
+    group('initializeSession', () {
+      test('createsNewConversation_whenNoneExist', () async {
+        expect(conversationRepo.conversations, isEmpty);
+
+        await notifier.initializeSession();
+
+        expect(conversationRepo.conversations, isNotEmpty);
+        expect(notifier.state.currentConversationId, isNotNull);
+        expect(notifier.state.currentConversationTitle, '새 대화');
+      });
+
+      test('loadsFirstConversation_whenExist', () async {
+        final conv = await conversationRepo.createConversation(
+          title: 'Existing',
+        );
+        conversationRepo.messages.add(
+          ChatMessage(
+            id: '1',
+            role: 'user',
+            content: 'Existing msg',
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        await notifier.initializeSession();
+
+        expect(notifier.state.currentConversationId, conv.id);
+        expect(notifier.state.currentConversationTitle, 'Existing');
+        expect(notifier.state.messages, isNotEmpty);
+      });
+    });
   });
 }
