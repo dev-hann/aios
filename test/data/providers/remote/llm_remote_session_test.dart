@@ -88,8 +88,9 @@ void main() {
 
     group('chat', () {
       test('chat_textResponse_yieldsChunks', () async {
-        client.addTextChunk('Hello');
-        client.addTextChunk(' world');
+        client
+          ..addTextChunk('Hello')
+          ..addTextChunk(' world');
 
         final chunks = <LlmResponseChunk>[];
         await for (final chunk in session.chat(
@@ -130,13 +131,14 @@ void main() {
       });
 
       test('chat_toolCall_accumulatesCorrectly', () async {
-        client.addToolCallChunk(
-          index: 0,
-          id: 'call_1',
-          name: 'calculator',
-          arguments: '{"expr',
-        );
-        client.addToolCallChunk(index: 0, arguments: 'ession":"2+2"}');
+        client
+          ..addToolCallChunk(
+            index: 0,
+            id: 'call_1',
+            name: 'calculator',
+            arguments: '{"expr',
+          )
+          ..addToolCallChunk(index: 0, arguments: 'ession":"2+2"}');
 
         final chunks = <LlmResponseChunk>[];
         await for (final chunk in session.chat(
@@ -157,18 +159,19 @@ void main() {
       });
 
       test('chat_multipleToolCalls_accumulatesAll', () async {
-        client.addToolCallChunk(
-          index: 0,
-          id: 'call_1',
-          name: 'calculator',
-          arguments: '{}',
-        );
-        client.addToolCallChunk(
-          index: 1,
-          id: 'call_2',
-          name: 'notepad',
-          arguments: '{}',
-        );
+        client
+          ..addToolCallChunk(
+            index: 0,
+            id: 'call_1',
+            name: 'calculator',
+            arguments: '{}',
+          )
+          ..addToolCallChunk(
+            index: 1,
+            id: 'call_2',
+            name: 'notepad',
+            arguments: '{}',
+          );
 
         final chunks = <LlmResponseChunk>[];
         await for (final chunk in session.chat(
@@ -279,18 +282,19 @@ void main() {
       });
 
       test('addToolResult_multipleToolCalls_resolvesByName', () async {
-        client.addToolCallChunk(
-          index: 0,
-          id: 'call_1',
-          name: 'calculator',
-          arguments: '{}',
-        );
-        client.addToolCallChunk(
-          index: 1,
-          id: 'call_2',
-          name: 'notepad',
-          arguments: '{}',
-        );
+        client
+          ..addToolCallChunk(
+            index: 0,
+            id: 'call_1',
+            name: 'calculator',
+            arguments: '{}',
+          )
+          ..addToolCallChunk(
+            index: 1,
+            id: 'call_2',
+            name: 'notepad',
+            arguments: '{}',
+          );
 
         await session
             .chat(
@@ -304,8 +308,9 @@ void main() {
             )
             .toList();
 
-        session.addToolResult('notepad', 'saved');
-        session.addToolResult('calculator', '4');
+        session
+          ..addToolResult('notepad', 'saved')
+          ..addToolResult('calculator', '4');
 
         expect(true, isTrue);
       });

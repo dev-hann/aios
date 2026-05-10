@@ -115,8 +115,9 @@ void main() {
           (_) {},
         );
 
-        gate.resolve(value: true);
-        gate.resolve(value: false);
+        gate
+          ..resolve(value: true)
+          ..resolve(value: false);
 
         final result = await future;
 
@@ -136,8 +137,9 @@ void main() {
           (_) {},
         );
 
-        gate.cancel();
-        gate.resolve(value: true);
+        gate
+          ..cancel()
+          ..resolve(value: true);
 
         final result = await future;
         expect(result, isFalse);

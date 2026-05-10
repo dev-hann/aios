@@ -194,15 +194,17 @@ void main() {
     });
 
     test('canRetry_afterMaxRetries_returnsFalse', () {
-      recovery.analyze('calculator', '{}', const ToolResult.err('fail 1'));
-      recovery.analyze('calculator', '{}', const ToolResult.err('fail 2'));
+      recovery
+        ..analyze('calculator', '{}', const ToolResult.err('fail 1'))
+        ..analyze('calculator', '{}', const ToolResult.err('fail 2'));
 
       expect(recovery.canRetry('calculator'), isFalse);
     });
 
     test('canRetry_differentTools_trackedSeparately', () {
-      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
-      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
+      recovery
+        ..analyze('calculator', '{}', const ToolResult.err('fail'))
+        ..analyze('calculator', '{}', const ToolResult.err('fail'));
 
       expect(recovery.canRetry('calculator'), isFalse);
       expect(recovery.canRetry('timer'), isTrue);
@@ -221,8 +223,9 @@ void main() {
 
   group('reset', () {
     test('reset_clearsRetryCount', () {
-      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
-      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
+      recovery
+        ..analyze('calculator', '{}', const ToolResult.err('fail'))
+        ..analyze('calculator', '{}', const ToolResult.err('fail'));
 
       expect(recovery.canRetry('calculator'), isFalse);
 
@@ -247,16 +250,18 @@ void main() {
     });
 
     test('totalErrors_tracksErrors', () {
-      recovery.analyze('calculator', '{}', const ToolResult.err('fail 1'));
-      recovery.analyze('timer', '{}', const ToolResult.err('fail 2'));
-      recovery.analyze('screen_action', '{}', const ToolResult.err('fail 3'));
+      recovery
+        ..analyze('calculator', '{}', const ToolResult.err('fail 1'))
+        ..analyze('timer', '{}', const ToolResult.err('fail 2'))
+        ..analyze('screen_action', '{}', const ToolResult.err('fail 3'));
 
       expect(recovery.totalErrors, 3);
     });
 
     test('totalErrors_ignoresNonErrors', () {
-      recovery.analyze('calculator', '{}', const ToolResult.ok('42'));
-      recovery.analyze('timer', '{}', const ToolResult.ok('done'));
+      recovery
+        ..analyze('calculator', '{}', const ToolResult.ok('42'))
+        ..analyze('timer', '{}', const ToolResult.ok('done'));
 
       expect(recovery.totalErrors, 0);
     });
@@ -369,8 +374,9 @@ void main() {
     });
 
     test('resetThenAnalyze_worksCorrectly', () {
-      recovery.analyze('calc', '{}', const ToolResult.err('fail'));
-      recovery.analyze('calc', '{}', const ToolResult.err('fail'));
+      recovery
+        ..analyze('calc', '{}', const ToolResult.err('fail'))
+        ..analyze('calc', '{}', const ToolResult.err('fail'));
       expect(recovery.canRetry('calc'), isFalse);
 
       recovery.reset();

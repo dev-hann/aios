@@ -30,27 +30,22 @@ void main() {
       });
 
       test('add_multipleEntries_storedInOrder', () {
-        log.add(
-          'calculator',
-          '{}',
-          ToolRisk.safe,
-          approved: true,
-          result: '42',
-        );
-        log.add(
-          'screen_action',
-          '{"action":"tap"}',
-          ToolRisk.high,
-          approved: true,
-          result: 'tapped',
-        );
-        log.add(
-          'sms_sender',
-          '{"action":"send"}',
-          ToolRisk.critical,
-          approved: false,
-          result: 'cancelled',
-        );
+        log
+          ..add('calculator', '{}', ToolRisk.safe, approved: true, result: '42')
+          ..add(
+            'screen_action',
+            '{"action":"tap"}',
+            ToolRisk.high,
+            approved: true,
+            result: 'tapped',
+          )
+          ..add(
+            'sms_sender',
+            '{"action":"send"}',
+            ToolRisk.critical,
+            approved: false,
+            result: 'cancelled',
+          );
 
         final entries = log.getAll();
         expect(entries, hasLength(3));
@@ -71,10 +66,11 @@ void main() {
       });
 
       test('add_allRiskLevels', () {
-        log.add('t1', '{}', ToolRisk.safe, approved: true, result: 'ok');
-        log.add('t2', '{}', ToolRisk.low, approved: true, result: 'ok');
-        log.add('t3', '{}', ToolRisk.high, approved: true, result: 'ok');
-        log.add('t4', '{}', ToolRisk.critical, approved: false, result: 'no');
+        log
+          ..add('t1', '{}', ToolRisk.safe, approved: true, result: 'ok')
+          ..add('t2', '{}', ToolRisk.low, approved: true, result: 'ok')
+          ..add('t3', '{}', ToolRisk.high, approved: true, result: 'ok')
+          ..add('t4', '{}', ToolRisk.critical, approved: false, result: 'no');
 
         final entries = log.getAll();
         expect(entries[0].risk, ToolRisk.safe);
@@ -155,10 +151,9 @@ void main() {
       });
 
       test('add_maxSizeOne_keepsOnlyLast', () {
-        log = AuditLog(maxSize: 1);
-
-        log.add('first', '{}', ToolRisk.safe, approved: true, result: 'r1');
-        log.add('second', '{}', ToolRisk.safe, approved: true, result: 'r2');
+        log = AuditLog(maxSize: 1)
+          ..add('first', '{}', ToolRisk.safe, approved: true, result: 'r1')
+          ..add('second', '{}', ToolRisk.safe, approved: true, result: 'r2');
 
         final entries = log.getAll();
         expect(entries, hasLength(1));
@@ -216,10 +211,10 @@ void main() {
 
     group('clear', () {
       test('clear_removesAllEntries', () {
-        log.add('t1', '{}', ToolRisk.safe, approved: true, result: 'ok');
-        log.add('t2', '{}', ToolRisk.high, approved: false, result: 'no');
-
-        log.clear();
+        log
+          ..add('t1', '{}', ToolRisk.safe, approved: true, result: 'ok')
+          ..add('t2', '{}', ToolRisk.high, approved: false, result: 'no')
+          ..clear();
 
         expect(log.getAll(), isEmpty);
       });
@@ -231,9 +226,10 @@ void main() {
       });
 
       test('clear_allowsNewEntries', () {
-        log.add('old', '{}', ToolRisk.safe, approved: true, result: 'ok');
-        log.clear();
-        log.add('new', '{}', ToolRisk.safe, approved: true, result: 'ok2');
+        log
+          ..add('old', '{}', ToolRisk.safe, approved: true, result: 'ok')
+          ..clear()
+          ..add('new', '{}', ToolRisk.safe, approved: true, result: 'ok2');
 
         final entries = log.getAll();
         expect(entries, hasLength(1));
@@ -241,13 +237,13 @@ void main() {
       });
 
       test('clear_respectsMaxSizeAfterClear', () {
-        log = AuditLog(maxSize: 2);
-        log.add('a', '{}', ToolRisk.safe, approved: true, result: '1');
-        log.add('b', '{}', ToolRisk.safe, approved: true, result: '2');
-        log.clear();
-        log.add('c', '{}', ToolRisk.safe, approved: true, result: '3');
-        log.add('d', '{}', ToolRisk.safe, approved: true, result: '4');
-        log.add('e', '{}', ToolRisk.safe, approved: true, result: '5');
+        log = AuditLog(maxSize: 2)
+          ..add('a', '{}', ToolRisk.safe, approved: true, result: '1')
+          ..add('b', '{}', ToolRisk.safe, approved: true, result: '2')
+          ..clear()
+          ..add('c', '{}', ToolRisk.safe, approved: true, result: '3')
+          ..add('d', '{}', ToolRisk.safe, approved: true, result: '4')
+          ..add('e', '{}', ToolRisk.safe, approved: true, result: '5');
 
         final entries = log.getAll();
         expect(entries, hasLength(2));

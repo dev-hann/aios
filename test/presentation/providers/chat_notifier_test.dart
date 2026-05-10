@@ -371,19 +371,20 @@ void main() {
 
     test('resolveConfirmation_resetsIsConfirming', () async {
       final completer = Completer<void>();
-      agent.resultToReturn = const AgentResult(
-        steps: [
-          AgentStep(
-            'confirmation_required',
-            'confirm',
-            toolName: 'app_launcher',
-            toolArgs: '{}',
-            riskLevel: 'high',
-          ),
-        ],
-        success: true,
-      );
-      agent.holdCompleter = completer;
+      agent
+        ..resultToReturn = const AgentResult(
+          steps: [
+            AgentStep(
+              'confirmation_required',
+              'confirm',
+              toolName: 'app_launcher',
+              toolArgs: '{}',
+              riskLevel: 'high',
+            ),
+          ],
+          success: true,
+        )
+        ..holdCompleter = completer;
 
       final future = notifier.sendMessage('open youtube');
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -451,11 +452,12 @@ void main() {
 
     test('sendMessage_concurrentCalls_bothExecute', () async {
       final completer = Completer<void>();
-      agent.holdCompleter = completer;
-      agent.resultToReturn = const AgentResult(
-        steps: [AgentStep('answer', 'First')],
-        success: true,
-      );
+      agent
+        ..holdCompleter = completer
+        ..resultToReturn = const AgentResult(
+          steps: [AgentStep('answer', 'First')],
+          success: true,
+        );
 
       final future1 = notifier.sendMessage('First');
       await Future<void>.delayed(const Duration(milliseconds: 10));

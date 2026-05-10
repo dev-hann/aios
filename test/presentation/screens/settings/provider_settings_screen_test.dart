@@ -153,10 +153,10 @@ void main() {
   });
 
   testWidgets('build_customType_showsBaseUrlField', (tester) async {
-    final llmRepo = MockLlmRepository();
-    llmRepo.modelsToReturn = [
-      const LlmModelInfo(id: 'test-model', displayName: 'Test Model'),
-    ];
+    final llmRepo = MockLlmRepository()
+      ..modelsToReturn = [
+        const LlmModelInfo(id: 'test-model', displayName: 'Test Model'),
+      ];
     final settingsRepo = MockSettingsRepository(
       providerConfig: const LlmProviderConfig(
         type: LlmProviderType.custom,
@@ -175,10 +175,10 @@ void main() {
   });
 
   testWidgets('build_withProviderConfig_showsDisconnect', (tester) async {
-    final llmRepo = MockLlmRepository();
-    llmRepo.modelsToReturn = [
-      const LlmModelInfo(id: 'test-model', displayName: 'Test Model'),
-    ];
+    final llmRepo = MockLlmRepository()
+      ..modelsToReturn = [
+        const LlmModelInfo(id: 'test-model', displayName: 'Test Model'),
+      ];
     final settingsRepo = MockSettingsRepository(
       providerConfig: const LlmProviderConfig(
         type: LlmProviderType.zai,

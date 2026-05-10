@@ -231,9 +231,9 @@ void main() {
     });
 
     test('cancel_multipleTimes_doesNotThrow', () {
-      final strategy = ReactStrategy(engine: _FakeEngine());
-      strategy.cancel();
-      strategy.cancel();
+      ReactStrategy(engine: _FakeEngine())
+        ..cancel()
+        ..cancel();
     });
   });
 
@@ -302,11 +302,10 @@ void main() {
   group('system prompt context injection', () {
     test('systemPrompt_withoutContext_containsBaseOnly', () {
       final engine = _PromptCapturingEngine();
-      final strategy = ReactStrategy(engine: engine);
-      strategy.setConversationContext(null);
-      strategy.setToolPreferenceTracker(null);
-
-      strategy.execute('test', onStep: (_) {});
+      ReactStrategy(engine: engine)
+        ..setConversationContext(null)
+        ..setToolPreferenceTracker(null)
+        ..execute('test', onStep: (_) {});
 
       expect(engine.capturedSystemPrompt, contains('AIOS'));
       expect(
@@ -321,15 +320,11 @@ void main() {
 
     test('systemPrompt_withConversationContext_containsHistory', () async {
       final engine = _PromptCapturingEngine();
-      final context = ConversationContext();
-      context.addTurn(
-        'open youtube',
-        'YouTube 실행 완료',
-        toolUsed: 'app_launcher',
-      );
-      final strategy = ReactStrategy(engine: engine);
-      strategy.setConversationContext(context);
-      strategy.setToolPreferenceTracker(null);
+      final context = ConversationContext()
+        ..addTurn('open youtube', 'YouTube 실행 완료', toolUsed: 'app_launcher');
+      final strategy = ReactStrategy(engine: engine)
+        ..setConversationContext(context)
+        ..setToolPreferenceTracker(null);
 
       unawaited(strategy.execute('test', onStep: (_) {}));
 
@@ -339,13 +334,13 @@ void main() {
 
     test('systemPrompt_withPreferenceTracker_containsFrequentTools', () async {
       final engine = _PromptCapturingEngine();
-      final tracker = ToolPreferenceTracker();
-      tracker.recordToolUse('calculator');
-      tracker.recordToolUse('calculator');
-      tracker.recordToolUse('calculator');
-      final strategy = ReactStrategy(engine: engine);
-      strategy.setConversationContext(null);
-      strategy.setToolPreferenceTracker(tracker);
+      final tracker = ToolPreferenceTracker()
+        ..recordToolUse('calculator')
+        ..recordToolUse('calculator')
+        ..recordToolUse('calculator');
+      final strategy = ReactStrategy(engine: engine)
+        ..setConversationContext(null)
+        ..setToolPreferenceTracker(tracker);
 
       unawaited(strategy.execute('test', onStep: (_) {}));
 
@@ -355,14 +350,13 @@ void main() {
 
     test('systemPrompt_withBothContexts_containsBoth', () async {
       final engine = _PromptCapturingEngine();
-      final context = ConversationContext();
-      context.addTurn('hello', 'hi there');
-      final tracker = ToolPreferenceTracker();
-      tracker.recordToolUse('app_launcher');
-      tracker.recordToolUse('app_launcher');
-      final strategy = ReactStrategy(engine: engine);
-      strategy.setConversationContext(context);
-      strategy.setToolPreferenceTracker(tracker);
+      final context = ConversationContext()..addTurn('hello', 'hi there');
+      final tracker = ToolPreferenceTracker()
+        ..recordToolUse('app_launcher')
+        ..recordToolUse('app_launcher');
+      final strategy = ReactStrategy(engine: engine)
+        ..setConversationContext(context)
+        ..setToolPreferenceTracker(tracker);
 
       unawaited(strategy.execute('test', onStep: (_) {}));
 
@@ -374,9 +368,7 @@ void main() {
   group('system prompt multi-step workflow rules', () {
     test('systemPrompt_containsScreenActionCriticalRules', () {
       final engine = _PromptCapturingEngine();
-      final strategy = ReactStrategy(engine: engine);
-
-      strategy.execute('test', onStep: (_) {});
+      ReactStrategy(engine: engine).execute('test', onStep: (_) {});
 
       final prompt = engine.capturedSystemPrompt!;
       expect(prompt, contains('screen_action'));
@@ -388,9 +380,7 @@ void main() {
 
     test('systemPrompt_containsSearchWorkflowSteps', () {
       final engine = _PromptCapturingEngine();
-      final strategy = ReactStrategy(engine: engine);
-
-      strategy.execute('test', onStep: (_) {});
+      ReactStrategy(engine: engine).execute('test', onStep: (_) {});
 
       final prompt = engine.capturedSystemPrompt!;
       expect(prompt, contains('tap'));
@@ -400,9 +390,7 @@ void main() {
 
     test('systemPrompt_warnsAgainstMixingParams', () {
       final engine = _PromptCapturingEngine();
-      final strategy = ReactStrategy(engine: engine);
-
-      strategy.execute('test', onStep: (_) {});
+      ReactStrategy(engine: engine).execute('test', onStep: (_) {});
 
       final prompt = engine.capturedSystemPrompt!;
       expect(prompt, contains('content'));
@@ -415,12 +403,10 @@ void main() {
     test('extendedToolSchema_usesToolPrompt_notDescription', () {
       final engine = _ToolCapturingEngine();
       final tool = ScreenActionTool();
-      final strategy = ReactStrategy(
+      ReactStrategy(
         engine: engine,
         extendedTools: {'screen_action': tool},
-      );
-
-      strategy.execute('test', onStep: (_) {});
+      ).execute('test', onStep: (_) {});
 
       final schemas = engine.capturedSession!.capturedTools;
       final screenSchema = schemas.firstWhere((s) => s.name == 'screen_action');
@@ -434,12 +420,10 @@ void main() {
     test('extendedToolSchema_containsSearchWorkflowInDescription', () {
       final engine = _ToolCapturingEngine();
       final tool = ScreenActionTool();
-      final strategy = ReactStrategy(
+      ReactStrategy(
         engine: engine,
         extendedTools: {'screen_action': tool},
-      );
-
-      strategy.execute('test', onStep: (_) {});
+      ).execute('test', onStep: (_) {});
 
       final schemas = engine.capturedSession!.capturedTools;
       final screenSchema = schemas.firstWhere((s) => s.name == 'screen_action');
@@ -457,12 +441,10 @@ void main() {
         '{"expression": "string"}',
         (_) async => const ToolResult.ok('0'),
       );
-      final strategy = ReactStrategy(
+      ReactStrategy(
         engine: engine,
         basicTools: {'calculator': tool},
-      );
-
-      strategy.execute('test', onStep: (_) {});
+      ).execute('test', onStep: (_) {});
 
       final schemas = engine.capturedSession!.capturedTools;
       final calcSchema = schemas.firstWhere((s) => s.name == 'calculator');

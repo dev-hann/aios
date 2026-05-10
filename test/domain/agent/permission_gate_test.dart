@@ -86,8 +86,9 @@ void main() {
         );
 
         final future = gate.requestPermission(perm, 'contact_search', (_) {});
-        gate.resolve(value: true);
-        gate.resolve(value: true);
+        gate
+          ..resolve(value: true)
+          ..resolve(value: true);
         expect(await future, isTrue);
       });
     });

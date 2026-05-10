@@ -162,8 +162,7 @@ void main() {
 
     test('downloadApk_returnsFile', () async {
       final fakeBytes = [1, 2, 3, 4, 5];
-      final dio = Dio();
-      dio.httpClientAdapter = _FakeDownloadAdapter(fakeBytes);
+      final dio = Dio()..httpClientAdapter = _FakeDownloadAdapter(fakeBytes);
       final repo = UpdateRepositoryImpl(
         api: api,
         currentVersion: '2.0.0',
@@ -183,8 +182,7 @@ void main() {
 
     test('downloadApk_reportsProgress', () async {
       final fakeBytes = List.generate(100, (i) => i);
-      final dio = Dio();
-      dio.httpClientAdapter = _FakeDownloadAdapter(fakeBytes);
+      final dio = Dio()..httpClientAdapter = _FakeDownloadAdapter(fakeBytes);
       final repo = UpdateRepositoryImpl(
         api: api,
         currentVersion: '2.0.0',
@@ -268,8 +266,7 @@ void main() {
     });
 
     test('downloadApk_error_returnsNull', () async {
-      final dio = Dio();
-      dio.httpClientAdapter = _ErrorDownloadAdapter();
+      final dio = Dio()..httpClientAdapter = _ErrorDownloadAdapter();
       final repo = UpdateRepositoryImpl(
         api: api,
         currentVersion: '2.0.0',

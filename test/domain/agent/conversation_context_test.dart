@@ -17,9 +17,10 @@ void main() {
       });
 
       test('adds_multipleTurns_storedInOrder', () {
-        context.addTurn('Q1', 'A1', toolUsed: 'calculator');
-        context.addTurn('Q2', 'A2');
-        context.addTurn('Q3', 'A3', toolUsed: 'app_launcher');
+        context
+          ..addTurn('Q1', 'A1', toolUsed: 'calculator')
+          ..addTurn('Q2', 'A2')
+          ..addTurn('Q3', 'A3', toolUsed: 'app_launcher');
 
         expect(context.length, 3);
         final turns = context.getRecentTurns();
@@ -29,13 +30,12 @@ void main() {
       });
 
       test('respects_maxTurns_dropsOldest', () {
-        context = ConversationContext(maxTurns: 3);
-
-        context.addTurn('Q1', 'A1');
-        context.addTurn('Q2', 'A2');
-        context.addTurn('Q3', 'A3');
-        context.addTurn('Q4', 'A4');
-        context.addTurn('Q5', 'A5');
+        context = ConversationContext(maxTurns: 3)
+          ..addTurn('Q1', 'A1')
+          ..addTurn('Q2', 'A2')
+          ..addTurn('Q3', 'A3')
+          ..addTurn('Q4', 'A4')
+          ..addTurn('Q5', 'A5');
 
         expect(context.length, 3);
         final turns = context.getRecentTurns();
@@ -51,8 +51,9 @@ void main() {
       });
 
       test('returns_all_whenCountExceedsLength', () {
-        context.addTurn('Q1', 'A1');
-        context.addTurn('Q2', 'A2');
+        context
+          ..addTurn('Q1', 'A1')
+          ..addTurn('Q2', 'A2');
 
         final turns = context.getRecentTurns(10);
 
@@ -60,10 +61,11 @@ void main() {
       });
 
       test('returns_lastN_whenCountSpecified', () {
-        context.addTurn('Q1', 'A1');
-        context.addTurn('Q2', 'A2');
-        context.addTurn('Q3', 'A3');
-        context.addTurn('Q4', 'A4');
+        context
+          ..addTurn('Q1', 'A1')
+          ..addTurn('Q2', 'A2')
+          ..addTurn('Q3', 'A3')
+          ..addTurn('Q4', 'A4');
 
         final turns = context.getRecentTurns(2);
 
@@ -88,8 +90,9 @@ void main() {
       });
 
       test('formats_multipleTurns', () {
-        context.addTurn('Q1', 'A1');
-        context.addTurn('Q2', 'A2', toolUsed: 'timer');
+        context
+          ..addTurn('Q1', 'A1')
+          ..addTurn('Q2', 'A2', toolUsed: 'timer');
 
         final prompt = context.toPromptContext();
 
@@ -101,8 +104,8 @@ void main() {
 
       test('truncates_longResponse', () {
         final longResponse = 'A' * 500;
-        context = ConversationContext(maxResponseLength: 100);
-        context.addTurn('Q', longResponse);
+        context = ConversationContext(maxResponseLength: 100)
+          ..addTurn('Q', longResponse);
 
         final prompt = context.toPromptContext();
 
@@ -125,19 +128,20 @@ void main() {
 
     group('clear', () {
       test('removes_allTurns', () {
-        context.addTurn('Q1', 'A1');
-        context.addTurn('Q2', 'A2');
-
-        context.clear();
+        context
+          ..addTurn('Q1', 'A1')
+          ..addTurn('Q2', 'A2')
+          ..clear();
 
         expect(context.isEmpty, isTrue);
         expect(context.length, 0);
       });
 
       test('allows_new_turns_after_clear', () {
-        context.addTurn('Old', 'Old response');
-        context.clear();
-        context.addTurn('New', 'New response');
+        context
+          ..addTurn('Old', 'Old response')
+          ..clear()
+          ..addTurn('New', 'New response');
 
         expect(context.length, 1);
         expect(context.getRecentTurns().first.userMessage, 'New');

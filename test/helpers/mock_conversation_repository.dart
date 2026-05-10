@@ -105,8 +105,9 @@ class MockConversationRepository implements ConversationRepository {
   }
 
   void emitConversations(List<Conversation> convs) {
-    conversations.clear();
-    conversations.addAll(convs);
+    conversations
+      ..clear()
+      ..addAll(convs);
     _notify();
   }
 

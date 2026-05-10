@@ -57,16 +57,18 @@ class ScreenActionTool extends ExtendedTool {
       final json = tryParseToolJson(args, _tag);
       final action = json['action']?.toString().toLowerCase() ?? '';
 
-      final ToolResult result = await switch (action) {
+      final result = await switch (action) {
         'tap' => _handleTap(json, toolContext),
         'long_click' => _handleLongClick(json, toolContext),
         'type' => _handleType(json, toolContext),
         'scroll' => _handleScroll(json, toolContext),
         'swipe' => _handleSwipe(json, toolContext),
         'global' => _handleGlobal(json, toolContext),
-        _ => ToolResult.err(
-          "Unknown action '$action'. "
-          'Use tap, long_click, type, scroll, swipe, or global.',
+        _ => Future.value(
+          ToolResult.err(
+            "Unknown action '$action'. "
+            'Use tap, long_click, type, scroll, swipe, or global.',
+          ),
         ),
       };
 

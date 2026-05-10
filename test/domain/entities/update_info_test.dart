@@ -76,9 +76,7 @@ void main() {
         releaseNotes: 'New features',
         publishedAt: DateTime(2026, 3),
       );
-      final result = UpdateResult.success(info);
-
-      result.when(
+      UpdateResult.success(info).when(
         success: (i) {
           expect(i.latestVersion, '2.1.0');
           expect(i.currentVersion, '2.0.0');
@@ -89,9 +87,7 @@ void main() {
     });
 
     test('updateResult_notAvailable_returnsNotAvailable', () {
-      const result = UpdateResult.notAvailable();
-
-      result.when(
+      const UpdateResult.notAvailable().when(
         success: (_) => fail('Expected notAvailable'),
         notAvailable: () {},
         error: (_) => fail('Expected notAvailable'),
@@ -99,9 +95,7 @@ void main() {
     });
 
     test('updateResult_error_returnsError', () {
-      const result = UpdateResult.error('Network error');
-
-      result.when(
+      const UpdateResult.error('Network error').when(
         success: (_) => fail('Expected error'),
         notAvailable: () => fail('Expected error'),
         error: (message) {

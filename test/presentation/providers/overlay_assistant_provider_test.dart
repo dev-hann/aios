@@ -235,11 +235,12 @@ void main() {
 
     test('handleMessage_preventsConcurrentProcessing', () async {
       final completer = Completer<void>();
-      agent.holdCompleter = completer;
-      agent.resultToReturn = const AgentResult(
-        steps: [AgentStep('answer', 'First')],
-        success: true,
-      );
+      agent
+        ..holdCompleter = completer
+        ..resultToReturn = const AgentResult(
+          steps: [AgentStep('answer', 'First')],
+          success: true,
+        );
 
       overlayService.capturedHandler!('first');
       await Future<void>.delayed(const Duration(milliseconds: 10));

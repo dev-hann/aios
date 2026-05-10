@@ -93,17 +93,18 @@ void main() {
     });
 
     test('downloadApk_reportsProgressAndCompletes', () async {
-      mockRepo.checkResult = UpdateResult.success(
-        UpdateInfo(
-          currentVersion: '1.0.0',
-          latestVersion: '2.0.0',
-          downloadUrl: 'https://example.com/aios.apk',
-          fileSize: 50000000,
-          releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025),
-        ),
-      );
-      mockRepo.downloadPath = '/tmp/test-apk.apk';
+      mockRepo
+        ..checkResult = UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025),
+          ),
+        )
+        ..downloadPath = '/tmp/test-apk.apk';
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -114,17 +115,18 @@ void main() {
     });
 
     test('downloadApk_transitionsToErrorWhenDownloadFails', () async {
-      mockRepo.checkResult = UpdateResult.success(
-        UpdateInfo(
-          currentVersion: '1.0.0',
-          latestVersion: '2.0.0',
-          downloadUrl: 'https://example.com/aios.apk',
-          fileSize: 50000000,
-          releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025),
-        ),
-      );
-      mockRepo.downloadPath = null;
+      mockRepo
+        ..checkResult = UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025),
+          ),
+        )
+        ..downloadPath = null;
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -140,17 +142,18 @@ void main() {
     });
 
     test('installApk_transitionsToInstalled', () async {
-      mockRepo.checkResult = UpdateResult.success(
-        UpdateInfo(
-          currentVersion: '1.0.0',
-          latestVersion: '2.0.0',
-          downloadUrl: 'https://example.com/aios.apk',
-          fileSize: 50000000,
-          releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025),
-        ),
-      );
-      mockRepo.downloadPath = '/tmp/test-apk.apk';
+      mockRepo
+        ..checkResult = UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025),
+          ),
+        )
+        ..downloadPath = '/tmp/test-apk.apk';
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -160,18 +163,19 @@ void main() {
     });
 
     test('installApk_transitionsToErrorWhenInstallFails', () async {
-      mockRepo.checkResult = UpdateResult.success(
-        UpdateInfo(
-          currentVersion: '1.0.0',
-          latestVersion: '2.0.0',
-          downloadUrl: 'https://example.com/aios.apk',
-          fileSize: 50000000,
-          releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025),
-        ),
-      );
-      mockRepo.downloadPath = '/tmp/test-apk.apk';
-      mockRepo.installResult = false;
+      mockRepo
+        ..checkResult = UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025),
+          ),
+        )
+        ..downloadPath = '/tmp/test-apk.apk'
+        ..installResult = false;
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -201,17 +205,18 @@ void main() {
             return null;
           });
 
-      mockRepo.checkResult = UpdateResult.success(
-        UpdateInfo(
-          currentVersion: '1.0.0',
-          latestVersion: '2.0.0',
-          downloadUrl: 'https://example.com/aios.apk',
-          fileSize: 50000000,
-          releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025),
-        ),
-      );
-      mockRepo.downloadPath = '/tmp/test-apk.apk';
+      mockRepo
+        ..checkResult = UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025),
+          ),
+        )
+        ..downloadPath = '/tmp/test-apk.apk';
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();

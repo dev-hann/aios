@@ -17,17 +17,19 @@ void main() {
       });
 
       test('records_multipleUses_sameTool', () {
-        tracker.recordToolUse('app_launcher');
-        tracker.recordToolUse('app_launcher');
-        tracker.recordToolUse('app_launcher');
+        tracker
+          ..recordToolUse('app_launcher')
+          ..recordToolUse('app_launcher')
+          ..recordToolUse('app_launcher');
 
         expect(tracker.getCount('app_launcher'), 3);
       });
 
       test('records_multipleTools_independently', () {
-        tracker.recordToolUse('calculator');
-        tracker.recordToolUse('calculator');
-        tracker.recordToolUse('timer');
+        tracker
+          ..recordToolUse('calculator')
+          ..recordToolUse('calculator')
+          ..recordToolUse('timer');
 
         expect(tracker.getCount('calculator'), 2);
         expect(tracker.getCount('timer'), 1);
@@ -55,12 +57,13 @@ void main() {
       });
 
       test('returns_sortedByCount_descending', () {
-        tracker.recordToolUse('calculator');
-        tracker.recordToolUse('app_launcher');
-        tracker.recordToolUse('app_launcher');
-        tracker.recordToolUse('app_launcher');
-        tracker.recordToolUse('timer');
-        tracker.recordToolUse('timer');
+        tracker
+          ..recordToolUse('calculator')
+          ..recordToolUse('app_launcher')
+          ..recordToolUse('app_launcher')
+          ..recordToolUse('app_launcher')
+          ..recordToolUse('timer')
+          ..recordToolUse('timer');
 
         final result = tracker.getMostUsed();
 
@@ -86,8 +89,9 @@ void main() {
       });
 
       test('formats_singleTool', () {
-        tracker.recordToolUse('calculator');
-        tracker.recordToolUse('calculator');
+        tracker
+          ..recordToolUse('calculator')
+          ..recordToolUse('calculator');
 
         final prompt = tracker.toPromptContext();
 
@@ -96,10 +100,11 @@ void main() {
       });
 
       test('formats_multipleTools_sorted', () {
-        tracker.recordToolUse('timer');
-        tracker.recordToolUse('app_launcher');
-        tracker.recordToolUse('app_launcher');
-        tracker.recordToolUse('calculator');
+        tracker
+          ..recordToolUse('timer')
+          ..recordToolUse('app_launcher')
+          ..recordToolUse('app_launcher')
+          ..recordToolUse('calculator');
 
         final prompt = tracker.toPromptContext();
 
@@ -109,11 +114,12 @@ void main() {
       });
 
       test('limits_to_top3_byDefault', () {
-        tracker.recordToolUse('tool1');
-        tracker.recordToolUse('tool2');
-        tracker.recordToolUse('tool3');
-        tracker.recordToolUse('tool4');
-        tracker.recordToolUse('tool5');
+        tracker
+          ..recordToolUse('tool1')
+          ..recordToolUse('tool2')
+          ..recordToolUse('tool3')
+          ..recordToolUse('tool4')
+          ..recordToolUse('tool5');
 
         final prompt = tracker.toPromptContext();
 
@@ -124,10 +130,10 @@ void main() {
 
     group('clear', () {
       test('removes_allUsage', () {
-        tracker.recordToolUse('calculator');
-        tracker.recordToolUse('timer');
-
-        tracker.clear();
+        tracker
+          ..recordToolUse('calculator')
+          ..recordToolUse('timer')
+          ..clear();
 
         expect(tracker.getCount('calculator'), 0);
         expect(tracker.getCount('timer'), 0);
@@ -141,9 +147,10 @@ void main() {
       });
 
       test('returns_sum_of_all_uses', () {
-        tracker.recordToolUse('calculator');
-        tracker.recordToolUse('calculator');
-        tracker.recordToolUse('timer');
+        tracker
+          ..recordToolUse('calculator')
+          ..recordToolUse('calculator')
+          ..recordToolUse('timer');
 
         expect(tracker.totalUsage, 3);
       });
