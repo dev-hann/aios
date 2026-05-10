@@ -9,10 +9,10 @@ class AuditLog {
   void add(
     String tool,
     String args,
-    ToolRisk risk,
-    bool approved,
-    String result,
-  ) {
+    ToolRisk risk, {
+    required bool approved,
+    required String result,
+  }) {
     _entries.add(
       ToolAuditEntry(
         timestamp: DateTime.now().millisecondsSinceEpoch,

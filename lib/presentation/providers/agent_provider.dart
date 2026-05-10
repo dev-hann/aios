@@ -97,11 +97,10 @@ final agentProvider = Provider<AgentStrategy>((ref) {
     extendedTools: extendedTools,
   );
 
-  strategy.setPermissionChecker(_defaultPermissionChecker);
-  strategy.setConversationContext(conversationContext);
-  strategy.setToolPreferenceTracker(preferenceTracker);
-
-  return strategy;
+  return strategy
+    ..setPermissionChecker(_defaultPermissionChecker)
+    ..setConversationContext(conversationContext)
+    ..setToolPreferenceTracker(preferenceTracker);
 });
 
 class _PlaceholderStrategy implements AgentStrategy {
@@ -125,10 +124,10 @@ class _PlaceholderStrategy implements AgentStrategy {
   Future<void> warmup() async {}
 
   @override
-  void resolveConfirmation(bool approved) {}
+  void resolveConfirmation({required bool approved}) {}
 
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
 
   @override
   void setPermissionChecker(

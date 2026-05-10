@@ -81,7 +81,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              ref.read(chatStateProvider.notifier).resolveConfirmation(false);
+              ref
+                  .read(chatStateProvider.notifier)
+                  .resolveConfirmation(approved: false);
             },
             child: Text(
               Strings.chat.deny,
@@ -91,7 +93,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              ref.read(chatStateProvider.notifier).resolveConfirmation(true);
+              ref
+                  .read(chatStateProvider.notifier)
+                  .resolveConfirmation(approved: true);
             },
             child: Text(
               Strings.chat.approve,
@@ -568,7 +572,7 @@ class _PermissionCard extends ConsumerWidget {
                   onPressed: () {
                     ref
                         .read(chatStateProvider.notifier)
-                        .resolvePermission(false);
+                        .resolvePermission(userTappedGrant: false);
                   },
                   child: const Text(
                     '\uB098\uC911\uC5D0',
@@ -583,7 +587,7 @@ class _PermissionCard extends ConsumerWidget {
                   onPressed: () {
                     ref
                         .read(chatStateProvider.notifier)
-                        .resolvePermission(true);
+                        .resolvePermission(userTappedGrant: true);
                   },
                   style: TextButton.styleFrom(
                     backgroundColor: AppColors.primary.withValues(alpha: 0.15),

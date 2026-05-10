@@ -421,7 +421,13 @@ class ReactStrategy implements AgentStrategy {
             );
             print('[$_tag] ConfirmationGate: approved=$approved');
             if (!approved) {
-              _auditLog.add(toolName, argsJson, risk, false, 'Cancelled');
+              _auditLog.add(
+                toolName,
+                argsJson,
+                risk,
+                approved: false,
+                result: 'Cancelled',
+              );
               const result = 'Action cancelled by user';
               steps.add(
                 AgentStep(
@@ -445,7 +451,13 @@ class ReactStrategy implements AgentStrategy {
             '[$_tag] Tool result (${toolContent.length} chars): $truncated',
           );
 
-          _auditLog.add(toolName, argsJson, risk, true, toolContent);
+          _auditLog.add(
+            toolName,
+            argsJson,
+            risk,
+            approved: true,
+            result: toolContent,
+          );
           _preferenceTracker?.recordToolUse(toolName);
 
           steps.add(
@@ -602,13 +614,13 @@ class ReactStrategy implements AgentStrategy {
   }
 
   @override
-  void resolveConfirmation(bool approved) {
-    _confirmationGate.resolve(approved);
+  void resolveConfirmation({required bool approved}) {
+    _confirmationGate.resolve(value: approved);
   }
 
   @override
-  void resolvePermission(bool granted) {
-    _permissionGate.resolve(granted);
+  void resolvePermission({required bool granted}) {
+    _permissionGate.resolve(value: granted);
   }
 
   @override

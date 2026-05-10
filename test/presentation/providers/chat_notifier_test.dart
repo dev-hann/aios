@@ -71,12 +71,12 @@ class _MockAgentStrategy implements AgentStrategy {
   }
 
   @override
-  void resolveConfirmation(bool approved) {
+  void resolveConfirmation({required bool approved}) {
     lastConfirmationApproved = approved;
   }
 
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
 
   @override
   void setPermissionChecker(
@@ -248,10 +248,10 @@ void main() {
     });
 
     test('resolveConfirmation_delegatesToAgent', () async {
-      notifier.resolveConfirmation(true);
+      notifier.resolveConfirmation(approved: true);
       expect(agent.lastConfirmationApproved, isTrue);
 
-      notifier.resolveConfirmation(false);
+      notifier.resolveConfirmation(approved: false);
       expect(agent.lastConfirmationApproved, isFalse);
     });
 
@@ -390,7 +390,7 @@ void main() {
 
       expect(notifier.state.isConfirming, isTrue);
 
-      notifier.resolveConfirmation(true);
+      notifier.resolveConfirmation(approved: true);
       completer.complete();
       await future;
 

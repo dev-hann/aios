@@ -14,9 +14,9 @@ abstract class AgentStrategy {
 
   void cancel();
 
-  void resolveConfirmation(bool approved);
+  void resolveConfirmation({required bool approved});
 
-  void resolvePermission(bool granted);
+  void resolvePermission({required bool granted});
 
   void setPermissionChecker(
     Future<bool> Function(String permissionKey)? checker,

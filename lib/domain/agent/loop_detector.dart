@@ -74,7 +74,7 @@ class LoopDetector {
     return const LoopOk();
   }
 
-  bool shouldNudge(int iteration, bool hasAnswer) {
+  bool shouldNudge(int iteration, {required bool hasAnswer}) {
     return iteration >= 3 && !hasAnswer && !_warningGiven;
   }
 

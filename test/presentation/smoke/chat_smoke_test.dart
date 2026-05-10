@@ -35,7 +35,7 @@ class _NoOpAgent implements AgentStrategy {
   @override
   void cancel() {}
   @override
-  void resolveConfirmation(bool approved) {}
+  void resolveConfirmation({required bool approved}) {}
   @override
   void clearHistory() {}
   @override
@@ -43,7 +43,7 @@ class _NoOpAgent implements AgentStrategy {
   @override
   List<({String role, String content})> getConversationHistory() => [];
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
   @override
   void setPermissionChecker(
     Future<bool> Function(String permissionKey)? checker,

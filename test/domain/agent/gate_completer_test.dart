@@ -20,14 +20,14 @@ void main() {
     test('resolve_true_completesWithTrue', () async {
       gate.createCompleter();
       final future = gate.doWait();
-      gate.resolve(true);
+      gate.resolve(value: true);
       expect(await future, isTrue);
     });
 
     test('resolve_false_completesWithFalse', () async {
       gate.createCompleter();
       final future = gate.doWait();
-      gate.resolve(false);
+      gate.resolve(value: false);
       expect(await future, isFalse);
     });
 
@@ -46,28 +46,28 @@ void main() {
 
     test('resolve_beforeWait_completesImmediately', () async {
       gate.createCompleter();
-      gate.resolve(true);
+      gate.resolve(value: true);
       expect(await gate.doWait(), isTrue);
     });
 
     test('resolve_multipleTimes_firstWins', () async {
       gate.createCompleter();
       final future = gate.doWait();
-      gate.resolve(true);
-      gate.resolve(false);
+      gate.resolve(value: true);
+      gate.resolve(value: false);
       expect(await future, isTrue);
     });
 
     test('cancel_afterResolve_noEffect', () async {
       gate.createCompleter();
       final future = gate.doWait();
-      gate.resolve(true);
+      gate.resolve(value: true);
       gate.cancel();
       expect(await future, isTrue);
     });
 
     test('resolve_withoutCreateCompleter_noError', () {
-      gate.resolve(true);
+      gate.resolve(value: true);
     });
 
     test('cancel_withoutCreateCompleter_noError', () {
@@ -76,12 +76,12 @@ void main() {
 
     test('createCompleter_resetsState', () async {
       gate.createCompleter();
-      gate.resolve(true);
+      gate.resolve(value: true);
       expect(await gate.doWait(), isTrue);
 
       gate.createCompleter();
       final future = gate.doWait();
-      gate.resolve(false);
+      gate.resolve(value: false);
       expect(await future, isFalse);
     });
   });

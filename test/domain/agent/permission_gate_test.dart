@@ -20,7 +20,7 @@ void main() {
         );
 
         final future = gate.requestPermission(perm, 'contact_search', (_) {});
-        gate.resolve(true);
+        gate.resolve(value: true);
         expect(await future, isTrue);
       });
 
@@ -32,7 +32,7 @@ void main() {
         );
 
         final future = gate.requestPermission(perm, 'contact_search', (_) {});
-        gate.resolve(false);
+        gate.resolve(value: false);
         expect(await future, isFalse);
       });
 
@@ -49,7 +49,7 @@ void main() {
           'contact_search',
           (step) => captured = step,
         );
-        gate.resolve(true);
+        gate.resolve(value: true);
         await future;
 
         expect(captured, isNotNull);
@@ -75,7 +75,7 @@ void main() {
 
     group('resolve', () {
       test('resolve_withoutRequest_doesNotThrow', () {
-        expect(() => gate.resolve(true), returnsNormally);
+        expect(() => gate.resolve(value: true), returnsNormally);
       });
 
       test('resolve_multipleTimes_doesNotThrow', () async {
@@ -86,8 +86,8 @@ void main() {
         );
 
         final future = gate.requestPermission(perm, 'contact_search', (_) {});
-        gate.resolve(true);
-        gate.resolve(true);
+        gate.resolve(value: true);
+        gate.resolve(value: true);
         expect(await future, isTrue);
       });
     });

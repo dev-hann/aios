@@ -31,10 +31,10 @@ class _StubAgent implements AgentStrategy {
   void cancel() {}
 
   @override
-  void resolveConfirmation(bool approved) {}
+  void resolveConfirmation({required bool approved}) {}
 
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
 
   @override
   void setPermissionChecker(

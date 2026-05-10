@@ -48,13 +48,13 @@ class _CompletableAgent implements AgentStrategy {
   }
 
   @override
-  void resolveConfirmation(bool approved) {
+  void resolveConfirmation({required bool approved}) {
     lastConfirmation = approved;
     if (!_completer.isCompleted) _completer.complete();
   }
 
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
 
   @override
   void setPermissionChecker(
@@ -98,10 +98,10 @@ class _ErrorAgent implements AgentStrategy {
   void cancel() {}
 
   @override
-  void resolveConfirmation(bool approved) {}
+  void resolveConfirmation({required bool approved}) {}
 
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
 
   @override
   void setPermissionChecker(
@@ -158,12 +158,12 @@ class _DelayedAgent implements AgentStrategy {
   }
 
   @override
-  void resolveConfirmation(bool approved) {
+  void resolveConfirmation({required bool approved}) {
     if (!_completer.isCompleted) _completer.complete();
   }
 
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
 
   @override
   void setPermissionChecker(

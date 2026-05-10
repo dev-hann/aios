@@ -46,9 +46,11 @@ void main() {
       expect(steps, isNotEmpty);
 
       debugPrint('Agent steps: ${steps.map((s) => s.type).join(' -> ')}');
-      debugPrint(
-        'Answer: ${result.steps.where((s) => s.type == 'answer').map((s) => s.content).join('; ')}',
-      );
+      final answers = result.steps
+          .where((s) => s.type == 'answer')
+          .map((s) => s.content)
+          .join('; ');
+      debugPrint('Answer: $answers');
     });
 
     testWidgets('execute plain text fallback', (tester) async {

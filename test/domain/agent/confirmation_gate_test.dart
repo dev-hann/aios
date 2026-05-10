@@ -29,7 +29,7 @@ void main() {
         expect(capturedStep!.toolArgs, '{"action": "open_app"}');
         expect(capturedStep!.riskLevel, 'high');
 
-        gate.resolve(true);
+        gate.resolve(value: true);
         await future;
       });
 
@@ -41,7 +41,7 @@ void main() {
           (_) {},
         );
 
-        gate.resolve(true);
+        gate.resolve(value: true);
 
         final result = await future;
 
@@ -56,7 +56,7 @@ void main() {
           (_) {},
         );
 
-        gate.resolve(false);
+        gate.resolve(value: false);
 
         final result = await future;
 
@@ -76,7 +76,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 10));
         expect(capturedStep!.riskLevel, 'critical');
 
-        gate.resolve(true);
+        gate.resolve(value: true);
         await future;
       });
 
@@ -93,7 +93,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 10));
         expect(capturedStep!.content, contains('phone_caller'));
 
-        gate.resolve(true);
+        gate.resolve(value: true);
         await future;
       });
 
@@ -115,8 +115,8 @@ void main() {
           (_) {},
         );
 
-        gate.resolve(true);
-        gate.resolve(false);
+        gate.resolve(value: true);
+        gate.resolve(value: false);
 
         final result = await future;
 
@@ -124,8 +124,8 @@ void main() {
       });
 
       test('resolve_withoutPendingRequest_doesNotThrow', () async {
-        expect(() => gate.resolve(true), returnsNormally);
-        expect(() => gate.resolve(false), returnsNormally);
+        expect(() => gate.resolve(value: true), returnsNormally);
+        expect(() => gate.resolve(value: false), returnsNormally);
       });
 
       test('resolve_true_afterCancel_doesNotChangeResult', () async {
@@ -137,7 +137,7 @@ void main() {
         );
 
         gate.cancel();
-        gate.resolve(true);
+        gate.resolve(value: true);
 
         final result = await future;
         expect(result, isFalse);
@@ -181,7 +181,7 @@ void main() {
           '{}',
           (_) {},
         );
-        gate.resolve(true);
+        gate.resolve(value: true);
         final r2 = await future2;
         expect(r2, isTrue);
       });
@@ -195,7 +195,7 @@ void main() {
           '{}',
           (_) {},
         );
-        gate.resolve(true);
+        gate.resolve(value: true);
         final r1 = await future1;
         expect(r1, isTrue);
 
@@ -205,7 +205,7 @@ void main() {
           '{}',
           (_) {},
         );
-        gate.resolve(false);
+        gate.resolve(value: false);
         final r2 = await future2;
         expect(r2, isFalse);
 
@@ -215,7 +215,7 @@ void main() {
           '{}',
           (_) {},
         );
-        gate.resolve(true);
+        gate.resolve(value: true);
         final r3 = await future3;
         expect(r3, isTrue);
       });

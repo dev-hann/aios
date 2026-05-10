@@ -74,7 +74,8 @@ void main() {
         try {
           final d = jsonDecode(step.toolArgs) as Map<String, dynamic>;
           argsDisplay =
-              ' a=${d['action']} c=${d['content']} t=${d['text']} g=${d['global_action']}';
+              " a=${d['action']} c=${d['content']} "
+              "t=${d['text']} g=${d['global_action']}";
         } on Object {
           argsDisplay = ' ${step.toolArgs}';
         }

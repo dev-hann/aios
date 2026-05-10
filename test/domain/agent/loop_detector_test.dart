@@ -133,22 +133,22 @@ void main() {
 
   group('shouldNudge', () {
     test('shouldNudge_threeIterationsWithoutAnswer_returnsTrue', () {
-      expect(detector.shouldNudge(3, false), true);
+      expect(detector.shouldNudge(3, hasAnswer: false), true);
     });
 
     test('shouldNudge_answerExists_returnsFalse', () {
-      expect(detector.shouldNudge(5, true), false);
+      expect(detector.shouldNudge(5, hasAnswer: true), false);
     });
 
     test('shouldNudge_lessThanThreeIterations_returnsFalse', () {
-      expect(detector.shouldNudge(2, false), false);
+      expect(detector.shouldNudge(2, hasAnswer: false), false);
     });
 
     test('shouldNudge_afterWarningGiven_returnsFalse', () {
       detector.record('calc', '{}', const ToolResult.ok('a'));
       detector.record('calc', '{}', const ToolResult.ok('b'));
       detector.record('calc', '{}', const ToolResult.ok('c'));
-      expect(detector.shouldNudge(4, false), false);
+      expect(detector.shouldNudge(4, hasAnswer: false), false);
     });
   });
 
@@ -226,11 +226,11 @@ void main() {
     });
 
     test('shouldNudge_atExactly3Iterations_returnsTrue', () {
-      expect(detector.shouldNudge(3, false), true);
+      expect(detector.shouldNudge(3, hasAnswer: false), true);
     });
 
     test('shouldNudge_atHighIterationCount_returnsTrue', () {
-      expect(detector.shouldNudge(10, false), true);
+      expect(detector.shouldNudge(10, hasAnswer: false), true);
     });
 
     test('reset_preservesNoSideEffects', () {
@@ -240,7 +240,7 @@ void main() {
 
       detector.reset();
 
-      expect(detector.shouldNudge(1, false), false);
+      expect(detector.shouldNudge(1, hasAnswer: false), false);
     });
   });
 }

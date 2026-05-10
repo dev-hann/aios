@@ -16,7 +16,7 @@ abstract class GateCompleter {
     }
   }
 
-  void resolve(bool value) {
+  void resolve({required bool value}) {
     if (_completer != null && !_completer!.isCompleted) {
       _completer!.complete(value);
     }

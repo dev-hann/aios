@@ -226,23 +226,23 @@ class ChatNotifier extends StateNotifier<ChatState> {
     };
   }
 
-  void resolveConfirmation(bool approved) {
-    _agent.resolveConfirmation(approved);
+  void resolveConfirmation({required bool approved}) {
+    _agent.resolveConfirmation(approved: approved);
     state = state.copyWith(isConfirming: false);
   }
 
-  Future<void> resolvePermission(bool userTappedGrant) async {
+  Future<void> resolvePermission({required bool userTappedGrant}) async {
     final permStep = state.agentSteps
         .where((s) => s.type == 'permission_required')
         .lastOrNull;
     if (permStep == null) {
-      _agent.resolvePermission(false);
+      _agent.resolvePermission(granted: false);
       state = state.copyWith(isAwaitingPermission: false);
       return;
     }
 
     if (!userTappedGrant) {
-      _agent.resolvePermission(false);
+      _agent.resolvePermission(granted: false);
       state = state.copyWith(isAwaitingPermission: false);
       return;
     }
@@ -251,7 +251,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final perm = ToolPermissionMapper.getByKey(permKey);
 
     if (perm == null) {
-      _agent.resolvePermission(false);
+      _agent.resolvePermission(granted: false);
       state = state.copyWith(isAwaitingPermission: false);
       return;
     }
@@ -270,7 +270,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
 
     print('[$_tag] Permission $permKey resolved: $granted');
-    _agent.resolvePermission(granted);
+    _agent.resolvePermission(granted: granted);
     state = state.copyWith(isAwaitingPermission: false);
   }
 

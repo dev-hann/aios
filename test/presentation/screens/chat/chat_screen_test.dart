@@ -47,13 +47,13 @@ class _StepCapturingAgent implements AgentStrategy {
   }
 
   @override
-  void resolveConfirmation(bool approved) {
+  void resolveConfirmation({required bool approved}) {
     lastConfirmation = approved;
     if (!_completer.isCompleted) _completer.complete();
   }
 
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
 
   @override
   void setPermissionChecker(
@@ -112,12 +112,12 @@ class _DelayedEmitAgent implements AgentStrategy {
   }
 
   @override
-  void resolveConfirmation(bool approved) {
+  void resolveConfirmation({required bool approved}) {
     if (!_completer.isCompleted) _completer.complete();
   }
 
   @override
-  void resolvePermission(bool granted) {}
+  void resolvePermission({required bool granted}) {}
 
   @override
   void setPermissionChecker(

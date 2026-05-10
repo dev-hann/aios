@@ -12,7 +12,13 @@ void main() {
 
     group('add', () {
       test('add_singleEntry_stored', () {
-        log.add('calculator', '{}', ToolRisk.safe, true, '42');
+        log.add(
+          'calculator',
+          '{}',
+          ToolRisk.safe,
+          approved: true,
+          result: '42',
+        );
 
         final entries = log.getAll();
         expect(entries, hasLength(1));
@@ -24,20 +30,26 @@ void main() {
       });
 
       test('add_multipleEntries_storedInOrder', () {
-        log.add('calculator', '{}', ToolRisk.safe, true, '42');
+        log.add(
+          'calculator',
+          '{}',
+          ToolRisk.safe,
+          approved: true,
+          result: '42',
+        );
         log.add(
           'screen_action',
           '{"action":"tap"}',
           ToolRisk.high,
-          true,
-          'tapped',
+          approved: true,
+          result: 'tapped',
         );
         log.add(
           'sms_sender',
           '{"action":"send"}',
           ToolRisk.critical,
-          false,
-          'cancelled',
+          approved: false,
+          result: 'cancelled',
         );
 
         final entries = log.getAll();
@@ -50,7 +62,7 @@ void main() {
 
       test('add_hasValidTimestamp', () {
         final before = DateTime.now().millisecondsSinceEpoch;
-        log.add('test', '{}', ToolRisk.safe, true, 'ok');
+        log.add('test', '{}', ToolRisk.safe, approved: true, result: 'ok');
         final after = DateTime.now().millisecondsSinceEpoch;
 
         final entry = log.getAll().first;
@@ -59,10 +71,10 @@ void main() {
       });
 
       test('add_allRiskLevels', () {
-        log.add('t1', '{}', ToolRisk.safe, true, 'ok');
-        log.add('t2', '{}', ToolRisk.low, true, 'ok');
-        log.add('t3', '{}', ToolRisk.high, true, 'ok');
-        log.add('t4', '{}', ToolRisk.critical, false, 'no');
+        log.add('t1', '{}', ToolRisk.safe, approved: true, result: 'ok');
+        log.add('t2', '{}', ToolRisk.low, approved: true, result: 'ok');
+        log.add('t3', '{}', ToolRisk.high, approved: true, result: 'ok');
+        log.add('t4', '{}', ToolRisk.critical, approved: false, result: 'no');
 
         final entries = log.getAll();
         expect(entries[0].risk, ToolRisk.safe);
@@ -72,7 +84,13 @@ void main() {
       });
 
       test('add_emptyResult_stored', () {
-        log.add('screen_reader', '{}', ToolRisk.safe, true, '');
+        log.add(
+          'screen_reader',
+          '{}',
+          ToolRisk.safe,
+          approved: true,
+          result: '',
+        );
 
         final entries = log.getAll();
         expect(entries.first.result, isEmpty);
@@ -80,14 +98,20 @@ void main() {
 
       test('add_longArgs_stored', () {
         final longArgs = '{"data": "${"x" * 5000}"}';
-        log.add('test', longArgs, ToolRisk.safe, true, 'ok');
+        log.add('test', longArgs, ToolRisk.safe, approved: true, result: 'ok');
 
         expect(log.getAll().first.args, longArgs);
       });
 
       test('add_longResult_stored', () {
         final longResult = 'R' * 10000;
-        log.add('test', '{}', ToolRisk.safe, true, longResult);
+        log.add(
+          'test',
+          '{}',
+          ToolRisk.safe,
+          approved: true,
+          result: longResult,
+        );
 
         expect(log.getAll().first.result, longResult);
       });
@@ -98,7 +122,13 @@ void main() {
         log = AuditLog(maxSize: 5);
 
         for (var i = 0; i < 5; i++) {
-          log.add('tool$i', '{}', ToolRisk.safe, true, 'result$i');
+          log.add(
+            'tool$i',
+            '{}',
+            ToolRisk.safe,
+            approved: true,
+            result: 'result$i',
+          );
         }
 
         expect(log.getAll(), hasLength(5));
@@ -108,7 +138,13 @@ void main() {
         log = AuditLog(maxSize: 3);
 
         for (var i = 0; i < 5; i++) {
-          log.add('tool$i', '{}', ToolRisk.safe, true, 'result$i');
+          log.add(
+            'tool$i',
+            '{}',
+            ToolRisk.safe,
+            approved: true,
+            result: 'result$i',
+          );
         }
 
         final entries = log.getAll();
@@ -121,8 +157,8 @@ void main() {
       test('add_maxSizeOne_keepsOnlyLast', () {
         log = AuditLog(maxSize: 1);
 
-        log.add('first', '{}', ToolRisk.safe, true, 'r1');
-        log.add('second', '{}', ToolRisk.safe, true, 'r2');
+        log.add('first', '{}', ToolRisk.safe, approved: true, result: 'r1');
+        log.add('second', '{}', ToolRisk.safe, approved: true, result: 'r2');
 
         final entries = log.getAll();
         expect(entries, hasLength(1));
@@ -133,7 +169,7 @@ void main() {
         log = AuditLog();
 
         for (var i = 0; i < 100; i++) {
-          log.add('tool$i', '{}', ToolRisk.safe, true, 'r$i');
+          log.add('tool$i', '{}', ToolRisk.safe, approved: true, result: 'r$i');
         }
 
         expect(log.getAll(), hasLength(100));
@@ -145,7 +181,7 @@ void main() {
         log = AuditLog(maxSize: 10);
 
         for (var i = 0; i < 200; i++) {
-          log.add('tool$i', '{}', ToolRisk.safe, true, 'r$i');
+          log.add('tool$i', '{}', ToolRisk.safe, approved: true, result: 'r$i');
         }
 
         expect(log.getAll(), hasLength(10));
@@ -160,7 +196,7 @@ void main() {
       });
 
       test('getAll_returnsUnmodifiableList', () {
-        log.add('test', '{}', ToolRisk.safe, true, 'ok');
+        log.add('test', '{}', ToolRisk.safe, approved: true, result: 'ok');
 
         final entries = log.getAll();
 
@@ -168,10 +204,10 @@ void main() {
       });
 
       test('getAll_returnsSnapshot_notLiveView', () {
-        log.add('test', '{}', ToolRisk.safe, true, 'ok');
+        log.add('test', '{}', ToolRisk.safe, approved: true, result: 'ok');
 
         final snapshot = log.getAll();
-        log.add('test2', '{}', ToolRisk.safe, true, 'ok2');
+        log.add('test2', '{}', ToolRisk.safe, approved: true, result: 'ok2');
 
         expect(snapshot, hasLength(1));
         expect(log.getAll(), hasLength(2));
@@ -180,8 +216,8 @@ void main() {
 
     group('clear', () {
       test('clear_removesAllEntries', () {
-        log.add('t1', '{}', ToolRisk.safe, true, 'ok');
-        log.add('t2', '{}', ToolRisk.high, false, 'no');
+        log.add('t1', '{}', ToolRisk.safe, approved: true, result: 'ok');
+        log.add('t2', '{}', ToolRisk.high, approved: false, result: 'no');
 
         log.clear();
 
@@ -195,9 +231,9 @@ void main() {
       });
 
       test('clear_allowsNewEntries', () {
-        log.add('old', '{}', ToolRisk.safe, true, 'ok');
+        log.add('old', '{}', ToolRisk.safe, approved: true, result: 'ok');
         log.clear();
-        log.add('new', '{}', ToolRisk.safe, true, 'ok2');
+        log.add('new', '{}', ToolRisk.safe, approved: true, result: 'ok2');
 
         final entries = log.getAll();
         expect(entries, hasLength(1));
@@ -206,12 +242,12 @@ void main() {
 
       test('clear_respectsMaxSizeAfterClear', () {
         log = AuditLog(maxSize: 2);
-        log.add('a', '{}', ToolRisk.safe, true, '1');
-        log.add('b', '{}', ToolRisk.safe, true, '2');
+        log.add('a', '{}', ToolRisk.safe, approved: true, result: '1');
+        log.add('b', '{}', ToolRisk.safe, approved: true, result: '2');
         log.clear();
-        log.add('c', '{}', ToolRisk.safe, true, '3');
-        log.add('d', '{}', ToolRisk.safe, true, '4');
-        log.add('e', '{}', ToolRisk.safe, true, '5');
+        log.add('c', '{}', ToolRisk.safe, approved: true, result: '3');
+        log.add('d', '{}', ToolRisk.safe, approved: true, result: '4');
+        log.add('e', '{}', ToolRisk.safe, approved: true, result: '5');
 
         final entries = log.getAll();
         expect(entries, hasLength(2));

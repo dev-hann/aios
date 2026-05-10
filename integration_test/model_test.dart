@@ -108,7 +108,8 @@ void main() {
       final result = tokens.join();
       if (result.isEmpty) {
         debugPrint(
-          'Remote response was empty (reasoning model may consume tokens for thinking)',
+          'Remote response was empty '
+          '(reasoning model may consume tokens for thinking)',
         );
       } else {
         debugPrint('Remote response: $result');

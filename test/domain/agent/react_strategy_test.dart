@@ -240,12 +240,18 @@ void main() {
   group('resolveConfirmation', () {
     test('resolveConfirmation_true_doesNotThrow', () {
       final strategy = ReactStrategy(engine: _FakeEngine());
-      expect(() => strategy.resolveConfirmation(true), returnsNormally);
+      expect(
+        () => strategy.resolveConfirmation(approved: true),
+        returnsNormally,
+      );
     });
 
     test('resolveConfirmation_false_doesNotThrow', () {
       final strategy = ReactStrategy(engine: _FakeEngine());
-      expect(() => strategy.resolveConfirmation(false), returnsNormally);
+      expect(
+        () => strategy.resolveConfirmation(approved: false),
+        returnsNormally,
+      );
     });
   });
 

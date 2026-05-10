@@ -79,9 +79,10 @@ void main() {
           (s) => s.type == 'action' && s.toolName == 'calculator',
         );
         debugPrint('Calculator used: $usedCalculator');
-        debugPrint(
-          'Steps: ${result.steps.map((s) => '${s.type}:${s.toolName}').join(' -> ')}',
-        );
+        final stepsStr = result.steps
+            .map((s) => '${s.type}:${s.toolName}')
+            .join(' -> ');
+        debugPrint('Steps: $stepsStr');
 
         expect(result.steps, isNotEmpty);
         expect(result.success, isTrue);
@@ -183,9 +184,10 @@ void main() {
           (s) => s.type == 'action' && s.toolName == 'device_info',
         );
         debugPrint('Device info used: $usedDeviceInfo');
-        debugPrint(
-          'Steps: ${result.steps.map((s) => '${s.type}:${s.toolName}').join(' -> ')}',
-        );
+        final devStepsStr = result.steps
+            .map((s) => '${s.type}:${s.toolName}')
+            .join(' -> ');
+        debugPrint('Steps: $devStepsStr');
 
         expect(result.steps, isNotEmpty);
         expect(result.success, isTrue);
