@@ -26,7 +26,6 @@ class RecoveryHint {
 }
 
 class ErrorRecovery {
-  static const _tag = 'AIOS-ErrorRecovery';
   static const _maxRetries = 1;
 
   final Set<String> _availableTools;

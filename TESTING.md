@@ -19,9 +19,8 @@
 
 ## 2. Current Status
 
-- **640 단위/위젯 테스트** (631 통과, 9 로딩 에러 — 기존 컴파일 이슈)
+- **803 단위/위젯 테스트** (전체 통과)
 - **11개 통합 테스트 파일** (기기 + .env.test API key 필요)
-- 알려진 로딩 에러: presentation/providers, presentation/screens, domain/repositories (컴파일 의존성 이슈)
 
 ## 3. Test Scope
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:aios/domain/agent/truncate.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/audit_log.dart';
@@ -224,7 +225,7 @@ class ReactStrategy implements AgentStrategy {
 
     print(
       '[$_tag] Agent run: '
-      'prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", '
+      'prompt="${truncate(prompt, 50)}", '
       'maxIter=$maxIterations',
     );
 
@@ -297,7 +298,7 @@ class ReactStrategy implements AgentStrategy {
 
         print(
           '[$_tag] Step $i: '
-          'content="${fullContent.substring(0, fullContent.length > 200 ? 200 : fullContent.length)}", '
+          'content="${truncate(fullContent, 200)}", '
           'toolCalls=${toolCallBuilders.length}',
         );
 
@@ -447,7 +448,7 @@ class ReactStrategy implements AgentStrategy {
           final toolResult = await _executeToolDirect(toolName, toolArgs);
           final toolContent = toolResult.toContent();
           print(
-            '[$_tag] Tool result (${toolContent.length} chars): ${toolContent.substring(0, toolContent.length > 200 ? 200 : toolContent.length)}',
+            '[$_tag] Tool result (${toolContent.length} chars): ${truncate(toolContent, 200)}',
           );
 
           _auditLog.add(toolName, argsJson, risk, true, toolContent);
