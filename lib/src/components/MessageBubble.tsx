@@ -1,4 +1,6 @@
-import { Wrench } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Wrench, Sparkles } from 'lucide-react';
 import '../styles/message-bubble.css';
 
 interface Props {
@@ -21,18 +23,24 @@ function formatTime(timestamp: number): string {
 export function MessageBubble({ role, content, createdAt, toolName, toolArgs, toolResult, isStreaming }: Props) {
   if (role === 'user') {
     return (
-      <div className="message-bubble user">
+      <article className="message-bubble user" role="log">
         {content}
-      </div>
+      </article>
     );
   }
 
   return (
-    <div className="message-bubble assistant">
+    <article className="message-bubble assistant" role="log">
+      <div className="assistant-avatar" aria-hidden="true">
+        <Sparkles size={14} />
+      </div>
+
       {content && (
-        <div className="message-text">
-          {content}
-          {isStreaming && <span className="streaming-cursor">▎</span>}
+        <div className="message-text markdown-body">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
+          {isStreaming && <span className="streaming-cursor" aria-hidden="true" />}
         </div>
       )}
 
@@ -54,6 +62,6 @@ export function MessageBubble({ role, content, createdAt, toolName, toolArgs, to
       )}
 
       <div className="message-timestamp">{formatTime(createdAt)}</div>
-    </div>
+    </article>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, MessageSquarePlus, Sparkles, Cloud, AlertCircle, Shield } from 'lucide-react';
 import { useChatStore } from '../stores/chat-store';
@@ -29,6 +29,8 @@ export function ChatScreen() {
     providerConfig,
     errorMessage,
     currentConversationTitle,
+    streamingContent,
+    isStreamingText,
     sendMessage,
     cancelGeneration,
     resolveConfirmation,
@@ -38,32 +40,54 @@ export function ChatScreen() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesAreaRef = useRef<HTMLElement>(null);
+  const userScrolledUp = useRef(false);
+
+  const handleScroll = useCallback(() => {
+    const el = messagesAreaRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    userScrolledUp.current = distFromBottom > 80;
+  }, []);
 
   useEffect(() => {
     initializeSession();
   }, [initializeSession]);
 
   useEffect(() => {
+    if (userScrolledUp.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, agentSteps]);
+  }, [messages, agentSteps, streamingContent]);
+
+  useEffect(() => {
+    if (!isConfirming) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') resolveConfirmation(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isConfirming, resolveConfirmation]);
 
   const handleSend = (text: string) => {
     if (text.trim()) sendMessage(text.trim());
   };
 
   const isGenerating = serviceState.status === 'generating';
-  const isThinking = isGenerating && agentSteps.length > 0 && !isConfirming;
   const visibleSteps = agentSteps.filter(
-    (s) => !['thought', 'thinking_start', 'thinking_end'].includes(s.type),
+    (s) => !['thought', 'thinking_start', 'thinking_end', 'streaming_text'].includes(s.type),
   );
+  const isThinking = isGenerating && !isConfirming && !isStreamingText;
+  const thoughtSteps = agentSteps.filter((s) => s.type === 'thought');
+  const latestThought = thoughtSteps.length > 0 ? thoughtSteps[thoughtSteps.length - 1] : null;
+  const thinkingLabel = latestThought?.content ?? '생각 중...';
 
   return (
-    <div className="chat-screen">
+    <main className="chat-screen">
       <SessionDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
-      <div className="chat-header">
+      <header className="chat-header">
         <div className="chat-header-left">
-          <button className="icon-btn" onClick={() => setDrawerOpen(true)}>
+          <button className="icon-btn" onClick={() => setDrawerOpen(true)} aria-label="메뉴 열기">
             <Menu size={20} />
           </button>
           <span className="chat-header-title">
@@ -74,6 +98,8 @@ export function ChatScreen() {
           <div
             className={`connection-badge ${providerConfig ? 'connected' : 'disconnected'}`}
             onClick={() => navigate('/settings/provider')}
+            role="status"
+            aria-label={providerConfig ? `연결됨: ${providerConfig.model}` : 'AI 설정 필요'}
           >
             <div className="connection-dot" />
             {providerConfig ? providerConfig.model : 'AI 설정 필요'}
@@ -81,21 +107,21 @@ export function ChatScreen() {
           <button
             className="icon-btn"
             onClick={() => createConversation()}
-            title="새 대화"
+            aria-label="새 대화"
           >
             <MessageSquarePlus size={20} />
           </button>
         </div>
-      </div>
+      </header>
 
       {errorMessage && (
-        <div className="error-bar">
+        <div className="error-bar" role="alert">
           <AlertCircle size={16} style={{ color: 'var(--color-error)', flexShrink: 0 }} />
           <span style={{ color: 'var(--color-error)', fontSize: '13px' }}>{errorMessage}</span>
         </div>
       )}
 
-      <div className="messages-area">
+      <section className="messages-area" ref={messagesAreaRef} onScroll={handleScroll} aria-label="메시지">
         {messages.length === 0 && providerConfig && (
           <div className="empty-state">
             <div className="welcome-icon">
@@ -141,26 +167,40 @@ export function ChatScreen() {
           />
         ))}
 
+        {isStreamingText && streamingContent && (
+          <MessageBubble
+            role="assistant"
+            content={streamingContent}
+            createdAt={Date.now()}
+            isStreaming={true}
+          />
+        )}
+
         {visibleSteps.map((step, i) => (
           <SystemAnnotation key={`step-${i}`} step={step} />
         ))}
 
         {isThinking && (
-          <div className="thinking-indicator">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" style={{ opacity: 0.7 }}>
+          <div className="thinking-indicator" role="status" aria-label="AI가 생각 중입니다">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            <span className="thinking-text">생각 중...</span>
+            <span className="thinking-text">{thinkingLabel}</span>
           </div>
         )}
 
         <div ref={messagesEndRef} />
-      </div>
+      </section>
 
       {isConfirming && (
-        <div className="confirmation-overlay">
+        <div
+          className="confirmation-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-title"
+        >
           <div className="confirmation-dialog">
-            <div className="confirmation-title">
+            <div className="confirmation-title" id="confirm-title">
               <Shield size={20} style={{ color: 'var(--color-warning)' }} />
               실행 확인
             </div>
@@ -185,6 +225,6 @@ export function ChatScreen() {
         isGenerating={isGenerating}
         placeholder={serviceState.label}
       />
-    </div>
+    </main>
   );
 }

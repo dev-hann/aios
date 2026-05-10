@@ -15,7 +15,7 @@ interface Props {
   step: AgentStep;
 }
 
-const HIDDEN_TYPES = ['thought', 'thinking_start', 'thinking_end'];
+const HIDDEN_TYPES = ['thought', 'thinking_start', 'thinking_end', 'streaming_text'];
 
 function getIcon(type: string) {
   switch (type) {
@@ -26,6 +26,8 @@ function getIcon(type: string) {
     case 'phase_answer': return MessageCircle;
     case 'phase_answer_retry': return RefreshCw;
     case 'action': return Wrench;
+    case 'tool_call_start': return Wrench;
+    case 'continuation': return RefreshCw;
     case 'observation': return CheckCircle2;
     case 'confirmation_required': return Shield;
     case 'permission_required': return Lock;
@@ -42,6 +44,8 @@ function getLabel(step: AgentStep): string {
     case 'phase_answer': return step.content;
     case 'phase_answer_retry': return step.content;
     case 'action': return `${step.toolName} 실행 중...`;
+    case 'tool_call_start': return `${step.toolName} 준비 중...`;
+    case 'continuation': return step.content || '계속 생성 중...';
     case 'observation':
       return step.content.length > 100
         ? `결과: ${step.content.substring(0, 100)}...`
@@ -61,8 +65,8 @@ export function SystemAnnotation({ step }: Props) {
   const label = getLabel(step);
 
   return (
-    <div className="system-annotation">
-      <Icon size={12} className="system-annotation-icon" />
+    <div className="system-annotation" role="status" aria-label={label}>
+      <Icon size={12} className="system-annotation-icon" aria-hidden="true" />
       <span className="system-annotation-text">{label}</span>
     </div>
   );

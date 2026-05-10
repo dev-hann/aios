@@ -1,8 +1,16 @@
 .system-annotation {
-  padding: 2px 24px;
+  align-self: center;
+  padding: var(--spacing-2xs) var(--spacing-l);
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+  text-align: center;
+  animation: annotation-enter var(--duration-fast) ease-out;
+}
+
+@keyframes annotation-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .system-annotation-icon {

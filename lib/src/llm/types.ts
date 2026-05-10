@@ -25,6 +25,7 @@ export interface LlmResponseChunk {
   text?: string;
   thinking?: string;
   toolCallDeltas?: LlmToolCallDelta[];
+  finishReason?: string;
 }
 
 export interface LlmGenerationConfig {

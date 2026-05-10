@@ -2,14 +2,15 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 280px;
+  width: min(var(--drawer-width), 80vw);
   height: 100%;
   background-color: var(--color-surface);
-  z-index: 100;
+  z-index: var(--z-drawer);
   display: flex;
   flex-direction: column;
   transform: translateX(-100%);
-  transition: transform 0.3s ease;
+  transition: transform var(--duration-slow) ease;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .session-drawer.open {
@@ -18,12 +19,25 @@
 
 .drawer-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 99;
+  inset: 0;
+  background-color: var(--color-overlay-light);
+  z-index: var(--z-drawer-overlay);
+  animation: fade-in var(--duration-slow) ease;
+}
+
+.delete-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--color-overlay-light);
+  z-index: var(--z-delete-dialog);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in var(--duration-fast) ease-out;
+}
+
+.delete-dialog-overlay .delete-dialog {
+  animation: dialog-enter var(--duration-normal) ease-out;
 }
 
 .drawer-header {
@@ -61,10 +75,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: var(--size-touch);
+  min-height: var(--size-touch);
+  border-radius: var(--radius-full);
+  transition: color var(--duration-fast);
 }
 
 .drawer-new-btn:hover {
   color: var(--color-primary-hover);
+}
+
+.drawer-new-btn:active {
+  transform: scale(0.92);
 }
 
 .drawer-divider {
@@ -94,11 +116,17 @@
   cursor: pointer;
   color: var(--color-text-secondary);
   font-size: 13px;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
+  min-height: 44px;
 }
 
 .session-item:hover {
   background-color: var(--color-surface-elevated);
+}
+
+.session-item:active {
+  background-color: var(--color-surface-elevated);
+  opacity: 0.8;
 }
 
 .session-item.active {
@@ -138,7 +166,7 @@
 
 .session-item .session-date {
   font-size: 11px;
-  color: rgba(173, 173, 184, 0.6);
+  color: var(--color-text-faint);
 }
 
 .session-item .delete-btn {
@@ -150,7 +178,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-full);
   opacity: 0.6;
+  transition: color var(--duration-fast), opacity var(--duration-fast);
 }
 
 .session-item .delete-btn:hover {
@@ -173,30 +205,24 @@
   color: var(--color-text-secondary);
   font-size: 13px;
   cursor: pointer;
+  min-height: var(--size-touch);
+  transition: background-color var(--duration-fast);
 }
 
 .drawer-footer-btn:hover {
   background-color: var(--color-surface-elevated);
 }
 
-.delete-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.drawer-footer-btn:active {
+  background-color: var(--color-surface-elevated);
+  opacity: 0.8;
 }
 
 .delete-dialog {
   background-color: var(--color-surface-modal);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--spacing-l);
-  min-width: 280px;
+  min-width: var(--drawer-width);
   max-width: 320px;
 }
 
@@ -227,12 +253,40 @@
   cursor: pointer;
   padding: var(--spacing-s) var(--spacing-m);
   border-radius: var(--radius-sm);
+  min-height: 36px;
+  transition: opacity var(--duration-fast);
+}
+
+.delete-dialog-actions button:active {
+  opacity: 0.7;
 }
 
 .dialog-cancel {
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-s) var(--spacing-m);
+  background: none;
 }
 
 .dialog-delete {
-  color: var(--color-error);
+  color: var(--color-text-on-primary);
+  background-color: var(--color-error);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-s) var(--spacing-m);
+}
+
+.dialog-delete:hover {
+  background-color: var(--color-error-hover);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-enter {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }

@@ -8,3 +8,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>,
 );
+
+if (import.meta.env.DEV) {
+  import('./stores/chat-store').then(({ useChatStore }) => {
+    (window as any).__aios = useChatStore;
+  });
+}

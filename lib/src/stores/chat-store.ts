@@ -32,6 +32,9 @@ interface ChatState {
   pendingToolArgs: string;
   errorMessage: string | null;
 
+  streamingContent: string;
+  isStreamingText: boolean;
+
   conversations: Conversation[];
   currentConversationId: string | null;
   currentConversationTitle: string;
@@ -71,6 +74,17 @@ const conversationContext = new ConversationContext();
 const preferenceTracker = new ToolPreferenceTracker();
 
 let strategy: ReactStrategy | null = null;
+let storeInferenceConfig: InferenceConfig = { temperature: 1.0, topP: 0.95, maxTokens: 8192, maxIterations: 8 };
+
+function wireStrategy(s: ReactStrategy): void {
+  s.setConversationContext(conversationContext);
+  s.setToolPreferenceTracker(preferenceTracker);
+  s.setGenerationConfig({
+    temperature: storeInferenceConfig.temperature,
+    topP: storeInferenceConfig.topP,
+    maxTokens: storeInferenceConfig.maxTokens,
+  });
+}
 
 function initProviderFromEnv(): Partial<ChatState> {
   const apiKey = import.meta.env.VITE_API_KEY;
@@ -80,8 +94,7 @@ function initProviderFromEnv(): Partial<ChatState> {
   if (apiKey && providerType && model) {
     const config = createProviderConfig(providerType, apiKey, '', model);
     strategy = new ReactStrategy(tools, config);
-    strategy.setConversationContext(conversationContext);
-    strategy.setToolPreferenceTracker(preferenceTracker);
+    wireStrategy(strategy);
     console.log(`[AIOS-Chat] Auto-configured provider: ${providerType}, model: ${model}`);
     return {
       providerConfig: config,
@@ -104,6 +117,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   pendingToolName: '',
   pendingToolArgs: '',
   errorMessage: null,
+  streamingContent: '',
+  isStreamingText: false,
 
   conversations: [],
   currentConversationId: null,
@@ -118,13 +133,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   availableModels: [],
   connectionTestResult: null,
-  inferenceConfig: { temperature: 0.7, topP: 1, maxTokens: 4096, maxIterations: 8 },
+  inferenceConfig: { temperature: 1.0, topP: 0.95, maxTokens: 8192, maxIterations: 8 },
 
   setProvider: (type, apiKey, baseUrl, model) => {
     const config = createProviderConfig(type, apiKey, baseUrl, model);
     strategy = new ReactStrategy(tools, config);
-    strategy.setConversationContext(conversationContext);
-    strategy.setToolPreferenceTracker(preferenceTracker);
+    wireStrategy(strategy);
     set({
       providerConfig: config,
       apiKey,
@@ -220,7 +234,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       const result = await strategy.execute(content, (step) => {
+        if (step.type === 'streaming_text') {
+          set({ streamingContent: step.content, isStreamingText: true });
+          return;
+        }
+
         set((s) => ({ agentSteps: [...s.agentSteps, step] }));
+
+        if (step.type === 'action' || step.type === 'tool_call_start') {
+          set({ streamingContent: '', isStreamingText: false });
+        }
 
         if (step.type === 'confirmation_required') {
           set({
@@ -229,22 +252,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
             pendingToolArgs: step.toolArgs ?? '',
           });
         }
-      });
+      }, get().inferenceConfig.maxIterations);
 
-      const answerStep = result.steps.find((s) => s.type === 'answer');
-      if (answerStep) {
-        const assistantMsg: ChatMessage = {
-          id: `msg_${Date.now()}_ans`,
-          role: 'assistant',
-          content: answerStep.content,
-          createdAt: Date.now(),
-        };
-        await conversationDb.appendMessage(convId, assistantMsg);
-        set((s) => ({
-          messages: [...s.messages, assistantMsg],
-          serviceState: { status: 'ready', label: '준비 완료' },
-          agentSteps: [],
-        }));
+        const answerStep = result.steps.find((s) => s.type === 'answer');
+        if (answerStep) {
+          const assistantMsg: ChatMessage = {
+            id: `msg_${Date.now()}_ans`,
+            role: 'assistant',
+            content: answerStep.content,
+            createdAt: Date.now(),
+          };
+          await conversationDb.appendMessage(convId, assistantMsg);
+          set((s) => ({
+            messages: [...s.messages, assistantMsg],
+            serviceState: { status: 'ready', label: '준비 완료' },
+            agentSteps: [],
+            streamingContent: '',
+            isStreamingText: false,
+          }));
       }
     } catch (e) {
       console.error('[AIOS-Chat] Error:', e);
@@ -253,6 +278,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         serviceState: { status: 'error', label: '오류' },
         errorMessage: msg,
         agentSteps: [],
+        streamingContent: '',
+        isStreamingText: false,
       });
     }
 
@@ -278,9 +305,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: [...s.messages, assistantMsg],
         serviceState: { status: 'ready', label: '준비 완료' },
         agentSteps: [],
+        streamingContent: '',
+        isStreamingText: false,
       }));
     } else {
-      set({ serviceState: { status: 'ready', label: '준비 완료' }, agentSteps: [] });
+      set({
+        serviceState: { status: 'ready', label: '준비 완료' },
+        agentSteps: [],
+        streamingContent: '',
+        isStreamingText: false,
+      });
     }
   },
 
@@ -366,5 +400,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setInferenceConfig: (config) => {
     set((s) => ({ inferenceConfig: { ...s.inferenceConfig, ...config } }));
+    storeInferenceConfig = get().inferenceConfig;
+    strategy?.setGenerationConfig({
+      temperature: storeInferenceConfig.temperature,
+      topP: storeInferenceConfig.topP,
+      maxTokens: storeInferenceConfig.maxTokens,
+    });
   },
 }));

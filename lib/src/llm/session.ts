@@ -7,9 +7,15 @@ import type {
 
 const TAG = 'AIOS-LlmSession';
 
+const COMPACT_THRESHOLD = 12000;
+const MAX_COMPACTION_ATTEMPTS = 3;
+const HARD_LIMIT_MESSAGES = 30;
+const KEEP_RECENT_MESSAGES = 10;
+
 export class LlmRemoteSession {
   private messages: Array<Record<string, unknown>> = [];
   private lastToolCalls: Array<Record<string, unknown>> | null = null;
+  private compactionAttempts = 0;
 
   constructor(
     private client: OpenAiClient,
@@ -24,6 +30,10 @@ export class LlmRemoteSession {
     if (userParts.length > 0 && userParts[0]) {
       this.messages.push({ role: 'user', content: userParts[0] });
     }
+
+    await this.compactIfNeeded();
+
+    console.log(`[${TAG}] chat: ${this.messages.length} msgs | ${this.messages.map(m => `${m['role']}:${String(m['content'] ?? '').substring(0, 40)}`).join(' | ')}`);
 
     const apiMessages: Array<Record<string, unknown>> = [
       { role: 'system', content: this.systemPrompt },
@@ -83,6 +93,102 @@ export class LlmRemoteSession {
       content: result,
     });
     console.log(`[${TAG}] Tool result added: ${toolName} (id=${toolCallId})`);
+  }
+
+  private async compactIfNeeded(): Promise<void> {
+    const estimated = this.estimateTokens();
+    if (estimated < COMPACT_THRESHOLD) return;
+
+    if (this.compactionAttempts >= MAX_COMPACTION_ATTEMPTS) {
+      console.warn(`[${TAG}] Compaction thrashing detected, applying hard limit`);
+      this.applyHardLimit();
+      return;
+    }
+
+    console.log(`[${TAG}] Compaction triggered: ~${estimated} tokens`);
+    this.compactionAttempts++;
+
+    const cleaned = this.stripToolOutputs();
+    if (this.estimateTokensFor(cleaned) < COMPACT_THRESHOLD) {
+      this.messages = cleaned;
+      console.log(`[${TAG}] Compaction stage 1 done (tool output stripped)`);
+      return;
+    }
+
+    const summary = await this.summarize(cleaned);
+    if (summary) {
+      const recent = cleaned.slice(-4);
+      this.messages = [
+        { role: 'user', content: `[이전 대화 요약]\n${summary}` },
+        { role: 'assistant', content: '요약을 확인했습니다. 계속 도와드리겠습니다.' },
+        ...recent,
+      ];
+      console.log(`[${TAG}] Compaction stage 2 done (summarized)`);
+    } else {
+      this.applyHardLimit();
+    }
+  }
+
+  private stripToolOutputs(): Array<Record<string, unknown>> {
+    const keepRecent = 4;
+    return this.messages.map((msg, i) => {
+      if (msg['role'] === 'tool' && i < this.messages.length - keepRecent) {
+        return { ...msg, content: '[tool output removed]' };
+      }
+      return msg;
+    });
+  }
+
+  private async summarize(messages: Array<Record<string, unknown>>): Promise<string> {
+    const summarizationMessages = [
+      {
+        role: 'system',
+        content: '다음 대화 기록을 간결한 구조화된 요약으로 압축하세요. 사용자 요청, 핵심 답변, 언급된 파일/코드, 에러와 해결, 진행 중인 작업만 보존하세요. 전체 도구 출력과 중간 과정은 제거하세요. 300자 이내.',
+      },
+      {
+        role: 'user',
+        content: JSON.stringify(
+          messages.map((m) => ({
+            role: m['role'],
+            content: String(m['content'] ?? '').substring(0, 300),
+          })),
+        ),
+      },
+    ];
+
+    try {
+      const result = await this.client.chat({ messages: summarizationMessages, maxTokens: 500 });
+      return result;
+    } catch (e) {
+      console.error(`[${TAG}] Compaction summarize failed:`, e);
+      return '';
+    }
+  }
+
+  private applyHardLimit(): void {
+    if (this.messages.length <= HARD_LIMIT_MESSAGES) return;
+    this.messages = this.messages.slice(-KEEP_RECENT_MESSAGES);
+    console.log(`[${TAG}] Hard limit applied: ${this.messages.length} messages`);
+  }
+
+  private estimateTokens(): number {
+    return this.estimateTokensFor(this.messages);
+  }
+
+  private estimateTokensFor(messages: Array<Record<string, unknown>>): number {
+    let totalChars = 0;
+    for (const msg of messages) {
+      const content = String(msg['content'] ?? '');
+      totalChars += content.length;
+      const toolCalls = msg['tool_calls'] as Array<Record<string, unknown>> | undefined;
+      if (toolCalls) {
+        for (const tc of toolCalls) {
+          const fn = tc['function'] as Record<string, unknown> | undefined;
+          if (fn) totalChars += String(fn['arguments'] ?? '').length;
+        }
+      }
+    }
+    return Math.round(totalChars * 1.2);
   }
 
   private findToolCallId(toolName: string): string {

@@ -97,11 +97,46 @@ export class OpenAiClient {
             });
             yield { toolCallDeltas: deltas };
           }
+
+          const finishReason = (choices[0] as Record<string, unknown>)['finish_reason'] as string | null | undefined;
+          if (finishReason) {
+            yield { finishReason };
+          }
         } catch (e) {
           console.warn(`[${TAG}] SSE parse error:`, e);
         }
       }
     }
+  }
+
+  async chat(params: {
+    messages: Array<Record<string, unknown>>;
+    maxTokens?: number;
+  }): Promise<string> {
+    const body: Record<string, unknown> = {
+      model: this.config.model,
+      messages: params.messages,
+      max_tokens: params.maxTokens ?? 500,
+      stream: false,
+    };
+
+    const response = await fetch(this.config.chatEndpoint, {
+      method: 'POST',
+      headers: this.config.headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`[${TAG}] HTTP ${response.status}: ${errorBody}`);
+      return '';
+    }
+
+    const data = await response.json() as Record<string, unknown>;
+    const choices = data.choices as Array<Record<string, unknown>> | undefined;
+    if (!choices || choices.length === 0) return '';
+    const message = choices[0]['message'] as Record<string, unknown> | undefined;
+    return (message?.['content'] as string) ?? '';
   }
 
   async fetchModels(): Promise<LlmModelInfo[]> {

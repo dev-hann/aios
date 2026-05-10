@@ -39,7 +39,7 @@ export function InputBar({ onSend, onStop, disabled, isGenerating, placeholder }
   };
 
   return (
-    <div className="input-bar">
+    <div className="input-bar" role="form" aria-label="메시지 입력">
       <textarea
         ref={textareaRef}
         value={text}
@@ -49,9 +49,10 @@ export function InputBar({ onSend, onStop, disabled, isGenerating, placeholder }
         placeholder={isGenerating ? '생성 중...' : (placeholder || '메시지를 입력하세요...')}
         disabled={disabled}
         rows={1}
+        aria-label="메시지 입력"
       />
       {isGenerating ? (
-        <button className="send-btn stop-btn" onClick={onStop} title="정지">
+        <button className="send-btn stop-btn" onClick={onStop} title="정지" aria-label="생성 중지">
           <Square size={20} />
         </button>
       ) : (
@@ -60,6 +61,7 @@ export function InputBar({ onSend, onStop, disabled, isGenerating, placeholder }
           onClick={handleSubmit}
           disabled={disabled || !text.trim()}
           title="전송"
+          aria-label="메시지 전송"
         >
           <ArrowUp size={20} />
         </button>

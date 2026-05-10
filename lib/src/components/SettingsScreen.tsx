@@ -1,96 +1,101 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Cloud, CloudOff, CheckCircle, Settings, SlidersHorizontal, ShieldCheck, Info, ExternalLink, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Cloud, CloudOff, Settings, SlidersHorizontal, ShieldCheck, ExternalLink, ChevronRight } from 'lucide-react';
 import { useChatStore } from '../stores/chat-store';
+import { getProviderLabel } from '../constants/providers';
 import '../styles/settings.css';
+
+function goBack(navigate: ReturnType<typeof useNavigate>) {
+  if (window.history.length > 1) navigate(-1);
+  else navigate('/');
+}
 
 export function SettingsScreen() {
   const navigate = useNavigate();
-  const { providerConfig } = useChatStore();
+  const { providerConfig, inferenceConfig } = useChatStore();
 
   const version = '3.0.0';
+  const subtitle = `온도 ${inferenceConfig.temperature.toFixed(2)} · 최대토큰 ${inferenceConfig.maxTokens}`;
 
   return (
     <div className="settings-screen">
-      <div className="settings-header">
-        <button className="icon-btn" onClick={() => navigate(-1)}>
+      <header className="settings-header">
+        <button className="icon-btn" onClick={() => goBack(navigate)} aria-label="뒤로 가기">
           <ArrowLeft size={20} />
         </button>
         <h1>설정</h1>
-      </div>
+      </header>
 
       <div className="settings-body">
-        <div className="section-card">
+        <section className="section-card provider-card">
           <div className="section-header">
             <Cloud size={20} className="section-header-icon" />
             <span className="section-header-title">AI 제공자</span>
+            <div className={`connection-indicator ${providerConfig ? 'connected' : 'disconnected'}`}>
+              <div className="connection-indicator-dot" />
+              {providerConfig ? '연결됨' : '미연결'}
+            </div>
           </div>
+
           {providerConfig ? (
-            <div className="provider-status">
-              <div className="provider-info">
-                <div className="provider-model">{providerConfig.model}</div>
-                <div className="provider-type">{providerConfig.providerType}</div>
+            <div className="provider-summary" onClick={() => navigate('/settings/provider')}>
+              <div className="provider-summary-info">
+                <div className="provider-summary-model">{providerConfig.model}</div>
+                <div className="provider-summary-type">{getProviderLabel(providerConfig.providerType)}</div>
               </div>
-              <CheckCircle size={20} style={{ color: 'var(--color-success)' }} />
+              <ChevronRight size={18} className="provider-summary-chevron" aria-hidden="true" />
             </div>
           ) : (
-            <div className="provider-disconnected">
-              <div className="provider-disconnected-text">AI 제공자가 설정되지 않았습니다</div>
-              <div className="provider-disconnected-text">AI를 사용하려면 설정이 필요합니다</div>
-              <CloudOff size={20} style={{ color: 'var(--color-text-secondary)' }} />
+            <div className="provider-setup-prompt">
+              <div className="provider-setup-text">
+                <CloudOff size={18} style={{ color: 'var(--color-text-secondary)' }} aria-hidden="true" />
+                <span>AI를 사용하려면 제공자를 설정하세요</span>
+              </div>
+              <button className="elevated-btn" onClick={() => navigate('/settings/provider')}>
+                <Settings size={18} />
+                AI 설정하기
+              </button>
             </div>
           )}
-          <div style={{ marginTop: 'var(--spacing-m)' }}>
-            <button className="outlined-btn" onClick={() => navigate('/settings/provider')}>
-              <Settings size={18} />
-              {providerConfig ? '제공자 설정' : 'AI 설정하기'}
-            </button>
-          </div>
-        </div>
+        </section>
 
-        <div className="nav-tile">
-          <button className="nav-tile-btn" onClick={() => {}}>
+        <nav className="nav-tile">
+          <button className="nav-tile-btn" onClick={() => navigate('/settings/inference')}>
             <SlidersHorizontal size={20} className="nav-tile-icon" />
             <div className="nav-tile-content">
               <div>추론 설정</div>
-              <div className="nav-tile-subtitle">온도 0.7 · 최대토큰 4096</div>
+              <div className="nav-tile-subtitle">{subtitle}</div>
             </div>
-            <ChevronRight size={20} className="nav-tile-chevron" />
+            <ChevronRight size={20} className="nav-tile-chevron" aria-hidden="true" />
           </button>
-        </div>
+        </nav>
 
-        <div className="nav-tile">
-          <button className="nav-tile-btn" onClick={() => {}}>
+        <nav className="nav-tile">
+          <button className="nav-tile-btn" onClick={() => navigate('/settings/permissions')}>
             <ShieldCheck size={20} className="nav-tile-icon" />
             <div className="nav-tile-content">
               <div>권한 관리</div>
-              <div className="nav-tile-subtitle">앱 권한 관리</div>
+              <div className="nav-tile-subtitle nav-tile-subtitle-disabled">Gyo Bridge 연동 후 활성화</div>
             </div>
-            <ChevronRight size={20} className="nav-tile-chevron" />
+            <ChevronRight size={20} className="nav-tile-chevron" aria-hidden="true" />
           </button>
-        </div>
-
-        <div className="section-card">
-          <div className="section-header">
-            <Info size={20} className="section-header-icon" />
-            <span className="section-header-title">앱 정보</span>
-          </div>
-          <div className="app-info-row">
-            <span className="app-info-label">버전</span>
-            <span className="app-info-label">{version}</span>
-          </div>
-          <div className="app-info-row" style={{ justifyContent: 'flex-start' }}>
-            <a
-              className="github-link"
-              href="https://github.com/dev-hann/aios"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub
-              <ExternalLink size={16} className="github-link-icon" />
-            </a>
-          </div>
-        </div>
+        </nav>
       </div>
+
+      <footer className="settings-footer">
+        <div className="footer-row">
+          <span className="footer-label">AIOS v{version}</span>
+          <a
+            className="footer-link"
+            href="https://github.com/dev-hann/aios"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub <ExternalLink size={12} />
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
+
+export { goBack };

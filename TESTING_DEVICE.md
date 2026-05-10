@@ -93,6 +93,10 @@ adb -s {DEVICE} pull /sdcard/ui.xml /tmp/ui.xml
 - `uiautomator dump`는 WebView 컨테이너만 표시
 - 스크린샷 + 시각 검증이 주된 UI 테스트 방법
 
+## 5.5. Chrome DevTools Protocol (CDP) 화면 검증
+
+> **참고**: CDP 원시 접근은 Playwright로 대체되었습니다. 아래 §8 참조.
+
 ## 6. 주요 로그 태그
 
 | 태그 | 소스 | 의미 |
@@ -104,3 +108,43 @@ adb -s {DEVICE} pull /sdcard/ui.xml /tmp/ui.xml
 | `[AIOS-Main]` | MainActivity.kt | 네이티브 앱 로그 |
 | `[vite]` | Vite HMR client | HMR 연결 상태 |
 | `WebView-Console` | WebView | 브라우저 콘솔 출력 |
+
+## 8. Playwright E2E 기기 테스트
+
+Playwright를 통해 Android WebView에 CDP로 연결하여 E2E 테스트를 실행한다.
+
+```bash
+# 전제조건: 앱 실행 + Vite dev server 실행 중
+
+# 전체 E2E 실행 (기기 연결 시)
+cd lib && npm run test:e2e
+
+# 단일 스펙만 실행
+npx playwright test e2e/chat.spec.ts
+
+# 헤드ed 모드 (디버깅용)
+npx playwright test --headed
+```
+
+### 테스트 구성
+
+| 파일 | 테스트 수 | 내용 |
+|------|----------|------|
+| `e2e/chat.spec.ts` | 4 | 채팅 렌더링, 메시지 전송, calculator/notepad tool |
+| `e2e/settings.spec.ts` | 10 | 설정 렌더링, NavTile 라우팅, 동적 subtitle |
+| `e2e/inference.spec.ts` | 7 | 슬라이더, 기본값 복원, 값 입력 다이얼로그 |
+| `e2e/permissions.spec.ts` | 4 | 6개 권한 카드, banner, grant 버튼 |
+| `e2e/provider.spec.ts` | 6 | 5개 Provider, 라디오 선택, Base URL 토글 |
+
+### 아키텍처
+
+```
+Playwright → connectOverCDP(localhost:9222)
+  → adb forward tcp:9222 → webview_devtools_remote_{PID}
+    → Android WebView → Vite HMR (192.168.0.7:3000)
+```
+
+- `e2e/global-setup.ts`: adb forward + 앱 PID 확인
+- `e2e/global-teardown.ts`: adb forward 제거
+- `e2e/device.fixture.ts`: Playwright 커스텀 fixture (connectOverCDP, storeAction)
+- `window.__aios` store bridge로 Zustand 상태 직접 조작 가능

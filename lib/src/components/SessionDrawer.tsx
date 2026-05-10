@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, PlusCircle, MessageCircle, X, Settings } from 'lucide-react';
 import { useChatStore } from '../stores/chat-store';
@@ -38,6 +38,24 @@ export function SessionDrawer({ open, onClose }: Props) {
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!deleteTarget) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDeleteTarget(null);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [deleteTarget]);
+
   const handleNewChat = async () => {
     await createConversation();
     onClose();
@@ -56,31 +74,44 @@ export function SessionDrawer({ open, onClose }: Props) {
 
   return (
     <>
-      {open && <div className="drawer-overlay" onClick={onClose} />}
-      <div className={`session-drawer ${open ? 'open' : ''}`}>
+      {open && (
+        <div
+          className="drawer-overlay"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <nav
+        className={`session-drawer ${open ? 'open' : ''}`}
+        aria-label="세션 목록"
+        aria-hidden={!open}
+      >
         <div className="drawer-header">
           <div className="drawer-logo">
             <Sparkles size={20} />
           </div>
           <span className="drawer-title">AIOS</span>
-          <button className="drawer-new-btn" onClick={handleNewChat}>
+          <button className="drawer-new-btn" onClick={handleNewChat} aria-label="새 대화 만들기">
             <PlusCircle size={24} />
           </button>
         </div>
 
         <div className="drawer-divider" />
 
-        <div className="session-list">
+        <ul className="session-list" role="list" style={{ listStyle: 'none' }}>
           {conversations.length === 0 && (
-            <div className="session-empty">대화가 없습니다</div>
+            <li className="session-empty">대화가 없습니다</li>
           )}
           {conversations.map((conv) => {
             const isActive = conv.id === currentConversationId;
             return (
-              <div
+              <li
                 key={conv.id}
                 className={`session-item ${isActive ? 'active' : ''}`}
                 onClick={() => handleSelect(conv.id)}
+                role="button"
+                tabIndex={0}
+                aria-current={isActive ? 'true' : undefined}
               >
                 <span className={`session-icon ${isActive ? 'active-icon' : 'inactive-icon'}`}>
                   <MessageCircle size={18} />
@@ -93,28 +124,35 @@ export function SessionDrawer({ open, onClose }: Props) {
                   <button
                     className="delete-btn"
                     onClick={(e) => { e.stopPropagation(); setDeleteTarget(conv.id); }}
+                    aria-label={`"${conv.title}" 대화 삭제`}
                   >
                     <X size={16} />
                   </button>
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
 
         <div className="drawer-divider" />
         <div className="drawer-footer">
-          <button className="drawer-footer-btn" onClick={() => { onClose(); navigate('/settings'); }}>
+          <button className="drawer-footer-btn" onClick={() => { onClose(); navigate('/settings'); }} aria-label="설정 열기">
             <Settings size={20} />
             설정
           </button>
         </div>
-      </div>
+      </nav>
 
       {deleteTarget && (
-        <div className="delete-dialog-overlay" onClick={() => setDeleteTarget(null)}>
+        <div
+          className="delete-dialog-overlay"
+          onClick={() => setDeleteTarget(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
           <div className="delete-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>대화 삭제</h3>
+            <h3 id="delete-dialog-title">대화 삭제</h3>
             <p>"{conversations.find(c => c.id === deleteTarget)?.title}" 대화를 삭제하시겠습니까?</p>
             <div className="delete-dialog-actions">
               <button className="dialog-cancel" onClick={() => setDeleteTarget(null)}>취소</button>
