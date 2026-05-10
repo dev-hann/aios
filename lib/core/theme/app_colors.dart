@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:flutter/material.dart';
 
@@ -45,20 +46,14 @@ class AppColors {
   }
 
   static String stateLabel(ServiceState? serviceState) {
-    switch (serviceState) {
-      case ServiceState.idle:
-        return '대기 중';
-      case ServiceState.loadingModel:
-        return '연결 중...';
-      case ServiceState.ready:
-        return '준비 완료';
-      case ServiceState.generating:
-        return '생성 중...';
-      case ServiceState.error:
-        return '오류';
-      case null:
-        return '알 수 없음';
-    }
+    return switch (serviceState) {
+      ServiceState.idle => Strings.state.idle,
+      ServiceState.loadingModel => Strings.state.connecting,
+      ServiceState.ready => Strings.state.ready,
+      ServiceState.generating => Strings.state.generating,
+      ServiceState.error => Strings.state.error,
+      null => Strings.state.unknown,
+    };
   }
 }
 

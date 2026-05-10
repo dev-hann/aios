@@ -174,9 +174,10 @@ class _InferenceNavTile extends StatelessWidget {
     return NavTile(
       icon: Icons.tune,
       title: Strings.settings.inference,
-      subtitle:
-          '온도 ${state.temperature.toStringAsFixed(1)} · '
-          '최대토큰 ${state.maxTokens}',
+      subtitle: Strings.inferenceNav.summary(
+        state.temperature,
+        state.maxTokens,
+      ),
       semanticsLabel: 'settings_inference_tile',
       onTap: () => context.push('/settings/inference'),
     );
@@ -233,7 +234,7 @@ class _AppInfoSectionState extends ConsumerState<_AppInfoSection> {
             contentPadding: EdgeInsets.zero,
             title: Text(Strings.settings.version),
             trailing: Text(
-              _version.isNotEmpty ? _version : '로딩 중...',
+              _version.isNotEmpty ? _version : Strings.appInfo.loading,
               style: const TextStyle(color: AppColors.textSecondary),
             ),
           ),
@@ -427,7 +428,7 @@ class _InlineUpdateStatus extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            state.errorMessage ?? '알 수 없는 오류',
+            state.errorMessage ?? Strings.appInfo.unknownError,
             style: const TextStyle(color: AppColors.error, fontSize: 13),
           ),
           const SizedBox(height: 8),

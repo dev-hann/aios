@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/presentation/providers/update_notifier.dart';
 import 'package:flutter/services.dart';
@@ -132,7 +133,7 @@ void main() {
       await notifier.downloadApk();
 
       expect(notifier.state.status, UpdateStatus.error);
-      expect(notifier.state.errorMessage, '다운로드 실패');
+      expect(notifier.state.errorMessage, Strings.update.downloadFailed);
     });
 
     test('downloadApk_doesNothingWhenNoUpdateInfo', () async {
@@ -182,7 +183,7 @@ void main() {
       await notifier.installApk();
 
       expect(notifier.state.status, UpdateStatus.error);
-      expect(notifier.state.errorMessage, '설치 실패');
+      expect(notifier.state.errorMessage, Strings.update.installFailed);
     });
 
     test('installApk_doesNothingWhenNoDownloadedFile', () async {

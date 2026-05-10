@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
 import 'package:aios/presentation/providers/update_state.dart';
@@ -60,7 +61,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       print('[$_tag] ERROR: Download failed');
       state = state.copyWith(
         status: UpdateStatus.error,
-        errorMessage: '다운로드 실패',
+        errorMessage: Strings.update.downloadFailed,
       );
     }
   }
@@ -78,8 +79,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
         print('[$_tag] ERROR: Install permission denied');
         state = state.copyWith(
           status: UpdateStatus.error,
-          errorMessage:
-              '설치 권한이 필요합니다. 설정 > 앱 > 특수 앱 접근 > 출처를 알 수 없는 앱에서 허용해주세요.',
+          errorMessage: Strings.update.installPermissionRequired,
         );
         return;
       }
@@ -93,7 +93,10 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       state = state.copyWith(status: UpdateStatus.installed);
     } else {
       print('[$_tag] ERROR: Install failed');
-      state = state.copyWith(status: UpdateStatus.error, errorMessage: '설치 실패');
+      state = state.copyWith(
+        status: UpdateStatus.error,
+        errorMessage: Strings.update.installFailed,
+      );
     }
   }
 

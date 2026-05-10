@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/data/services/foreground_service.dart';
 import 'package:aios/data/services/overlay_service.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
@@ -39,7 +40,7 @@ class OverlayAssistantNotifier extends StateNotifier<bool> {
 
   Future<void> _handleMessage(String text) async {
     if (_isProcessing) {
-      await _overlayService.updateResult('이전 요청을 처리 중입니다. 잠시 후 다시 시도해주세요.');
+      await _overlayService.updateResult(Strings.overlay.processingPrevious);
       return;
     }
 
@@ -62,11 +63,11 @@ class OverlayAssistantNotifier extends StateNotifier<bool> {
       if (answerStep != null) {
         await _overlayService.updateResult(answerStep.content);
       } else {
-        await _overlayService.updateResult('요청을 처리하지 못했습니다.');
+        await _overlayService.updateResult(Strings.overlay.failedToProcess);
       }
     } on Object catch (e) {
       print('[$_tag] ERROR: overlay agent execution failed - $e');
-      await _overlayService.updateResult('오류가 발생했습니다: $e');
+      await _overlayService.updateResult(Strings.overlay.errorOccurred('$e'));
     } finally {
       _isProcessing = false;
     }

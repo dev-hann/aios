@@ -1,4 +1,5 @@
 import 'package:aios/core/theme/app_colors.dart';
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -37,27 +38,33 @@ void main() {
 
   group('stateLabel', () {
     test('stateLabel_idle_returnsIdleLabel', () {
-      expect(AppColors.stateLabel(ServiceState.idle), '대기 중');
+      expect(AppColors.stateLabel(ServiceState.idle), Strings.state.idle);
     });
 
     test('stateLabel_loadingModel_returnsLoadingModelLabel', () {
-      expect(AppColors.stateLabel(ServiceState.loadingModel), '연결 중...');
+      expect(
+        AppColors.stateLabel(ServiceState.loadingModel),
+        Strings.state.connecting,
+      );
     });
 
     test('stateLabel_ready_returnsReadyLabel', () {
-      expect(AppColors.stateLabel(ServiceState.ready), '준비 완료');
+      expect(AppColors.stateLabel(ServiceState.ready), Strings.state.ready);
     });
 
     test('stateLabel_generating_returnsGeneratingLabel', () {
-      expect(AppColors.stateLabel(ServiceState.generating), '생성 중...');
+      expect(
+        AppColors.stateLabel(ServiceState.generating),
+        Strings.state.generating,
+      );
     });
 
     test('stateLabel_error_returnsErrorLabel', () {
-      expect(AppColors.stateLabel(ServiceState.error), '오류');
+      expect(AppColors.stateLabel(ServiceState.error), Strings.state.error);
     });
 
     test('stateLabel_null_returnsUnknownLabel', () {
-      expect(AppColors.stateLabel(null), '알 수 없음');
+      expect(AppColors.stateLabel(null), Strings.state.unknown);
     });
   });
 }

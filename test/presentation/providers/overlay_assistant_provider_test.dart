@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/data/services/overlay_service.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
@@ -216,7 +217,9 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(
-        overlayService.updatedResults.any((r) => r.contains('오류')),
+        overlayService.updatedResults.any(
+          (r) => r.contains(Strings.state.error),
+        ),
         isTrue,
       );
     });
@@ -230,7 +233,10 @@ void main() {
       overlayService.capturedHandler!('test');
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      expect(overlayService.updatedResults, contains('요청을 처리하지 못했습니다.'));
+      expect(
+        overlayService.updatedResults,
+        contains(Strings.overlay.failedToProcess),
+      );
     });
 
     test('handleMessage_preventsConcurrentProcessing', () async {
@@ -250,7 +256,7 @@ void main() {
 
       expect(
         overlayService.updatedResults,
-        contains('이전 요청을 처리 중입니다. 잠시 후 다시 시도해주세요.'),
+        contains(Strings.overlay.processingPrevious),
       );
 
       completer.complete();

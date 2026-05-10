@@ -192,6 +192,48 @@ class _OverlayStrings {
   String get manipulatingScreen => '화면 조작 중...';
   String get appLaunched => '앱 실행 완료';
   String get screenDone => '화면 조작 완료';
+  String get processingPrevious => '이전 요청을 처리 중입니다. 잠시 후 다시 시도해주세요.';
+  String get failedToProcess => '요청을 처리하지 못했습니다.';
+  String errorOccurred(String error) => '오류가 발생했습니다: $error';
+}
+
+class _StateStrings {
+  const _StateStrings();
+  String get idle => '대기 중';
+  String get connecting => '연결 중...';
+  String get ready => '준비 완료';
+  String get generating => '생성 중...';
+  String get error => '오류';
+  String get unknown => '알 수 없음';
+}
+
+class _PermissionCardStrings {
+  const _PermissionCardStrings();
+  String needsPermission(String name) => '$name 권한이 필요합니다';
+  String get later => '나중에';
+  String get goToSettings => '설정으로 이동';
+  String get grant => '허용하기';
+}
+
+class _UpdateStrings {
+  const _UpdateStrings();
+  String get downloadFailed => '다운로드 실패';
+  String get installFailed => '설치 실패';
+  String get installPermissionRequired =>
+      '설치 권한이 필요합니다. 설정 > 앱 > 특수 앱 접근 > '
+      '출처를 알 수 없는 앱에서 허용해주세요.';
+}
+
+class _InferenceNavStrings {
+  const _InferenceNavStrings();
+  String summary(double temperature, int maxTokens) =>
+      '온도 ${temperature.toStringAsFixed(1)} · 최대토큰 $maxTokens';
+}
+
+class _AppInfoStrings {
+  const _AppInfoStrings();
+  String get loading => '로딩 중...';
+  String get unknownError => '알 수 없는 오류';
 }
 
 abstract class Strings {
@@ -210,6 +252,11 @@ abstract class Strings {
   static const suggestion = _SuggestionStrings();
   static const annotation = _AnnotationStrings();
   static const overlay = _OverlayStrings();
+  static const state = _StateStrings();
+  static const permissionCard = _PermissionCardStrings();
+  static const update = _UpdateStrings();
+  static const inferenceNav = _InferenceNavStrings();
+  static const appInfo = _AppInfoStrings();
 
   static String daysAgo(int days) => '$days일 전';
 }

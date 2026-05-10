@@ -554,7 +554,7 @@ class _PermissionCard extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '$displayName 권한이 필요합니다',
+                    Strings.permissionCard.needsPermission(displayName),
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 13,
@@ -575,7 +575,7 @@ class _PermissionCard extends ConsumerWidget {
                         .resolvePermission(userTappedGrant: false);
                   },
                   child: const Text(
-                    '\uB098\uC911\uC5D0',
+                    '나중에',
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
@@ -597,8 +597,8 @@ class _PermissionCard extends ConsumerWidget {
                   ),
                   child: Text(
                     isService
-                        ? '\uC124\uC815\uC73C\uB85C \uC774\uB3D9'
-                        : '\uD5C8\uC6A9\uD558\uAE30',
+                        ? Strings.permissionCard.goToSettings
+                        : Strings.permissionCard.grant,
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontSize: 12,
