@@ -1,37 +1,7 @@
-import 'package:aios/domain/entities/llm_provider_config.dart';
-import 'package:aios/domain/entities/service_state.dart';
-import 'package:aios/domain/repositories/llm_repository.dart';
+import '../../helpers/mock_llm_repository.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-class MockLlmRepository implements LlmRepository {
-  @override
-  Stream<ServiceState> get state => const Stream.empty();
-
-  @override
-  Future<bool> connect(LlmProviderConfig config) async => true;
-
-  @override
-  Future<void> disconnect() async {}
-
-  @override
-  bool get isConnected => false;
-
-  @override
-  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
-    return [];
-  }
-
-  @override
-  Future<bool> testConnection(LlmProviderConfig config) async => true;
-
-  @override
-  Future<void> stopGeneration() async {}
-
-  @override
-  Future<void> loadModel(String path, {int? contextSize}) async {}
-}
 
 void main() {
   group('llmRepositoryProvider', () {
@@ -43,7 +13,7 @@ void main() {
 
       final repository = container.read(llmRepositoryProvider);
 
-      expect(repository, isA<LlmRepository>());
+      expect(repository, isA<MockLlmRepository>());
 
       container.dispose();
     });

@@ -4,14 +4,10 @@ import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
-import 'package:aios/domain/entities/chat_message.dart';
-import 'package:aios/domain/entities/conversation.dart';
-import 'package:aios/domain/entities/llm_provider_config.dart';
-import 'package:aios/domain/entities/update_info.dart';
-import 'package:aios/domain/repositories/conversation_repository.dart';
-import 'package:aios/domain/repositories/settings_repository.dart';
-import 'package:aios/domain/repositories/update_repository.dart';
+import '../../helpers/mock_conversation_repository.dart';
 import '../../helpers/mock_llm_repository.dart';
+import '../../helpers/mock_settings_repository.dart';
+import '../../helpers/mock_update_repository.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
@@ -23,84 +19,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-
-typedef _MockLlmRepository = MockLlmRepository;
-
-class _MockConversationRepository implements ConversationRepository {
-  @override
-  Future<void> save(List<ChatMessage> messages) async {}
-  @override
-  Future<List<ChatMessage>> load() async => [];
-  @override
-  Future<void> clear() async {}
-  @override
-  Future<void> appendMessage(ChatMessage message) async {}
-  @override
-  Future<Conversation> createConversation({String? title}) async {
-    return Conversation(
-      id: 'test_conv',
-      title: title ?? 'Test',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-  }
-
-  @override
-  Future<List<Conversation>> getAllConversations() async => [];
-  @override
-  Future<List<ChatMessage>> loadConversation(String id) async => [];
-  @override
-  Future<void> deleteConversation(String id) async {}
-  @override
-  Future<void> updateConversationTitle(String id, String title) async {}
-  @override
-  Stream<List<Conversation>> watchAllConversations() => Stream.value([]);
-  @override
-  void setActiveConversationId(String id) {}
-}
-
-class _MockSettingsRepository implements SettingsRepository {
-  @override
-  double get temperature => SettingsRepository.defaultTemperature;
-  @override
-  int get maxTokens => SettingsRepository.defaultMaxTokens;
-  @override
-  double get topP => SettingsRepository.defaultTopP;
-  @override
-  int get agentMaxIterations => SettingsRepository.defaultAgentMaxIterations;
-  @override
-  String? get providerConfig => null;
-  @override
-  bool get onboardingCompleted => true;
-  @override
-  Future<void> setTemperature(double value) async {}
-  @override
-  Future<void> setMaxTokens(int value) async {}
-  @override
-  Future<void> setTopP(double value) async {}
-  @override
-  Future<void> setAgentMaxIterations(int value) async {}
-  @override
-  Future<void> setProviderConfig(String json) async {}
-  @override
-  Future<void> clearProviderConfig() async {}
-  @override
-  Future<void> setOnboardingCompleted() async {}
-}
-
-class _MockUpdateRepository implements UpdateRepository {
-  @override
-  Future<UpdateResult> checkForUpdate() async =>
-      const UpdateResult.notAvailable();
-  @override
-  Future<String?> downloadApk(
-    String url,
-    String fileName, {
-    void Function(double progress)? onProgress,
-  }) async => null;
-  @override
-  Future<bool> installApk(String apkPath) async => false;
-}
 
 class _NoOpAgent implements AgentStrategy {
   @override
@@ -138,15 +56,15 @@ class _NoOpAgent implements AgentStrategy {
 }
 
 void main() {
-  late _MockLlmRepository llmRepo;
-  late _MockConversationRepository conversationRepo;
+  late MockLlmRepository llmRepo;
+  late MockConversationRepository conversationRepo;
 
   Widget _buildApp() {
     return ProviderScope(
       overrides: [
         llmRepositoryProvider.overrideWithValue(llmRepo),
         conversationRepositoryProvider.overrideWithValue(conversationRepo),
-        settingsRepositoryProvider.overrideWithValue(_MockSettingsRepository()),
+        settingsRepositoryProvider.overrideWithValue(MockSettingsRepository()),
         agentProvider.overrideWithValue(_NoOpAgent()),
       ],
       child: const MaterialApp(home: ChatScreen()),
@@ -158,9 +76,9 @@ void main() {
       overrides: [
         llmRepositoryProvider.overrideWithValue(llmRepo),
         conversationRepositoryProvider.overrideWithValue(conversationRepo),
-        settingsRepositoryProvider.overrideWithValue(_MockSettingsRepository()),
+        settingsRepositoryProvider.overrideWithValue(MockSettingsRepository()),
         agentProvider.overrideWithValue(_NoOpAgent()),
-        updateRepositoryProvider.overrideWithValue(_MockUpdateRepository()),
+        updateRepositoryProvider.overrideWithValue(MockUpdateRepository()),
         currentVersionProvider.overrideWithValue('1.0.0'),
       ],
       child: MaterialApp.router(
@@ -179,12 +97,13 @@ void main() {
   }
 
   setUp(() {
-    llmRepo = _MockLlmRepository();
-    conversationRepo = _MockConversationRepository();
+    llmRepo = MockLlmRepository();
+    conversationRepo = MockConversationRepository();
   });
 
   tearDown(() {
     llmRepo.dispose();
+    conversationRepo.dispose();
   });
 
   group('ChatScreen smoke', () {

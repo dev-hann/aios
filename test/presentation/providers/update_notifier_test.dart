@@ -1,44 +1,9 @@
 import 'package:aios/domain/entities/update_info.dart';
-import 'package:aios/domain/repositories/update_repository.dart';
+import '../../helpers/mock_update_repository.dart';
 import 'package:aios/presentation/providers/update_notifier.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-class _MockUpdateRepository implements UpdateRepository {
-  UpdateResult? _checkResult;
-  String? _downloadResult;
-  bool _installResult = true;
-  final List<double> _progressReports = [];
-
-  void setCheckResult(UpdateResult result) => _checkResult = result;
-  void setDownloadResult(String? path) => _downloadResult = path;
-  void setInstallResult(bool success) => _installResult = success;
-  List<double> get progressReports => _progressReports;
-
-  @override
-  Future<UpdateResult> checkForUpdate() async => _checkResult!;
-
-  @override
-  Future<String?> downloadApk(
-    String url,
-    String fileName, {
-    void Function(double progress)? onProgress,
-  }) async {
-    if (onProgress != null) {
-      onProgress(0.25);
-      _progressReports.add(0.25);
-      onProgress(0.5);
-      _progressReports.add(0.5);
-      onProgress(1.0);
-      _progressReports.add(1.0);
-    }
-    return _downloadResult;
-  }
-
-  @override
-  Future<bool> installApk(String apkPath) async => _installResult;
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -48,11 +13,11 @@ void main() {
   );
 
   group('UpdateNotifier', () {
-    late _MockUpdateRepository mockRepo;
+    late MockUpdateRepository mockRepo;
     late UpdateNotifier notifier;
 
     setUp(() {
-      mockRepo = _MockUpdateRepository();
+      mockRepo = MockUpdateRepository();
       notifier = UpdateNotifier(mockRepo, '1.0.0');
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -91,7 +56,7 @@ void main() {
         releaseNotes: 'Bug fixes',
         publishedAt: DateTime(2025, 1, 1),
       );
-      mockRepo.setCheckResult(UpdateResult.success(info));
+      mockRepo.checkResult = UpdateResult.success(info);
 
       await notifier.checkForUpdate();
 
@@ -101,7 +66,7 @@ void main() {
     });
 
     test('checkForUpdate_transitionsToNotAvailable', () async {
-      mockRepo.setCheckResult(const UpdateResult.notAvailable());
+      mockRepo.checkResult = const UpdateResult.notAvailable();
 
       await notifier.checkForUpdate();
 
@@ -109,7 +74,7 @@ void main() {
     });
 
     test('checkForUpdate_transitionsToErrorOnFailure', () async {
-      mockRepo.setCheckResult(const UpdateResult.error('Network error'));
+      mockRepo.checkResult = const UpdateResult.error('Network error');
 
       await notifier.checkForUpdate();
 
@@ -118,29 +83,27 @@ void main() {
     });
 
     test('checkForUpdate_clearsPreviousErrorMessage', () async {
-      mockRepo.setCheckResult(const UpdateResult.error('Network error'));
+      mockRepo.checkResult = const UpdateResult.error('Network error');
       await notifier.checkForUpdate();
       expect(notifier.state.errorMessage, 'Network error');
 
-      mockRepo.setCheckResult(const UpdateResult.notAvailable());
+      mockRepo.checkResult = const UpdateResult.notAvailable();
       await notifier.checkForUpdate();
       expect(notifier.state.errorMessage, isNull);
     });
 
     test('downloadApk_reportsProgressAndCompletes', () async {
-      mockRepo.setCheckResult(
-        UpdateResult.success(
-          UpdateInfo(
-            currentVersion: '1.0.0',
-            latestVersion: '2.0.0',
-            downloadUrl: 'https://example.com/aios.apk',
-            fileSize: 50000000,
-            releaseNotes: 'Bug fixes',
-            publishedAt: DateTime(2025, 1, 1),
-          ),
+      mockRepo.checkResult = UpdateResult.success(
+        UpdateInfo(
+          currentVersion: '1.0.0',
+          latestVersion: '2.0.0',
+          downloadUrl: 'https://example.com/aios.apk',
+          fileSize: 50000000,
+          releaseNotes: 'Bug fixes',
+          publishedAt: DateTime(2025, 1, 1),
         ),
       );
-      mockRepo.setDownloadResult('/tmp/test-apk.apk');
+      mockRepo.downloadPath = '/tmp/test-apk.apk';
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -151,19 +114,17 @@ void main() {
     });
 
     test('downloadApk_transitionsToErrorWhenDownloadFails', () async {
-      mockRepo.setCheckResult(
-        UpdateResult.success(
-          UpdateInfo(
-            currentVersion: '1.0.0',
-            latestVersion: '2.0.0',
-            downloadUrl: 'https://example.com/aios.apk',
-            fileSize: 50000000,
-            releaseNotes: 'Bug fixes',
-            publishedAt: DateTime(2025, 1, 1),
-          ),
+      mockRepo.checkResult = UpdateResult.success(
+        UpdateInfo(
+          currentVersion: '1.0.0',
+          latestVersion: '2.0.0',
+          downloadUrl: 'https://example.com/aios.apk',
+          fileSize: 50000000,
+          releaseNotes: 'Bug fixes',
+          publishedAt: DateTime(2025, 1, 1),
         ),
       );
-      mockRepo.setDownloadResult(null);
+      mockRepo.downloadPath = null;
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -179,19 +140,17 @@ void main() {
     });
 
     test('installApk_transitionsToInstalled', () async {
-      mockRepo.setCheckResult(
-        UpdateResult.success(
-          UpdateInfo(
-            currentVersion: '1.0.0',
-            latestVersion: '2.0.0',
-            downloadUrl: 'https://example.com/aios.apk',
-            fileSize: 50000000,
-            releaseNotes: 'Bug fixes',
-            publishedAt: DateTime(2025, 1, 1),
-          ),
+      mockRepo.checkResult = UpdateResult.success(
+        UpdateInfo(
+          currentVersion: '1.0.0',
+          latestVersion: '2.0.0',
+          downloadUrl: 'https://example.com/aios.apk',
+          fileSize: 50000000,
+          releaseNotes: 'Bug fixes',
+          publishedAt: DateTime(2025, 1, 1),
         ),
       );
-      mockRepo.setDownloadResult('/tmp/test-apk.apk');
+      mockRepo.downloadPath = '/tmp/test-apk.apk';
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -201,20 +160,18 @@ void main() {
     });
 
     test('installApk_transitionsToErrorWhenInstallFails', () async {
-      mockRepo.setCheckResult(
-        UpdateResult.success(
-          UpdateInfo(
-            currentVersion: '1.0.0',
-            latestVersion: '2.0.0',
-            downloadUrl: 'https://example.com/aios.apk',
-            fileSize: 50000000,
-            releaseNotes: 'Bug fixes',
-            publishedAt: DateTime(2025, 1, 1),
-          ),
+      mockRepo.checkResult = UpdateResult.success(
+        UpdateInfo(
+          currentVersion: '1.0.0',
+          latestVersion: '2.0.0',
+          downloadUrl: 'https://example.com/aios.apk',
+          fileSize: 50000000,
+          releaseNotes: 'Bug fixes',
+          publishedAt: DateTime(2025, 1, 1),
         ),
       );
-      mockRepo.setDownloadResult('/tmp/test-apk.apk');
-      mockRepo.setInstallResult(false);
+      mockRepo.downloadPath = '/tmp/test-apk.apk';
+      mockRepo.installResult = false;
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -244,19 +201,17 @@ void main() {
             return null;
           });
 
-      mockRepo.setCheckResult(
-        UpdateResult.success(
-          UpdateInfo(
-            currentVersion: '1.0.0',
-            latestVersion: '2.0.0',
-            downloadUrl: 'https://example.com/aios.apk',
-            fileSize: 50000000,
-            releaseNotes: 'Bug fixes',
-            publishedAt: DateTime(2025, 1, 1),
-          ),
+      mockRepo.checkResult = UpdateResult.success(
+        UpdateInfo(
+          currentVersion: '1.0.0',
+          latestVersion: '2.0.0',
+          downloadUrl: 'https://example.com/aios.apk',
+          fileSize: 50000000,
+          releaseNotes: 'Bug fixes',
+          publishedAt: DateTime(2025, 1, 1),
         ),
       );
-      mockRepo.setDownloadResult('/tmp/test-apk.apk');
+      mockRepo.downloadPath = '/tmp/test-apk.apk';
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
@@ -267,7 +222,7 @@ void main() {
     });
 
     test('reset_returnsToIdle', () async {
-      mockRepo.setCheckResult(const UpdateResult.error('fail'));
+      mockRepo.checkResult = const UpdateResult.error('fail');
       await notifier.checkForUpdate();
       expect(notifier.state.status, UpdateStatus.error);
 

@@ -4,79 +4,14 @@ import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
-import 'package:aios/domain/entities/conversation.dart';
-import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
-import 'package:aios/domain/repositories/conversation_repository.dart';
-import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/data/services/overlay_service.dart';
+import '../../helpers/mock_conversation_repository.dart';
 import '../../helpers/mock_llm_repository.dart';
 import 'package:aios/presentation/providers/chat_notifier.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-typedef _MockLlmRepository = MockLlmRepository;
-
-class _MockConversationRepository implements ConversationRepository {
-  final List<ChatMessage> savedMessages = [];
-  ChatMessage? lastAppendedMessage;
-  final List<Conversation> _conversations = [];
-
-  @override
-  Future<void> save(List<ChatMessage> messages) async {
-    savedMessages
-      ..clear()
-      ..addAll(messages);
-  }
-
-  @override
-  Future<List<ChatMessage>> load() async => List.unmodifiable(savedMessages);
-
-  @override
-  Future<void> clear() async {
-    savedMessages.clear();
-  }
-
-  @override
-  Future<void> appendMessage(ChatMessage message) async {
-    lastAppendedMessage = message;
-    savedMessages.add(message);
-  }
-
-  @override
-  Future<Conversation> createConversation({String? title}) async {
-    final conv = Conversation(
-      id: 'conv_test_${_conversations.length}',
-      title: title ?? '새 대화',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-    _conversations.insert(0, conv);
-    return conv;
-  }
-
-  @override
-  Future<List<Conversation>> getAllConversations() async =>
-      List.unmodifiable(_conversations);
-
-  @override
-  Future<List<ChatMessage>> loadConversation(String id) async =>
-      List.unmodifiable(savedMessages);
-
-  @override
-  Future<void> deleteConversation(String id) async {}
-
-  @override
-  Future<void> updateConversationTitle(String id, String title) async {}
-
-  @override
-  Stream<List<Conversation>> watchAllConversations() =>
-      Stream.value(_conversations);
-
-  @override
-  void setActiveConversationId(String id) {}
-}
 
 class _MockAgentStrategy implements AgentStrategy {
   AgentResult? resultToReturn;
@@ -170,14 +105,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ChatNotifier', () {
-    late _MockLlmRepository llmRepo;
-    late _MockConversationRepository conversationRepo;
+    late MockLlmRepository llmRepo;
+    late MockConversationRepository conversationRepo;
     late _MockAgentStrategy agent;
     late ChatNotifier notifier;
 
     setUp(() {
-      llmRepo = _MockLlmRepository();
-      conversationRepo = _MockConversationRepository();
+      llmRepo = MockLlmRepository();
+      conversationRepo = MockConversationRepository();
       agent = _MockAgentStrategy();
       notifier = ChatNotifier(
         llmRepo,
@@ -190,6 +125,7 @@ void main() {
     tearDown(() {
       notifier.dispose();
       llmRepo.dispose();
+      conversationRepo.dispose();
     });
 
     test('initial_state_hasEmptyMessagesAndIdle', () {
@@ -564,7 +500,7 @@ void main() {
           createdAt: DateTime.now(),
         ),
       ];
-      conversationRepo.savedMessages.addAll(testMessages);
+      conversationRepo.messages.addAll(testMessages);
 
       await notifier.loadConversation();
 

@@ -5,46 +5,9 @@ import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
 import '../../helpers/mock_llm_repository.dart';
+import '../../helpers/mock_settings_repository.dart';
 import 'package:aios/presentation/providers/settings_notifier.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-class _MockSettingsRepository implements SettingsRepository {
-  double _temperature = SettingsRepository.defaultTemperature;
-  int _maxTokens = SettingsRepository.defaultMaxTokens;
-  double _topP = SettingsRepository.defaultTopP;
-  int _agentMaxIterations = SettingsRepository.defaultAgentMaxIterations;
-  String? _providerConfig;
-  bool _onboardingCompleted = false;
-
-  @override
-  double get temperature => _temperature;
-  @override
-  int get maxTokens => _maxTokens;
-  @override
-  double get topP => _topP;
-  @override
-  int get agentMaxIterations => _agentMaxIterations;
-  @override
-  String? get providerConfig => _providerConfig;
-  @override
-  bool get onboardingCompleted => _onboardingCompleted;
-
-  @override
-  Future<void> setTemperature(double value) async => _temperature = value;
-  @override
-  Future<void> setMaxTokens(int value) async => _maxTokens = value;
-  @override
-  Future<void> setTopP(double value) async => _topP = value;
-  @override
-  Future<void> setAgentMaxIterations(int value) async =>
-      _agentMaxIterations = value;
-  @override
-  Future<void> setProviderConfig(String json) async => _providerConfig = json;
-  @override
-  Future<void> clearProviderConfig() async => _providerConfig = null;
-  @override
-  Future<void> setOnboardingCompleted() async => _onboardingCompleted = true;
-}
 
 class _MockLlmRepository extends MockLlmRepository {
   @override
@@ -62,12 +25,12 @@ class _FailingLlmRepository extends MockLlmRepository {
 
 void main() {
   group('SettingsNotifier', () {
-    late _MockSettingsRepository settingsRepo;
+    late MockSettingsRepository settingsRepo;
     late _MockLlmRepository llmRepo;
     late SettingsNotifier notifier;
 
     setUp(() {
-      settingsRepo = _MockSettingsRepository();
+      settingsRepo = MockSettingsRepository(onboardingCompleted: false);
       llmRepo = _MockLlmRepository();
       notifier = SettingsNotifier(settingsRepo, llmRepo);
     });
