@@ -247,4 +247,36 @@ void main() {
       expect(Strings.provider.baseUrlHint, startsWith('https://'));
     });
   });
+
+  group('Strings.agent', () {
+    test('setupRequired_returnsKorean', () {
+      expect(Strings.agent.setupRequired, 'API 설정을 먼저 완료해주세요.');
+    });
+
+    test('appNotFound_containsAppName', () {
+      expect(Strings.agent.appNotFound('youtube'), contains('youtube'));
+      expect(Strings.agent.appNotFound('youtube'), contains('찾을 수 없습니다'));
+    });
+
+    test('multipleAppsMatch_containsInputAndCandidates', () {
+      final result = Strings.agent.multipleAppsMatch(
+        'test',
+        '1. App1\n2. App2',
+      );
+      expect(result, contains('test'));
+      expect(result, contains('App1'));
+      expect(result, contains('물어보세요'));
+    });
+
+    test('permissionRequired_containsDisplayName', () {
+      expect(Strings.agent.permissionRequired('연락처'), '연락처 권한이 필요합니다');
+    });
+
+    test('permissionDenied_containsErrorPrefix', () {
+      final result = Strings.agent.permissionDenied('연락처');
+      expect(result, startsWith('Error:'));
+      expect(result, contains('연락처'));
+      expect(result, contains('거부'));
+    });
+  });
 }

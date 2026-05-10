@@ -8,12 +8,7 @@ abstract class ExtendedTool {
 
   String get toolPrompt => '$description\nParameters: $parameters';
 
-  String? get grammar => null;
-
   Future<ToolResult> execute(String args, ToolContext toolContext);
 
   Future<String?> validate(String args, ToolContext toolContext) async => null;
-
-  Future<String?> phaseContext(String args, ToolContext toolContext) async =>
-      null;
 }

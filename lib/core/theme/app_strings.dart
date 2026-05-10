@@ -263,6 +263,7 @@ abstract class Strings {
   static const errorRecovery = _ErrorRecoveryStrings();
   static const userMessages = _UserMessageStrings();
   static const permDisplay = _PermDisplayStrings();
+  static const agent = _AgentStrings();
 
   static String daysAgo(int days) => '$days일 전';
 }
@@ -314,4 +315,16 @@ class _PermDisplayStrings {
   String get sms => 'SMS';
   String get accessibilityService => '접근성 서비스';
   String get notificationAccess => '알림 접근';
+}
+
+class _AgentStrings {
+  const _AgentStrings();
+  String get setupRequired => 'API 설정을 먼저 완료해주세요.';
+  String appNotFound(String input) => "'$input' 앱을 찾을 수 없습니다.";
+  String multipleAppsMatch(String input, String candidates) =>
+      "'$input'과(와) 일치하는 앱이 여러 개입니다:\n$candidates\n\n"
+      '사용자에게 어느 앱을 원하는지 물어보세요.';
+  String permissionRequired(String displayName) => '$displayName 권한이 필요합니다';
+  String permissionDenied(String displayName) =>
+      'Error: $displayName 권한이 거부되었습니다';
 }

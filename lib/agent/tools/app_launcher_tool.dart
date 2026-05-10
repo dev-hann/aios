@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_json_parser.dart';
@@ -82,14 +83,14 @@ class AppLauncherTool extends ExtendedTool {
       final resolved = await _resolveAppName(input);
       if (resolved == null) {
         final suggestions = await _searchApps(input);
-        return ToolResult.err("'$input' 앱을 찾을 수 없습니다.\n$suggestions");
+        return ToolResult.err(
+          "${Strings.agent.appNotFound(input)}\n$suggestions",
+        );
       }
       if (resolved.startsWith('MULTIPLE_MATCH:')) {
         final candidates = resolved.substring('MULTIPLE_MATCH:'.length);
         return ToolResult.ok(
-          "'$input'과(와) 일치하는 앱이 여러 개입니다:\n"
-          '$candidates\n\n'
-          '사용자에게 어느 앱을 원하는지 물어보세요.',
+          Strings.agent.multipleAppsMatch(input, candidates),
         );
       }
       packageName = resolved;

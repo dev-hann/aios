@@ -453,4 +453,24 @@ void main() {
       expect(calcSchema.description, contains('Parameters:'));
     });
   });
+
+  group('toolPrompt consistency', () {
+    test('basicAndExtendedTool_toolPrompt_formatMatches', () {
+      final basic = _FakeBasicTool(
+        'test',
+        'A tool',
+        '{"x": "int"}',
+        (_) async => const ToolResult.ok('0'),
+      );
+      final extended = _FakeExtendedTool(
+        'test2',
+        'A tool',
+        '{"x": "int"}',
+        (_, __) async => const ToolResult.ok('0'),
+      );
+      expect(basic.toolPrompt, 'A tool\nParameters: {"x": "int"}');
+      expect(extended.toolPrompt, 'A tool\nParameters: {"x": "int"}');
+      expect(basic.toolPrompt, equals(extended.toolPrompt));
+    });
+  });
 }

@@ -22,6 +22,47 @@ import 'package:aios/domain/agent/tool_result.dart';
 import 'package:aios/domain/agent/truncate.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 
+sealed class _ResolvedTool {
+  const _ResolvedTool();
+  factory _ResolvedTool.basic(AgentTool tool) = _BasicResolved;
+  factory _ResolvedTool.extended(ExtendedTool tool) = _ExtendedResolved;
+
+  String get toolPrompt;
+
+  T when<T>({
+    required T Function(AgentTool) basic,
+    required T Function(ExtendedTool) extended,
+  });
+}
+
+class _BasicResolved extends _ResolvedTool {
+  const _BasicResolved(this.tool);
+  final AgentTool tool;
+
+  @override
+  String get toolPrompt => tool.toolPrompt;
+
+  @override
+  T when<T>({
+    required T Function(AgentTool) basic,
+    required T Function(ExtendedTool) extended,
+  }) => basic(tool);
+}
+
+class _ExtendedResolved extends _ResolvedTool {
+  const _ExtendedResolved(this.tool);
+  final ExtendedTool tool;
+
+  @override
+  String get toolPrompt => tool.toolPrompt;
+
+  @override
+  T when<T>({
+    required T Function(AgentTool) basic,
+    required T Function(ExtendedTool) extended,
+  }) => extended(tool);
+}
+
 class ReactStrategy implements AgentStrategy {
   ReactStrategy({
     required LlmEngine engine,
@@ -370,7 +411,9 @@ class ReactStrategy implements AgentStrategy {
                 onStep ?? (_) {},
               );
               if (!granted) {
-                final result = 'Error: ${requiredPerm.displayName} 권한이 거부되었습니다';
+                final result = Strings.agent.permissionDenied(
+                  requiredPerm.displayName,
+                );
                 steps.add(
                   AgentStep(
                     'observation',
@@ -529,22 +572,27 @@ class ReactStrategy implements AgentStrategy {
     }
   }
 
-  Future<String?> _validateTool(String name, String argsJson) async {
+  _ResolvedTool? _findTool(String name) {
     final basicTool = _basicTools[name];
-    if (basicTool != null) {
-      return basicTool.validate(argsJson);
-    }
-
+    if (basicTool != null) return _ResolvedTool.basic(basicTool);
     final extendedTool = _extendedTools[name];
-    if (extendedTool != null) {
-      final ctx = _toolContext;
-      if (ctx == null) {
-        return 'Error: ToolContext not initialized';
-      }
-      return extendedTool.validate(argsJson, ctx);
-    }
-
+    if (extendedTool != null) return _ResolvedTool.extended(extendedTool);
     return null;
+  }
+
+  Future<String?> _validateTool(String name, String argsJson) async {
+    final resolved = _findTool(name);
+    if (resolved == null) return null;
+    return resolved.when(
+      basic: (t) => t.validate(argsJson),
+      extended: (t) {
+        final ctx = _toolContext;
+        if (ctx == null) {
+          return Future<String?>.value('Error: ToolContext not initialized');
+        }
+        return t.validate(argsJson, ctx);
+      },
+    );
   }
 
   Future<ToolResult> _executeToolDirect(
@@ -552,34 +600,26 @@ class ReactStrategy implements AgentStrategy {
     Map<String, dynamic> args,
   ) async {
     final argsJson = jsonEncode(args);
-    final basicTool = _basicTools[name];
-    final extendedTool = _extendedTools[name];
-
-    if (basicTool != null) {
-      return basicTool.execute(argsJson);
-    }
-
-    if (extendedTool != null) {
-      final ctx = _toolContext;
-      if (ctx == null) {
-        return const ToolResult.err('ToolContext not initialized');
-      }
-      return extendedTool.execute(argsJson, ctx);
-    }
-
-    return ToolResult.err("Unknown tool '$name'");
+    final resolved = _findTool(name);
+    if (resolved == null) return ToolResult.err("Unknown tool '$name'");
+    return resolved.when(
+      basic: (t) => t.execute(argsJson),
+      extended: (t) {
+        final ctx = _toolContext;
+        if (ctx == null) {
+          return Future.value(
+            const ToolResult.err('ToolContext not initialized'),
+          );
+        }
+        return t.execute(argsJson, ctx);
+      },
+    );
   }
 
   String _getToolPrompt(String name) {
-    final basicTool = _basicTools[name];
-    if (basicTool != null) {
-      return 'Tool "$name" help: ${basicTool.toolPrompt}';
-    }
-    final extendedTool = _extendedTools[name];
-    if (extendedTool != null) {
-      return 'Tool "$name" help: ${extendedTool.toolPrompt}';
-    }
-    return '';
+    final resolved = _findTool(name);
+    if (resolved == null) return '';
+    return 'Tool "$name" help: ${resolved.toolPrompt}';
   }
 
   Map<String, dynamic>? _inferToolArgs(String toolName, String userMessage) {

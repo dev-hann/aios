@@ -9,6 +9,7 @@ import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/agent/tools/screen_reader_tool.dart';
 import 'package:aios/agent/tools/sms_sender_tool.dart';
 import 'package:aios/agent/tools/timer_tool.dart';
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
@@ -111,8 +112,8 @@ class _PlaceholderStrategy implements AgentStrategy {
     int maxTokens = 512,
     void Function(AgentStep)? onStep,
   }) async {
-    return const AgentResult(
-      steps: [AgentStep('answer', 'API 설정을 먼저 완료해주세요.')],
+    return AgentResult(
+      steps: [AgentStep('answer', Strings.agent.setupRequired)],
       success: false,
     );
   }

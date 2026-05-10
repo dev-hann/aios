@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/agent/permission_gate.dart';
 import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/entities/agent_models.dart';
@@ -56,6 +57,25 @@ void main() {
         expect(captured!.type, 'permission_required');
         expect(captured!.toolName, 'contact_search');
         expect(captured!.permission, 'contacts');
+      });
+
+      test('requestPermission_stepContent_usesCentralizedString', () async {
+        const perm = RequiredPermission(
+          key: 'sms',
+          displayName: 'SMS',
+          isService: false,
+        );
+
+        AgentStep? captured;
+        final future = gate.requestPermission(
+          perm,
+          'sms_sender',
+          (step) => captured = step,
+        );
+        gate.resolve(value: true);
+        await future;
+
+        expect(captured!.content, Strings.agent.permissionRequired('SMS'));
       });
     });
 

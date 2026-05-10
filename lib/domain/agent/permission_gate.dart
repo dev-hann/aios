@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/agent/gate_completer.dart';
 import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/entities/agent_models.dart';
@@ -17,7 +18,7 @@ class PermissionGate extends GateCompleter {
     onStep(
       AgentStep(
         'permission_required',
-        '${permission.displayName} 권한이 필요합니다',
+        Strings.agent.permissionRequired(permission.displayName),
         toolName: toolName,
         permission: permission.key,
       ),
