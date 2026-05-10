@@ -14,6 +14,13 @@ class ToolResult {
 
   bool get isError => error != null;
 
+  static ToolResult fromPlatformResult(String? result, String action) {
+    if (result == null) {
+      return ToolResult.err('$action failed - no response from platform');
+    }
+    return ToolResult.ok(result);
+  }
+
   String toContent() {
     final parts = <String>[];
     if (system != null) parts.add('<system>$system</system>');

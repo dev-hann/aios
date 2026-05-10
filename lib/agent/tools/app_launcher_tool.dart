@@ -100,13 +100,7 @@ class AppLauncherTool extends ExtendedTool {
     final result = await toolContext.invokeMethod('openApp', {
       'package_name': packageName,
     });
-    if (result == null) {
-      return const ToolResult.err(
-        'app launch failed - no response from platform',
-      );
-    }
-    print('[$_tag] openApp result: $result');
-    return ToolResult.ok(result);
+    return ToolResult.fromPlatformResult(result, 'app launch');
   }
 
   Future<String?> _resolveAppName(String name) async {
@@ -141,14 +135,7 @@ class AppLauncherTool extends ExtendedTool {
   }
 
   String _multiMatchResponse(List<AppInfo> matches) {
-    final list = matches
-        .take(5)
-        .toList()
-        .asMap()
-        .entries
-        .map((e) => '${e.key + 1}. ${e.value.name} (${e.value.packageName})')
-        .join('\n');
-    return 'MULTIPLE_MATCH:$list';
+    return 'MULTIPLE_MATCH:${_formatAppList(matches, max: 5)}';
   }
 
   Future<String> _searchApps(String query) async {
@@ -170,13 +157,7 @@ class AppLauncherTool extends ExtendedTool {
 
     if (filtered.isEmpty) return "No apps found matching '$query'";
 
-    return filtered
-        .take(10)
-        .toList()
-        .asMap()
-        .entries
-        .map((e) => '${e.key + 1}. ${e.value.name} (${e.value.packageName})')
-        .join('\n');
+    return _formatAppList(filtered, max: 10);
   }
 
   Future<List<AppInfo>?> _getCachedApps() async {
@@ -207,5 +188,15 @@ class AppLauncherTool extends ExtendedTool {
       return ToolResult.ok('Opened $finalUrl');
     }
     return const ToolResult.err('Cannot open URL');
+  }
+
+  String _formatAppList(List<AppInfo> apps, {int max = 5}) {
+    return apps
+        .take(max)
+        .toList()
+        .asMap()
+        .entries
+        .map((e) => '${e.key + 1}. ${e.value.name} (${e.value.packageName})')
+        .join('\n');
   }
 }

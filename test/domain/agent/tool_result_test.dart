@@ -83,5 +83,30 @@ void main() {
         expect(result.toContent(), '');
       });
     });
+
+    group('fromPlatformResult', () {
+      test('fromPlatformResult_null_returnsErrorWithAction', () {
+        final result = ToolResult.fromPlatformResult(null, 'tap by text');
+        expect(result.isError, isTrue);
+        expect(
+          result.error,
+          'tap by text failed - no response from platform',
+        );
+        expect(result.output, isNull);
+      });
+
+      test('fromPlatformResult_nonNull_returnsOk', () {
+        final result = ToolResult.fromPlatformResult('OK', 'tap');
+        expect(result.isError, isFalse);
+        expect(result.output, 'OK');
+        expect(result.error, isNull);
+      });
+
+      test('fromPlatformResult_emptyString_returnsOk', () {
+        final result = ToolResult.fromPlatformResult('', 'scroll');
+        expect(result.isError, isFalse);
+        expect(result.output, '');
+      });
+    });
   });
 }

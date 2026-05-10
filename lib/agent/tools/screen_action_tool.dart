@@ -107,12 +107,7 @@ class ScreenActionTool extends ExtendedTool {
       final result = await toolContext.invokeMethod('tapByText', {
         'text': text,
       });
-      if (result == null) {
-        return const ToolResult.err(
-          'tap by text failed - no response from platform',
-        );
-      }
-      return ToolResult.ok(result);
+      return ToolResult.fromPlatformResult(result, 'tap by text');
     }
     final x = _doubleOr(json['x'], -1);
     final y = _doubleOr(json['y'], -1);
@@ -121,12 +116,7 @@ class ScreenActionTool extends ExtendedTool {
         'x': x,
         'y': y,
       });
-      if (result == null) {
-        return const ToolResult.err(
-          'tap by coordinates failed - no response from platform',
-        );
-      }
-      return ToolResult.ok(result);
+      return ToolResult.fromPlatformResult(result, 'tap by coordinates');
     }
     return const ToolResult.err("'text' required");
   }
@@ -140,12 +130,7 @@ class ScreenActionTool extends ExtendedTool {
     final result = await toolContext.invokeMethod('longClickByText', {
       'text': text,
     });
-    if (result == null) {
-      return const ToolResult.err(
-        'long click failed - no response from platform',
-      );
-    }
-    return ToolResult.ok(result);
+    return ToolResult.fromPlatformResult(result, 'long click');
   }
 
   Future<ToolResult> _handleType(
@@ -192,10 +177,7 @@ class ScreenActionTool extends ExtendedTool {
     final result = await toolContext.invokeMethod('scroll', {
       'direction': direction,
     });
-    if (result == null) {
-      return const ToolResult.err('scroll failed - no response from platform');
-    }
-    return ToolResult.ok(result);
+    return ToolResult.fromPlatformResult(result, 'scroll');
   }
 
   Future<ToolResult> _handleSwipe(
@@ -209,10 +191,7 @@ class ScreenActionTool extends ExtendedTool {
       'start_y': _doubleOr(json['start_y'], 1500),
       'distance': _doubleOr(json['distance'], 500),
     });
-    if (result == null) {
-      return const ToolResult.err('swipe failed - no response from platform');
-    }
-    return ToolResult.ok(result);
+    return ToolResult.fromPlatformResult(result, 'swipe');
   }
 
   Future<ToolResult> _handleGlobal(
@@ -226,11 +205,6 @@ class ScreenActionTool extends ExtendedTool {
     final result = await toolContext.invokeMethod('performGlobalAction', {
       'action': action,
     });
-    if (result == null) {
-      return const ToolResult.err(
-        'global action failed - no response from platform',
-      );
-    }
-    return ToolResult.ok(result);
+    return ToolResult.fromPlatformResult(result, 'global action');
   }
 }

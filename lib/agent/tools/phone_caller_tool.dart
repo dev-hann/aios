@@ -40,12 +40,7 @@ class PhoneCallerTool extends ExtendedTool {
         'action': action,
         'number': number,
       });
-      if (result == null) {
-        return const ToolResult.err(
-          'phone call failed - no response from platform',
-        );
-      }
-      return ToolResult.ok(result);
+      return ToolResult.fromPlatformResult(result, 'phone call');
     } on Object catch (e) {
       return ToolResult.err('$e');
     }

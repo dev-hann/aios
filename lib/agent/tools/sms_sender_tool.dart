@@ -59,12 +59,7 @@ class SmsSenderTool extends ExtendedTool {
       'to': to,
       'body': body,
     });
-    if (result == null) {
-      return const ToolResult.err(
-        'SMS send failed - no response from platform',
-      );
-    }
-    return ToolResult.ok(result);
+    return ToolResult.fromPlatformResult(result, 'SMS send');
   }
 
   Future<ToolResult> _readSms(
@@ -73,11 +68,6 @@ class SmsSenderTool extends ExtendedTool {
   ) async {
     final limit = parseIntDynamic(json['limit']) ?? 10;
     final result = await toolContext.invokeMethod('readSms', {'limit': limit});
-    if (result == null) {
-      return const ToolResult.err(
-        'SMS read failed - no response from platform',
-      );
-    }
-    return ToolResult.ok(result);
+    return ToolResult.fromPlatformResult(result, 'SMS read');
   }
 }
