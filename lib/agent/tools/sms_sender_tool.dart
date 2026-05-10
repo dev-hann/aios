@@ -71,7 +71,7 @@ class SmsSenderTool extends ExtendedTool {
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
-    final limit = _parseInt(json['limit']) ?? 10;
+    final limit = parseIntDynamic(json['limit']) ?? 10;
     final result = await toolContext.invokeMethod('readSms', {'limit': limit});
     if (result == null) {
       return const ToolResult.err(
@@ -79,11 +79,5 @@ class SmsSenderTool extends ExtendedTool {
       );
     }
     return ToolResult.ok(result);
-  }
-
-  int? _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
-    return null;
   }
 }

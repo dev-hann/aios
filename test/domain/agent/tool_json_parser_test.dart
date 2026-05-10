@@ -47,4 +47,34 @@ void main() {
       expect(result['text'], 'hello');
     });
   });
+
+  group('parseIntDynamic', () {
+    test('parseIntDynamic_int_returnsInt', () {
+      expect(parseIntDynamic(42), 42);
+    });
+
+    test('parseIntDynamic_stringInt_returnsInt', () {
+      expect(parseIntDynamic('42'), 42);
+    });
+
+    test('parseIntDynamic_stringNegative_returnsNegative', () {
+      expect(parseIntDynamic('-5'), -5);
+    });
+
+    test('parseIntDynamic_stringNonNumeric_returnsNull', () {
+      expect(parseIntDynamic('abc'), isNull);
+    });
+
+    test('parseIntDynamic_double_returnsNull', () {
+      expect(parseIntDynamic(3.14), isNull);
+    });
+
+    test('parseIntDynamic_null_returnsNull', () {
+      expect(parseIntDynamic(null), isNull);
+    });
+
+    test('parseIntDynamic_emptyString_returnsNull', () {
+      expect(parseIntDynamic(''), isNull);
+    });
+  });
 }

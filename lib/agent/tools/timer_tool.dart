@@ -73,7 +73,7 @@ class TimerTool extends AgentTool {
   }
 
   ToolResult _set(Map<String, dynamic> json) {
-    final secs = _parseInt(json['seconds']) ?? 0;
+    final secs = parseIntDynamic(json['seconds']) ?? 0;
     if (secs <= 0 || secs > 300) {
       return const ToolResult.err("'seconds' must be 1-300");
     }
@@ -124,11 +124,5 @@ class TimerTool extends AgentTool {
           )
           .join('\n'),
     );
-  }
-
-  int? _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
-    return null;
   }
 }

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:aios/domain/agent/llm_engine.dart';
 import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 class OpenAiClient {
   OpenAiClient(this._config) : _dio = Dio();
@@ -182,6 +183,10 @@ class OpenAiClient {
       return false;
     }
   }
+
+  @visibleForTesting
+  List<Map<String, dynamic>> convertTools(List<LlmToolSchema> tools) =>
+      _convertTools(tools);
 
   List<Map<String, dynamic>> _convertTools(List<LlmToolSchema> tools) {
     return tools.map((t) {

@@ -33,7 +33,7 @@ class ContactSearchTool extends ExtendedTool {
       final json = tryParseToolJson(args, _tag);
       final query = json['query']?.toString().trim() ?? '';
       if (query.isEmpty) return const ToolResult.err("'query' required");
-      final limit = _parseInt(json['limit']) ?? 10;
+      final limit = parseIntDynamic(json['limit']) ?? 10;
       final result = await toolContext.invokeMethod('searchContacts', {
         'query': query,
         'limit': limit,
@@ -43,11 +43,5 @@ class ContactSearchTool extends ExtendedTool {
     } on Object catch (e) {
       return ToolResult.err('$e');
     }
-  }
-
-  int? _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
-    return null;
   }
 }

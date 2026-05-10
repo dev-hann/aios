@@ -76,36 +76,4 @@ void main() {
       expect(tool.parameters.isNotEmpty, isTrue);
     });
   });
-
-  group('extractAppQuery', () {
-    test('extractAppQuery_openPattern_extractsAppName', () {
-      final result = tool.testExtractAppQuery('open firefox');
-      expect(result, 'firefox');
-    });
-
-    test('extractAppQuery_launchPattern_extractsAppName', () {
-      final result = tool.testExtractAppQuery('launch chrome');
-      expect(result, 'chrome');
-    });
-
-    test('extractAppQuery_startPattern_extractsAppName', () {
-      final result = tool.testExtractAppQuery('start youtube');
-      expect(result, 'youtube');
-    });
-
-    test('extractAppQuery_runPattern_extractsAppName', () {
-      final result = tool.testExtractAppQuery('run spotify');
-      expect(result, 'spotify');
-    });
-
-    test('extractAppQuery_noMatch_returnsEmpty', () {
-      final result = tool.testExtractAppQuery('hello there');
-      expect(result, '');
-    });
-
-    test('extractAppQuery_caseInsensitive_extractsAppName', () {
-      final result = tool.testExtractAppQuery('Open Firefox');
-      expect(result, 'firefox');
-    });
-  });
 }

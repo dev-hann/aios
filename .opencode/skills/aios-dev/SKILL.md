@@ -28,60 +28,59 @@ metadata:
 ```
 1. 서브태스크 실행 (Task 도구, subagent_type: "general")
    - 프롬프트에 SKILL.md의 "SUB-TASK 프로시저" 전체 내용 전달
-   - 서브태스크가 알아서 ROADMAP 읽고 다음 기능 찾아서 구현
 2. 서브태스크 종료 대기
 3. 결과 로깅: "[AIOS-Dev] 서브태스크 N 완료: {결과}"
-4. 서브태스크 결과가 "ROADMAP 전체 완료"면 사용자에게 알림
+4. 서브태스크 결과가 "전체 완료"면 사용자에게 알림
 5. 아니면 1번부터 반복 (다음 서브태스크 실행)
 ```
 
 ### SUB-TASK 프로시저
 
-서브태스크는 ROADMAP 분석부터 기능 구현, 커밋까지 모두 수행한다.
+서브태스크는 코드베이스 분석부터 개선/리팩토링, 커밋까지 모두 수행한다.
 
 ```
 0. 기존 테스트 상태 확인:
-   - ./scripts/test.sh 실행 → 실패 시 신규 기능보다 기존 테스트 수정 우선
+   - ./scripts/test.sh 실행 → 실패 시 기존 테스트 수정 우선
    - all green 확인 후 다음 단계 진행
-1. git log --oneline -20 → 완료된 feat(FXX) 커밋 패턴 확인
-2. ROADMAP.md 읽기 → 전체 기능 목록 파악
-3. 다음 미완료 기능 식별 (가장 낮은 FXX 번호)
-   - 없으면 "ROADMAP 전체 완료" 반환 후 종료
-4. AGENTS.md 읽기 → 코딩 규약 숙지
-5. 관련 기존 코드 분석:
-   - 같은 타입(BasicTool/ExtendedTool)의 활성 Tool 코드 읽기
+1. AGENTS.md, CONTRIBUTING.md, TESTING.md, docs/architecture.md 읽기 → 규약 숙지
+2. git log --oneline -20 → 최근 변경사항 파악
+3. 코드베이스 분석 → 개선/리팩토링 후보 전체 탐색:
+   a. 중복 코드 (동일한 헬퍼/로직이 여러 파일에 있는지 grep)
+   b. 과도하게 긴 메서드/클래스 (100줄+)
+   c. 누락된 테스트 (lib/ 대 test/ 비교, 미커버 모듈 식별)
+   d. 에러 핸들링 (빈 catch, 잘못된 에러 반환, unsafe cast)
+   e. 성능 (불필요한 리빌드, O(n) 복사, 매번 새 인스턴스 생성)
+   f. 미사용 의존성, dead code, TODO/FIXME/HACK 주석
+   → 발견된 항목을 우선순위(HIGH > MEDIUM > LOW)로 정렬
+   → 전체 항목을 작업 리스트로 작성
+   - 발견된 항목이 없으면 "전체 완료" 반환 후 종료
+4. 관련 기존 코드 분석:
+   - 수정 대상 파일의 주변 컨텍스트 읽기
    - 기존 테스트 파일 패턴 파악
-   - agent_provider.dart 등록 방식 확인
-   - RiskClassifier 위험도 분류 확인
-6. 작업 리스트 작성 (구체적인 파일/함수 단위)
-7. 각 작업별 TDD:
+   - 의존성 주입 방식 (provider 등록) 확인
+5. 작업 리스트의 각 항목에 대해 TDD 수행:
    a. 테스트 코드 작성 (RED)
-   b. 기능 구현 (GREEN)
+   b. 기능 구현/수정 (GREEN)
    c. ./scripts/test.sh 실행 → 실패 시 수정
    d. 리팩토링 (REFACTOR)
-8. ./scripts/test.sh 전체 실행 → 반드시 0 실패 확인
-9. 커밋 전 필수 체크 (CONTRIBUTING.md 참고):
+6. ./scripts/test.sh 전체 실행 → 반드시 0 실패 확인
+7. 커밋 전 필수 체크 (CONTRIBUTING.md 참고):
    - flutter analyze → 0 warnings
-   - dart format . --set-exat-if-changed → no diff
+   - dart format . --set-exit-if-changed → no diff
    - dart run build_runner build → 코드 생성 성공
-10. 기기 연결 시 (AGENTS.md §0 기기 명령어 참고):
-    a. flutter build apk --debug
-    b. adb 설치 → 실행
-    c. 스크린샷 → read로 화면 확인
-    d. logcat에서 [AIOS-] 로그 확인
-    e. TESTING_DEVICE.md 스모크 테스트 수행
-    f. 문제 발견 시 7번부터 수정 반복
-11. git add → commit:
-    - 메시지: "type: 기능명 - 변경 내용 요약" (CONTRIBUTING.md 커밋 타입 참고)
-    - 문서 업데이트 포함 (AGENTS.md §5 체크리스트 참고)
-12. git push
-13. 마일스톤 완료 시 (CONTRIBUTING.md Release Process 참고):
-    - pubspec.yaml 버전업
-    - git commit -m "release: MX 마일스톤명"
-    - git tag v{version}
-    - git push && git push --tags
-14. 결과 요약 반환:
-    "FXX 완료: 작업 N개, 테스트 M개 추가/수정, 전체 {count} 테스트 통과"
+8. 기기 연결 시 (AGENTS.md §0 기기 명령어 참고):
+   a. flutter build apk --debug
+   b. adb 설치 → 실행
+   c. 스크린샷 → read로 화면 확인
+   d. logcat에서 [AIOS-] 로그 확인
+   e. TESTING_DEVICE.md 스모크 테스트 수행
+   f. 문제 발견 시 5번부터 수정 반복
+9. git add → commit:
+   - 메시지: "refactor: 변경 내용 요약" (CONTRIBUTING.md 커밋 타입 참고)
+   - 문서 업데이트 포함 (AGENTS.md §5 체크리스트 참고)
+10. git push
+11. 결과 요약 반환:
+    "리팩토링 N개 완료: {항목 요약}, 테스트 M개 추가/수정, 전체 {count} 테스트 통과"
 ```
 
 ### 병렬 실행 규칙

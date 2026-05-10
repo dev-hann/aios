@@ -11,3 +11,9 @@ Map<String, dynamic> tryParseToolJson(String args, String tag) {
     return {};
   }
 }
+
+int? parseIntDynamic(dynamic value) {
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value);
+  return null;
+}

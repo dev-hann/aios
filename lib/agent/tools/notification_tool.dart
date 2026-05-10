@@ -39,7 +39,7 @@ class NotificationTool extends ExtendedTool {
     try {
       final json = tryParseToolJson(args, _tag);
       final app = json['app']?.toString() ?? '';
-      final maxCount = _parseInt(json['max_count']) ?? 20;
+      final maxCount = parseIntDynamic(json['max_count']) ?? 20;
 
       return await _handleRead(toolContext, maxCount: maxCount, app: app);
     } on Object catch (e) {
@@ -62,11 +62,5 @@ class NotificationTool extends ExtendedTool {
       methodArgs,
     );
     return ToolResult.ok(result ?? 'No notifications');
-  }
-
-  int? _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
-    return null;
   }
 }

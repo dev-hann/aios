@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_result.dart';
 
 class ScreenReaderTool extends ExtendedTool {
@@ -73,7 +72,8 @@ class ScreenFindTool extends ExtendedTool {
   @override
   Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
-      final text = _parseArg(args, 'text');
+      final json = tryParseToolJson(args, _tag);
+      final text = json['text']?.toString() ?? '';
       if (text.isEmpty) return const ToolResult.err("'text' required");
       print('[$_tag] Finding elements with text: "$text"');
       final result = await toolContext.invokeMethod('findNodesByText', {
@@ -88,20 +88,6 @@ class ScreenFindTool extends ExtendedTool {
     } on Object catch (e) {
       print('[$_tag] ERROR: $e');
       return ToolResult.err('$e');
-    }
-  }
-
-  String _parseArg(String args, String key) {
-    try {
-      final decoded = jsonDecode(args);
-      if (decoded is Map<String, dynamic>) {
-        return decoded[key]?.toString() ?? '';
-      }
-      print('[$_tag] WARN: Invalid JSON type: ${decoded.runtimeType}');
-      return '';
-    } on Object catch (e) {
-      print('[$_tag] WARN: JSON parse error: $e');
-      return '';
     }
   }
 }

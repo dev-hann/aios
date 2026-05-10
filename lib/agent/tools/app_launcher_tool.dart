@@ -37,30 +37,6 @@ class AppLauncherTool extends ExtendedTool {
       '- Use URL only for web pages (e.g. "https://google.com")';
 
   @override
-  Future<String?> phaseContext(String args, ToolContext toolContext) async {
-    return null;
-  }
-
-  String _extractAppQuery(String prompt) {
-    final lower = prompt.toLowerCase();
-    final patterns = [
-      RegExp(r'(?:open|launch|start|run)\s+(\w+)'),
-      RegExp(r'(?:열어|실행|시작|켜)\s*(\S+)'),
-    ];
-    for (final p in patterns) {
-      final m = p.firstMatch(lower);
-      if (m != null) return m.group(1)!;
-    }
-    return '';
-  }
-
-  @visibleForTesting
-  String testExtractAppQuery(String prompt) => _extractAppQuery(prompt);
-
-  @visibleForTesting
-  bool testLooksLikeUrl(String s) => _looksLikeUrl(s);
-
-  @override
   Future<String?> validate(String args, ToolContext toolContext) async {
     final json = tryParseToolJson(args, _tag);
     final target = json['target']?.toString() ?? '';
@@ -93,6 +69,9 @@ class AppLauncherTool extends ExtendedTool {
     }
     return false;
   }
+
+  @visibleForTesting
+  bool testLooksLikeUrl(String s) => _looksLikeUrl(s);
 
   Future<ToolResult> _openApp(String input, ToolContext toolContext) async {
     print('[$_tag] openApp: input="$input"');
