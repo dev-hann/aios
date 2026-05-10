@@ -17,9 +17,12 @@
 ### 기본 adb 테스트 절차
 
 ```bash
+# 0. Vite 개발 서버 시작 (기기에서 접근 가능해야 함)
+cd lib
+nohup npx vite --host 0.0.0.0 --port 3000 --strictPort > /tmp/vite-server.log 2>&1 &
+
 # 1. APK 빌드
-cd lib && npm run build
-cd ../android && ./gradlew assembleDebug
+bash /tmp/gyo build android
 
 # 2. 설치
 adb -s {DEVICE} uninstall com.agent.aios
@@ -28,10 +31,13 @@ adb -s {DEVICE} install android/app/build/outputs/apk/debug/app-debug.apk
 # 3. 실행
 adb -s {DEVICE} shell am start -n com.agent.aios/.MainActivity
 
-# 4. 로그 확인
+# 4. 로그 확인 (WebView 콘솔)
+adb -s {DEVICE} logcat -d | grep "WebView-Console"
+
+# 5. AIOS 전용 로그
 adb -s {DEVICE} logcat -d | grep "\[AIOS-"
 
-# 5. 스크린샷으로 UI 확인
+# 6. 스크린샷으로 UI 확인
 adb -s {DEVICE} shell screencap -p /sdcard/screen.png
 adb -s {DEVICE} pull /sdcard/screen.png /tmp/screen.png
 ```
@@ -63,13 +69,16 @@ adb -s {DEVICE} pull /sdcard/screen.png /tmp/screen.png
 # Chrome DevTools로 WebView 디버깅
 chrome://inspect/#devices
 
-# 콘솔 로그 확인 (logcat)
-adb -s {DEVICE} logcat -d | grep "chromium"
+# 콘솔 로그 확인 (WebView Console)
+adb -s {DEVICE} logcat -d | grep "WebView-Console"
 
-# Vite dev server 로그
+# AIOS 앱 로그
+adb -s {DEVICE} logcat -d | grep "\[AIOS-"
+
+# Vite HMR 연결 확인
 adb -s {DEVICE} logcat -d | grep "vite"
 
-# Gyo Bridge 로그
+# Gyo Bridge / 네이티브 로그
 adb -s {DEVICE} logcat -d | grep "AIOS-Main"
 
 # UI XML 덤프 (네이티브 레벨)
@@ -83,3 +92,15 @@ adb -s {DEVICE} pull /sdcard/ui.xml /tmp/ui.xml
 - Chrome DevTools 원격 디버깅으로 WebView 내부 요소 검사
 - `uiautomator dump`는 WebView 컨테이너만 표시
 - 스크린샷 + 시각 검증이 주된 UI 테스트 방법
+
+## 6. 주요 로그 태그
+
+| 태그 | 소스 | 의미 |
+|------|------|------|
+| `[AIOS-React]` | react-strategy.ts | 에이전트 실행 로그 |
+| `[AIOS-Chat]` | chat-store.ts | 상태 관리, 세션 초기화 |
+| `[AIOS-OpenAiClient]` | openai-client.ts | LLM API 통신 |
+| `[AIOS-LlmSession]` | session.ts | 세션 관리, tool call |
+| `[AIOS-Main]` | MainActivity.kt | 네이티브 앱 로그 |
+| `[vite]` | Vite HMR client | HMR 연결 상태 |
+| `WebView-Console` | WebView | 브라우저 콘솔 출력 |
