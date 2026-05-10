@@ -29,7 +29,7 @@ class LlmRemoteSession implements LlmChatSession {
     ];
 
     var fullContent = '';
-    final toolCallAcc = <int, _AccEntry>{};
+    final toolCallAcc = <int, ToolCallAccumulator>{};
 
     await for (final chunk in _client.streamChat(
       messages: apiMessages,
@@ -40,10 +40,9 @@ class LlmRemoteSession implements LlmChatSession {
 
       if (chunk.toolCallDeltas != null) {
         for (final tc in chunk.toolCallDeltas!) {
-          final entry = toolCallAcc.putIfAbsent(tc.index, _AccEntry.new);
-          if (tc.id != null) entry.id = tc.id;
-          if (tc.name != null) entry.name = tc.name;
-          if (tc.arguments != null) entry.arguments += tc.arguments!;
+          toolCallAcc
+              .putIfAbsent(tc.index, ToolCallAccumulator.new)
+              .applyDelta(tc);
         }
       }
 
@@ -102,10 +101,4 @@ class LlmRemoteSession implements LlmChatSession {
     }
     return lastCalls.isNotEmpty ? lastCalls.last['id'] as String? ?? '' : '';
   }
-}
-
-class _AccEntry {
-  String? id;
-  String? name;
-  String arguments = '';
 }

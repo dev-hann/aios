@@ -14,7 +14,7 @@ Map<String, dynamic>? inferToolArgs(String toolName, String userMessage) {
         return {
           'action': 'write',
           'key': 'note_${DateTime.now().millisecondsSinceEpoch}',
-          'content': writeMatch.group(1)!.trim(),
+          'content': writeMatch.group(1)?.trim() ?? '',
         };
       }
       return {'action': 'list'};
@@ -24,7 +24,7 @@ Map<String, dynamic>? inferToolArgs(String toolName, String userMessage) {
         caseSensitive: false,
       ).firstMatch(msg);
       if (durationMatch != null) {
-        final value = int.tryParse(durationMatch.group(1)!) ?? 0;
+        final value = int.tryParse(durationMatch.group(1) ?? '') ?? 0;
         final unit = msg.contains('min') ? value * 60 : value;
         return {'action': 'set', 'seconds': unit};
       }

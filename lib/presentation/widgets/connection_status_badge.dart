@@ -41,7 +41,7 @@ class ConnectionStatusBadge extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              isConnected ? config!.model : Strings.chat.settingsNeeded,
+              isConnected ? config?.model ?? '' : Strings.chat.settingsNeeded,
               style: TextStyle(
                 color: isConnected ? AppColors.success : AppColors.error,
                 fontSize: 11,

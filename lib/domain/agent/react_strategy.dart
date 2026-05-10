@@ -264,7 +264,7 @@ class ReactStrategy implements AgentStrategy {
         onStep?.call(const AgentStep('thinking_start', ''));
 
         var fullContent = '';
-        final toolCallBuilders = <int, _ToolCallAccumulator>{};
+        final toolCallBuilders = <int, ToolCallAccumulator>{};
 
         try {
           await for (final chunk in session.chat(
@@ -277,16 +277,9 @@ class ReactStrategy implements AgentStrategy {
 
             if (chunk.toolCallDeltas != null) {
               for (final tc in chunk.toolCallDeltas!) {
-                toolCallBuilders.putIfAbsent(
-                  tc.index,
-                  _ToolCallAccumulator.new,
-                );
-                final builder = toolCallBuilders[tc.index]!;
-                if (tc.id != null) builder.id = tc.id;
-                if (tc.name != null) builder.name = tc.name;
-                if (tc.arguments != null) {
-                  builder.arguments += tc.arguments!;
-                }
+                toolCallBuilders
+                    .putIfAbsent(tc.index, ToolCallAccumulator.new)
+                    .applyDelta(tc);
               }
             }
           }
@@ -658,10 +651,4 @@ class ReactStrategy implements AgentStrategy {
   void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {
     _preferenceTracker = tracker;
   }
-}
-
-class _ToolCallAccumulator {
-  String? id;
-  String? name;
-  String arguments = '';
 }

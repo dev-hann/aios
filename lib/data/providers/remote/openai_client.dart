@@ -45,7 +45,7 @@ class OpenAiClient {
         ),
       );
 
-      final toolCallBuilders = <int, _ToolCallBuilder>{};
+      final toolCallBuilders = <int, ToolCallAccumulator>{};
       final buffer = StringBuffer();
       var remaining = '';
 
@@ -95,7 +95,7 @@ class OpenAiClient {
                 final index = tcMap['index'] as int? ?? 0;
                 final builder = toolCallBuilders.putIfAbsent(
                   index,
-                  _ToolCallBuilder.new,
+                  ToolCallAccumulator.new,
                 );
 
                 final id = tcMap['id'] as String?;
@@ -132,7 +132,7 @@ class OpenAiClient {
     } on DioException catch (e) {
       print('[$_tag] ERROR: HTTP error - ${e.message}');
       if (e.response?.data != null) {
-        print('[$_tag] ERROR: body - ${e.response!.data}');
+        print('[$_tag] ERROR: body - ${e.response?.data}');
       }
       rethrow;
     } on Object catch (e) {
@@ -236,10 +236,4 @@ class OpenAiClient {
   void cancel() {
     _dio.close(force: true);
   }
-}
-
-class _ToolCallBuilder {
-  String? id;
-  String? name;
-  String arguments = '';
 }

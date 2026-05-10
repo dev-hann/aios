@@ -79,3 +79,15 @@ class LlmToolParamSchema {
   final List<String>? enumValues;
   final String? example;
 }
+
+class ToolCallAccumulator {
+  String? id;
+  String? name;
+  String arguments = '';
+
+  void applyDelta(LlmToolCallDelta delta) {
+    if (delta.id != null) id = delta.id;
+    if (delta.name != null) name = delta.name;
+    if (delta.arguments != null) arguments += delta.arguments!;
+  }
+}
