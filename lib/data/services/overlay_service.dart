@@ -10,9 +10,7 @@ class OverlayService {
   OverlayService() {
     try {
       _channel.setMethodCallHandler(_handleMethodCall);
-    } on Object {
-      // Platform channel not available in test environment
-    }
+    } on Object {}
   }
 
   Future<void> _handleMethodCall(MethodCall call) async {
@@ -29,67 +27,27 @@ class OverlayService {
     _onUserMessage = handler;
   }
 
-  Future<bool> startOverlay() async {
-    try {
-      return await _channel.invokeMethod<bool>('startOverlay') ?? false;
-    } on Object catch (e) {
-      print('[AIOS-Overlay] ERROR: startOverlay failed - $e');
-      return false;
-    }
-  }
+  Future<bool> startOverlay() => _invoke('startOverlay');
 
-  Future<bool> stopOverlay() async {
-    try {
-      return await _channel.invokeMethod<bool>('stopOverlay') ?? false;
-    } on Object catch (e) {
-      print('[AIOS-Overlay] ERROR: stopOverlay failed - $e');
-      return false;
-    }
-  }
+  Future<bool> stopOverlay() => _invoke('stopOverlay');
 
-  Future<bool> updateResult(String text) async {
-    try {
-      return await _channel.invokeMethod<bool>('updateResult', text) ?? false;
-    } on Object catch (e) {
-      print('[AIOS-Overlay] ERROR: updateResult failed - $e');
-      return false;
-    }
-  }
+  Future<bool> updateResult(String text) => _invoke('updateResult', text);
 
-  Future<bool> showStatus(String text) async {
-    try {
-      return await _channel.invokeMethod<bool>('showStatus', text) ?? false;
-    } on Object catch (e) {
-      print('[AIOS-Overlay] ERROR: showStatus failed - $e');
-      return false;
-    }
-  }
+  Future<bool> showStatus(String text) => _invoke('showStatus', text);
 
-  Future<bool> hideStatus() async {
-    try {
-      return await _channel.invokeMethod<bool>('hideStatus') ?? false;
-    } on Object catch (e) {
-      print('[AIOS-Overlay] ERROR: hideStatus failed - $e');
-      return false;
-    }
-  }
+  Future<bool> hideStatus() => _invoke('hideStatus');
 
-  Future<bool> isOverlayPermissionGranted() async {
-    try {
-      return await _channel.invokeMethod<bool>('isOverlayPermissionGranted') ??
-          false;
-    } on Object catch (e) {
-      print('[AIOS-Overlay] ERROR: permission check failed - $e');
-      return false;
-    }
-  }
+  Future<bool> isOverlayPermissionGranted() =>
+      _invoke('isOverlayPermissionGranted');
 
-  Future<bool> requestOverlayPermission() async {
+  Future<bool> requestOverlayPermission() =>
+      _invoke('requestOverlayPermission');
+
+  Future<bool> _invoke(String method, [dynamic arguments]) async {
     try {
-      return await _channel.invokeMethod<bool>('requestOverlayPermission') ??
-          false;
+      return await _channel.invokeMethod<bool>(method, arguments) ?? false;
     } on Object catch (e) {
-      print('[AIOS-Overlay] ERROR: request permission failed - $e');
+      print('[AIOS-Overlay] ERROR: $method failed - $e');
       return false;
     }
   }
