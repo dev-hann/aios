@@ -8,8 +8,10 @@ abstract class GateCompleter {
     required String tag,
     required String label,
   }) async {
+    final completer = _completer;
+    if (completer == null) return false;
     try {
-      return await _completer!.future.timeout(timeout);
+      return await completer.future.timeout(timeout);
     } on TimeoutException {
       print('[$tag] Timeout waiting for: $label');
       return false;
@@ -17,14 +19,16 @@ abstract class GateCompleter {
   }
 
   void resolve({required bool value}) {
-    if (_completer != null && !_completer!.isCompleted) {
-      _completer!.complete(value);
+    final completer = _completer;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(value);
     }
   }
 
   void cancel() {
-    if (_completer != null && !_completer!.isCompleted) {
-      _completer!.complete(false);
+    final completer = _completer;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(false);
     }
   }
 

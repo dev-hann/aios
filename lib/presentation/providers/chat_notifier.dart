@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/data/services/overlay_service.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/tool_permission_mapper.dart';
@@ -168,19 +169,19 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final toolName = step.toolName;
     if (toolName.isEmpty) return null;
     return switch (toolName) {
-      'app_launcher' => '앱 실행 중...',
+      'app_launcher' => Strings.overlay.launchingApp,
       'screen_action' => _screenActionStatus(step.toolArgs),
-      'screen_reader' => '화면 읽는 중...',
-      'screen_find' => '화면에서 요소 찾는 중...',
-      'calculator' => '계산 중...',
-      'notepad' => '메모 작성 중...',
-      'timer' => '타이머 설정 중...',
-      'sms_sender' => '문자 관련 작업 중...',
-      'phone_caller' => '전화 관련 작업 중...',
-      'contact_search' => '연락처 검색 중...',
-      'notification_reader' => '알림 확인 중...',
-      'device_info' => '기기 정보 확인 중...',
-      _ => '작업 중: $toolName',
+      'screen_reader' => Strings.overlay.readingScreen,
+      'screen_find' => Strings.overlay.findingOnScreen,
+      'calculator' => Strings.overlay.calculating,
+      'notepad' => Strings.overlay.writingNote,
+      'timer' => Strings.overlay.settingTimer,
+      'sms_sender' => Strings.overlay.smsTask,
+      'phone_caller' => Strings.overlay.phoneTask,
+      'contact_search' => Strings.overlay.searchingContacts,
+      'notification_reader' => Strings.overlay.checkingNotifications,
+      'device_info' => Strings.overlay.checkingDeviceInfo,
+      _ => Strings.overlay.workingOn(toolName),
     };
   }
 
@@ -192,25 +193,25 @@ class ChatNotifier extends StateNotifier<ChatState> {
           : <String, dynamic>{};
       final action = args['action']?.toString() ?? '';
       return switch (action) {
-        'tap' => '화면 터치 중...',
-        'type' => '텍스트 입력 중...',
-        'long_click' => '길게 누르는 중...',
-        'scroll' => '스크롤 중...',
-        'swipe' => '스와이프 중...',
+        'tap' => Strings.overlay.tappingScreen,
+        'type' => Strings.overlay.typingText,
+        'long_click' => Strings.overlay.longPressing,
+        'scroll' => Strings.overlay.scrolling,
+        'swipe' => Strings.overlay.swiping,
         'global' => _globalActionStatus(args['global_action']?.toString()),
-        _ => '화면 조작 중...',
+        _ => Strings.overlay.manipulatingScreen,
       };
     } on Object {
-      return '화면 조작 중...';
+      return Strings.overlay.manipulatingScreen;
     }
   }
 
   String? _globalActionStatus(String? globalAction) {
     return switch (globalAction) {
-      'enter' => 'Enter 키 누르는 중...',
-      'back' => '뒤로 가는 중...',
-      'home' => '홈으로 이동 중...',
-      _ => '시스템 동작 중...',
+      'enter' => Strings.overlay.pressingEnter,
+      'back' => Strings.overlay.goingBack,
+      'home' => Strings.overlay.goingHome,
+      _ => Strings.overlay.systemAction,
     };
   }
 
@@ -220,8 +221,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final result = step.toolResult;
     if (result.startsWith('Error')) return null;
     return switch (toolName) {
-      'app_launcher' => '앱 실행 완료',
-      'screen_action' => '화면 조작 완료',
+      'app_launcher' => Strings.overlay.appLaunched,
+      'screen_action' => Strings.overlay.screenDone,
       _ => null,
     };
   }

@@ -92,16 +92,15 @@ class LlmRemoteSession implements LlmChatSession {
   }
 
   String _findToolCallId(String toolName) {
-    if (_lastToolCalls == null) return '';
-    for (final tc in _lastToolCalls!) {
+    final lastCalls = _lastToolCalls;
+    if (lastCalls == null) return '';
+    for (final tc in lastCalls) {
       final fn = tc['function'] as Map<String, dynamic>?;
       if (fn?['name'] == toolName) {
         return tc['id'] as String? ?? '';
       }
     }
-    return _lastToolCalls!.isNotEmpty
-        ? _lastToolCalls!.last['id'] as String? ?? ''
-        : '';
+    return lastCalls.isNotEmpty ? lastCalls.last['id'] as String? ?? '' : '';
   }
 }
 

@@ -591,18 +591,15 @@ class ReactStrategy implements AgentStrategy {
   }
 
   void _recordTurn(String userMessage, List<AgentStep> steps) {
-    if (_conversationContext == null) return;
+    final ctx = _conversationContext;
+    if (ctx == null) return;
     final answerStep = steps.where((s) => s.type == 'answer').lastOrNull;
     if (answerStep == null) return;
     final toolSteps = steps
         .where((s) => s.type == 'action' && s.toolName.isNotEmpty)
         .toList();
     final toolUsed = toolSteps.isNotEmpty ? toolSteps.first.toolName : null;
-    _conversationContext!.addTurn(
-      userMessage,
-      answerStep.content,
-      toolUsed: toolUsed,
-    );
+    ctx.addTurn(userMessage, answerStep.content, toolUsed: toolUsed);
   }
 
   @override

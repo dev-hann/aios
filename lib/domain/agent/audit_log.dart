@@ -1,10 +1,12 @@
+import 'dart:collection';
+
 import 'package:aios/domain/entities/agent_models.dart';
 
 class AuditLog {
   AuditLog({int maxSize = 100}) : _maxSize = maxSize;
 
   final int _maxSize;
-  final List<ToolAuditEntry> _entries = [];
+  final Queue<ToolAuditEntry> _entries = Queue();
 
   void add(
     String tool,
@@ -13,7 +15,7 @@ class AuditLog {
     required bool approved,
     required String result,
   }) {
-    _entries.add(
+    _entries.addLast(
       ToolAuditEntry(
         timestamp: DateTime.now().millisecondsSinceEpoch,
         tool: tool,
@@ -24,7 +26,7 @@ class AuditLog {
       ),
     );
     while (_entries.length > _maxSize) {
-      _entries.removeAt(0);
+      _entries.removeFirst();
     }
   }
 

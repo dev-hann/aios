@@ -166,6 +166,34 @@ class _AnnotationStrings {
   String get waitingConfirmation => '사용자 확인 대기 중...';
 }
 
+class _OverlayStrings {
+  const _OverlayStrings();
+  String get launchingApp => '앱 실행 중...';
+  String get readingScreen => '화면 읽는 중...';
+  String get findingOnScreen => '화면에서 요소 찾는 중...';
+  String get calculating => '계산 중...';
+  String get writingNote => '메모 작성 중...';
+  String get settingTimer => '타이머 설정 중...';
+  String get smsTask => '문자 관련 작업 중...';
+  String get phoneTask => '전화 관련 작업 중...';
+  String get searchingContacts => '연락처 검색 중...';
+  String get checkingNotifications => '알림 확인 중...';
+  String get checkingDeviceInfo => '기기 정보 확인 중...';
+  String workingOn(String tool) => '작업 중: $tool';
+  String get tappingScreen => '화면 터치 중...';
+  String get typingText => '텍스트 입력 중...';
+  String get longPressing => '길게 누르는 중...';
+  String get scrolling => '스크롤 중...';
+  String get swiping => '스와이프 중...';
+  String get pressingEnter => 'Enter 키 누르는 중...';
+  String get goingBack => '뒤로 가는 중...';
+  String get goingHome => '홈으로 이동 중...';
+  String get systemAction => '시스템 동작 중...';
+  String get manipulatingScreen => '화면 조작 중...';
+  String get appLaunched => '앱 실행 완료';
+  String get screenDone => '화면 조작 완료';
+}
+
 abstract class Strings {
   const Strings._();
 
@@ -181,6 +209,7 @@ abstract class Strings {
   static const loading = _LoadingStrings();
   static const suggestion = _SuggestionStrings();
   static const annotation = _AnnotationStrings();
+  static const overlay = _OverlayStrings();
 
   static String daysAgo(int days) => '$days일 전';
 }

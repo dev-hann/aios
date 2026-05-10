@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 class ConversationTurn {
   const ConversationTurn({
     required this.userMessage,
@@ -17,7 +19,7 @@ class ConversationContext {
 
   final int _maxTurns;
   final int _maxResponseLength;
-  final List<ConversationTurn> _turns = [];
+  final Queue<ConversationTurn> _turns = Queue();
 
   int get length => _turns.length;
 
@@ -28,7 +30,7 @@ class ConversationContext {
     String assistantResponse, {
     String? toolUsed,
   }) {
-    _turns.add(
+    _turns.addLast(
       ConversationTurn(
         userMessage: userMessage,
         assistantResponse: assistantResponse,
@@ -36,15 +38,16 @@ class ConversationContext {
       ),
     );
     while (_turns.length > _maxTurns) {
-      _turns.removeAt(0);
+      _turns.removeFirst();
     }
   }
 
   List<ConversationTurn> getRecentTurns([int? count]) {
-    if (count == null || count >= _turns.length) {
-      return List.unmodifiable(_turns);
+    final list = _turns.toList();
+    if (count == null || count >= list.length) {
+      return List.unmodifiable(list);
     }
-    return List.unmodifiable(_turns.sublist(_turns.length - count));
+    return List.unmodifiable(list.sublist(list.length - count));
   }
 
   String toPromptContext() {
