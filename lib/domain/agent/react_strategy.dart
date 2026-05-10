@@ -16,6 +16,8 @@ import 'package:aios/domain/agent/risk_classifier.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
+import 'package:aios/domain/agent/tool_arg_inference.dart';
+import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_result.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 
@@ -335,14 +337,8 @@ class ReactStrategy implements AgentStrategy {
           final toolName = builder.name ?? '';
           print('[$_tag] Processing tool: $toolName');
           Map<String, dynamic> toolArgs = {};
-          try {
-            if (builder.arguments.isNotEmpty) {
-              toolArgs = Map<String, dynamic>.from(
-                jsonDecode(builder.arguments) as Map,
-              );
-            }
-          } on Object catch (e) {
-            print('[$_tag] WARN: tool args parse error for $toolName: $e');
+          if (builder.arguments.isNotEmpty) {
+            toolArgs = tryParseToolJson(builder.arguments, _tag);
           }
           print('[$_tag] Tool args: $toolArgs');
 
@@ -577,68 +573,7 @@ class ReactStrategy implements AgentStrategy {
   }
 
   Map<String, dynamic>? _inferToolArgs(String toolName, String userMessage) {
-    final msg = userMessage.toLowerCase();
-    switch (toolName) {
-      case 'calculator':
-        final expr = _extractMathExpr(msg);
-        if (expr != null) return {'expression': expr};
-        return null;
-      case 'notepad':
-        final writeMatch = RegExp(
-          r'(?:write|save|note|store|record)\s+(.+)',
-          caseSensitive: false,
-        ).firstMatch(userMessage);
-        if (writeMatch != null) {
-          return {
-            'action': 'write',
-            'key': 'note_${DateTime.now().millisecondsSinceEpoch}',
-            'content': writeMatch.group(1)!.trim(),
-          };
-        }
-        return {'action': 'list'};
-      case 'timer':
-        final durationMatch = RegExp(
-          r'(\d+)\s*(?:second|sec|minute|min)',
-          caseSensitive: false,
-        ).firstMatch(msg);
-        if (durationMatch != null) {
-          final value = int.tryParse(durationMatch.group(1)!) ?? 0;
-          final unit = msg.contains('min') ? value * 60 : value;
-          return {'action': 'set', 'seconds': unit};
-        }
-        return null;
-      default:
-        return null;
-    }
-  }
-
-  String? _extractMathExpr(String msg) {
-    final ops = {
-      'plus': '+',
-      'added to': '+',
-      'and': '+',
-      'minus': '-',
-      'less': '-',
-      'subtract': '-',
-      'times': '*',
-      'multiplied by': '*',
-      'x': '*',
-      'divided by': '/',
-      'over': '/',
-    };
-    var expr = msg;
-    expr = expr.replaceAll(RegExp(r'calculate\s*', caseSensitive: false), '');
-    expr = expr.replaceAll(RegExp(r'what\s+is\s*', caseSensitive: false), '');
-    expr = expr.replaceAll(RegExp(r'compute\s*', caseSensitive: false), '');
-    for (final entry in ops.entries) {
-      expr = expr.replaceAll(entry.key, entry.value);
-    }
-    expr = expr.replaceAll(RegExp(r'[^\d+\-*/.()% ]'), '').trim();
-    if (expr.isEmpty || !RegExp(r'\d').hasMatch(expr)) {
-      return null;
-    }
-    if (!RegExp(r'[+\-*/]').hasMatch(expr)) return null;
-    return expr;
+    return inferToolArgs(toolName, userMessage);
   }
 
   void _recordTurn(String userMessage, List<AgentStep> steps) {
