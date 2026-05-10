@@ -1,5 +1,6 @@
 import 'package:aios/core/theme/app_colors.dart';
 import 'package:aios/core/theme/app_strings.dart';
+import 'package:aios/core/theme/time_formatter.dart';
 import 'package:aios/domain/entities/conversation.dart';
 import 'package:aios/presentation/providers/chat_providers.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
@@ -263,9 +264,7 @@ class _ConversationItem extends StatelessWidget {
     final now = DateTime.now();
     final diff = now.difference(date);
     if (diff.inDays == 0) {
-      final h = date.hour.toString().padLeft(2, '0');
-      final m = date.minute.toString().padLeft(2, '0');
-      return '$h:$m';
+      return formatTimeOfDay(date);
     } else if (diff.inDays < 7) {
       return Strings.daysAgo(diff.inDays);
     } else {

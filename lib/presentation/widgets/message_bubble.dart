@@ -1,4 +1,5 @@
 import 'package:aios/core/theme/app_colors.dart';
+import 'package:aios/core/theme/time_formatter.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:flutter/material.dart';
 
@@ -64,7 +65,7 @@ class MessageBubble extends StatelessWidget {
           ],
           const SizedBox(height: 4),
           Text(
-            _formatTime(message.createdAt),
+            formatTimeOfDay(message.createdAt),
             style: TextStyle(
               color: AppColors.textSecondary.withValues(alpha: 0.5),
               fontSize: 11,
@@ -73,12 +74,6 @@ class MessageBubble extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
   }
 }
 

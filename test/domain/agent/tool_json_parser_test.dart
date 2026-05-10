@@ -77,4 +77,42 @@ void main() {
       expect(parseIntDynamic(''), isNull);
     });
   });
+
+  group('parseDoubleDynamic', () {
+    test('parseDoubleDynamic_double_returnsDouble', () {
+      expect(parseDoubleDynamic(3.14), 3.14);
+    });
+
+    test('parseDoubleDynamic_int_returnsDouble', () {
+      expect(parseDoubleDynamic(42), 42.0);
+    });
+
+    test('parseDoubleDynamic_stringDouble_returnsDouble', () {
+      expect(parseDoubleDynamic('3.14'), 3.14);
+    });
+
+    test('parseDoubleDynamic_stringInt_returnsDouble', () {
+      expect(parseDoubleDynamic('42'), 42.0);
+    });
+
+    test('parseDoubleDynamic_stringNegative_returnsNegative', () {
+      expect(parseDoubleDynamic('-5.5'), -5.5);
+    });
+
+    test('parseDoubleDynamic_stringNonNumeric_returnsNull', () {
+      expect(parseDoubleDynamic('abc'), isNull);
+    });
+
+    test('parseDoubleDynamic_null_returnsNull', () {
+      expect(parseDoubleDynamic(null), isNull);
+    });
+
+    test('parseDoubleDynamic_emptyString_returnsNull', () {
+      expect(parseDoubleDynamic(''), isNull);
+    });
+
+    test('parseDoubleDynamic_bool_returnsNull', () {
+      expect(parseDoubleDynamic(true), isNull);
+    });
+  });
 }

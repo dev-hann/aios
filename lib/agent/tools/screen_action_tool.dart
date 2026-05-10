@@ -3,6 +3,10 @@ import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_result.dart';
 
+double _doubleOr(dynamic value, double defaultValue) {
+  return parseDoubleDynamic(value) ?? defaultValue;
+}
+
 class ScreenActionTool extends ExtendedTool {
   static const _tag = 'AIOS-ScreenAction';
 
@@ -110,8 +114,8 @@ class ScreenActionTool extends ExtendedTool {
       }
       return ToolResult.ok(result);
     }
-    final x = _toDouble(json['x'], -1);
-    final y = _toDouble(json['y'], -1);
+    final x = _doubleOr(json['x'], -1);
+    final y = _doubleOr(json['y'], -1);
     if (x >= 0 && y >= 0) {
       final result = await toolContext.invokeMethod('performTap', {
         'x': x,
@@ -201,9 +205,9 @@ class ScreenActionTool extends ExtendedTool {
     final direction = json['direction']?.toString() ?? 'up';
     final result = await toolContext.invokeMethod('swipe', {
       'direction': direction,
-      'start_x': _toDouble(json['start_x'], 540),
-      'start_y': _toDouble(json['start_y'], 1500),
-      'distance': _toDouble(json['distance'], 500),
+      'start_x': _doubleOr(json['start_x'], 540),
+      'start_y': _doubleOr(json['start_y'], 1500),
+      'distance': _doubleOr(json['distance'], 500),
     });
     if (result == null) {
       return const ToolResult.err('swipe failed - no response from platform');
@@ -228,11 +232,5 @@ class ScreenActionTool extends ExtendedTool {
       );
     }
     return ToolResult.ok(result);
-  }
-
-  double _toDouble(dynamic value, double defaultValue) {
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? defaultValue;
-    return defaultValue;
   }
 }
