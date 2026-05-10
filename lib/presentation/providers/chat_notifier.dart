@@ -78,7 +78,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
           ),
     );
 
-    if (state.currentConversationTitle == '새 대화' &&
+    if (state.currentConversationTitle == Strings.newConversationTitle &&
         state.messages.where((m) => m.role == 'user').length == 1) {
       final title = text.trim().length > 20
           ? '${text.trim().substring(0, 20)}...'

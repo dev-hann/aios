@@ -1,3 +1,5 @@
+import 'package:aios/core/theme/app_strings.dart';
+
 class RequiredPermission {
   const RequiredPermission({
     required this.key,
@@ -13,54 +15,79 @@ class RequiredPermission {
 class ToolPermissionMapper {
   const ToolPermissionMapper._();
 
-  static const _permissionMap = <String, RequiredPermission>{
-    'contacts': RequiredPermission(
-      key: 'contacts',
-      displayName: '연락처',
-      isService: false,
-    ),
-    'phone': RequiredPermission(
-      key: 'phone',
-      displayName: '전화',
-      isService: false,
-    ),
-    'sms': RequiredPermission(key: 'sms', displayName: 'SMS', isService: false),
-    'accessibility': RequiredPermission(
-      key: 'accessibility',
-      displayName: '접근성 서비스',
-      isService: true,
-    ),
-    'notification': RequiredPermission(
-      key: 'notification',
-      displayName: '알림 접근',
-      isService: true,
-    ),
-  };
-
   static RequiredPermission? getRequiredPermission(
     String toolName,
     String argsJson,
   ) {
     switch (toolName) {
       case 'contact_search':
-        return _permissionMap['contacts'];
+        return RequiredPermission(
+          key: 'contacts',
+          displayName: Strings.permDisplay.contacts,
+          isService: false,
+        );
       case 'phone_caller':
         if (argsJson.contains('"call"')) {
-          return _permissionMap['phone'];
+          return RequiredPermission(
+            key: 'phone',
+            displayName: Strings.permDisplay.phone,
+            isService: false,
+          );
         }
         return null;
       case 'sms_sender':
-        return _permissionMap['sms'];
+        return RequiredPermission(
+          key: 'sms',
+          displayName: Strings.permDisplay.sms,
+          isService: false,
+        );
       case 'screen_action':
       case 'screen_reader':
       case 'screen_find':
-        return _permissionMap['accessibility'];
+        return RequiredPermission(
+          key: 'accessibility',
+          displayName: Strings.permDisplay.accessibilityService,
+          isService: true,
+        );
       case 'notification_reader':
-        return _permissionMap['notification'];
+        return RequiredPermission(
+          key: 'notification',
+          displayName: Strings.permDisplay.notificationAccess,
+          isService: true,
+        );
       default:
         return null;
     }
   }
 
-  static RequiredPermission? getByKey(String key) => _permissionMap[key];
+  static RequiredPermission? getByKey(String key) {
+    return switch (key) {
+      'contacts' => RequiredPermission(
+        key: 'contacts',
+        displayName: Strings.permDisplay.contacts,
+        isService: false,
+      ),
+      'phone' => RequiredPermission(
+        key: 'phone',
+        displayName: Strings.permDisplay.phone,
+        isService: false,
+      ),
+      'sms' => RequiredPermission(
+        key: 'sms',
+        displayName: Strings.permDisplay.sms,
+        isService: false,
+      ),
+      'accessibility' => RequiredPermission(
+        key: 'accessibility',
+        displayName: Strings.permDisplay.accessibilityService,
+        isService: true,
+      ),
+      'notification' => RequiredPermission(
+        key: 'notification',
+        displayName: Strings.permDisplay.notificationAccess,
+        isService: true,
+      ),
+      _ => null,
+    };
+  }
 }

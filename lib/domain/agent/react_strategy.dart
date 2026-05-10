@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/audit_log.dart';
@@ -326,7 +327,7 @@ class ReactStrategy implements AgentStrategy {
             continue;
           }
 
-          steps.add(const AgentStep('answer', '요청을 처리하지 못했습니다.'));
+          steps.add(AgentStep('answer', Strings.agentAnswers.failedToProcess));
           onStep?.call(steps.last);
           break;
         }
@@ -496,7 +497,7 @@ class ReactStrategy implements AgentStrategy {
             toolResult,
           );
           if (loopResult is LoopForceBreak) {
-            steps.add(const AgentStep('answer', '작업이 반복 감지로 중단되었습니다.'));
+            steps.add(AgentStep('answer', Strings.agentAnswers.loopDetected));
             onStep?.call(steps.last);
             _recordTurn(prompt, steps);
             return AgentResult(steps: steps, success: false);
@@ -507,13 +508,15 @@ class ReactStrategy implements AgentStrategy {
       }
 
       if (steps.every((s) => s.type != 'answer')) {
-        steps.add(const AgentStep('answer', '작업을 완료하지 못했습니다.'));
+        steps.add(AgentStep('answer', Strings.agentAnswers.incomplete));
         onStep?.call(steps.last);
       }
     } on Object catch (e) {
       print('[$_tag] ERROR: Agent run crashed: $e');
       if (steps.every((s) => s.type != 'answer')) {
-        steps.add(AgentStep('answer', '오류가 발생했습니다: $e'));
+        steps.add(
+          AgentStep('answer', Strings.agentAnswers.errorOccurred('$e')),
+        );
         onStep?.call(steps.last);
       }
     }

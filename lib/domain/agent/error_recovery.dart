@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/agent/tool_result.dart';
 
 enum ErrorType {
@@ -102,20 +103,14 @@ class ErrorRecovery {
       type == ErrorType.generic;
 
   String _userMessage(ErrorType type) => switch (type) {
-    ErrorType.toolNotFound => '요청한 도구를 찾을 수 없습니다.',
-    ErrorType.appNotInstalled => '해당 앱이 설치되어 있지 않습니다.',
-    ErrorType.serviceUnavailable =>
-      '필요한 서비스가 활성화되지 않았습니다.\n'
-          '설정에서 활성화해주세요.',
-    ErrorType.permissionDenied =>
-      '권한이 거부되었습니다.\n'
-          '설정에서 권한을 허용해주세요.',
-    ErrorType.invalidAction =>
-      '잘못된 명령입니다.\n'
-          '올바른 형식으로 다시 시도해주세요.',
-    ErrorType.missingParameter => '필수 항목이 누락되었습니다.',
-    ErrorType.cancelled => '사용자가 작업을 취소했습니다.',
-    ErrorType.generic => '오류가 발생했습니다. 다시 시도해주세요.',
+    ErrorType.toolNotFound => Strings.errorRecovery.toolNotFound,
+    ErrorType.appNotInstalled => Strings.errorRecovery.appNotInstalled,
+    ErrorType.serviceUnavailable => Strings.errorRecovery.serviceUnavailable,
+    ErrorType.permissionDenied => Strings.errorRecovery.permissionDenied,
+    ErrorType.invalidAction => Strings.errorRecovery.invalidAction,
+    ErrorType.missingParameter => Strings.errorRecovery.missingParameter,
+    ErrorType.cancelled => Strings.errorRecovery.cancelled,
+    ErrorType.generic => Strings.errorRecovery.generic,
   };
 
   String _retryPromptNudge(String toolName, ErrorType type) {

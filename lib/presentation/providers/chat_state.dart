@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/service_state.dart';
@@ -17,7 +18,7 @@ class ChatState with _$ChatState {
     @Default(false) bool isConfirming,
     @Default(false) bool isAwaitingPermission,
     String? currentConversationId,
-    @Default('새 대화') String currentConversationTitle,
+    @Default(Strings.newConversationTitle) String currentConversationTitle,
   }) = _ChatState;
 
   factory ChatState.fromJson(Map<String, dynamic> json) =>

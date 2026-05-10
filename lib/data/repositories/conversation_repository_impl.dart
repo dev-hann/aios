@@ -1,3 +1,4 @@
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/data/datasources/local/database.dart' as db;
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/conversation.dart';
@@ -43,12 +44,15 @@ class ConversationRepositoryImpl implements ConversationRepository {
   Future<Conversation> createConversation({String? title}) async {
     final id = 'conv_${DateTime.now().millisecondsSinceEpoch}';
     await _db.insertConversation(
-      db.ConversationsCompanion.insert(id: id, title: Value(title ?? '새 대화')),
+      db.ConversationsCompanion.insert(
+        id: id,
+        title: Value(title ?? Strings.newConversationTitle),
+      ),
     );
     _activeConversationId = id;
     return Conversation(
       id: id,
-      title: title ?? '새 대화',
+      title: title ?? Strings.newConversationTitle,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );

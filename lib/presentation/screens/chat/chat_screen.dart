@@ -574,9 +574,9 @@ class _PermissionCard extends ConsumerWidget {
                         .read(chatStateProvider.notifier)
                         .resolvePermission(userTappedGrant: false);
                   },
-                  child: const Text(
-                    '나중에',
-                    style: TextStyle(
+                  child: Text(
+                    Strings.permissionCard.later,
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
                     ),
