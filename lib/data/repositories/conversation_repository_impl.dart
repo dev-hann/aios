@@ -45,10 +45,7 @@ class ConversationRepositoryImpl implements ConversationRepository {
   Future<Conversation> createConversation({String? title}) async {
     final id = 'conv_${DateTime.now().millisecondsSinceEpoch}';
     await _db.insertConversation(
-      ConversationsCompanion.insert(
-        id: id,
-        title: Value(title ?? '새 대화'),
-      ),
+      ConversationsCompanion.insert(id: id, title: Value(title ?? '새 대화')),
     );
     _activeConversationId = id;
     return Conversation(
@@ -63,12 +60,14 @@ class ConversationRepositoryImpl implements ConversationRepository {
   Future<List<Conversation>> getAllConversations() async {
     final rows = await _db.getAllConversations();
     return rows
-        .map((r) => Conversation(
-              id: r.id,
-              title: r.title,
-              createdAt: r.createdAt,
-              updatedAt: r.updatedAt,
-            ))
+        .map(
+          (r) => Conversation(
+            id: r.id,
+            title: r.title,
+            createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
+          ),
+        )
         .toList();
   }
 
@@ -101,14 +100,18 @@ class ConversationRepositoryImpl implements ConversationRepository {
 
   @override
   Stream<List<Conversation>> watchAllConversations() {
-    return _db.watchAllConversations().map((rows) => rows
-        .map((r) => Conversation(
+    return _db.watchAllConversations().map(
+      (rows) => rows
+          .map(
+            (r) => Conversation(
               id: r.id,
               title: r.title,
               createdAt: r.createdAt,
               updatedAt: r.updatedAt,
-            ))
-        .toList());
+            ),
+          )
+          .toList(),
+    );
   }
 
   void setActiveConversationId(String id) {
@@ -119,9 +122,7 @@ class ConversationRepositoryImpl implements ConversationRepository {
     final conversations = await _db.getAllConversations();
     final exists = conversations.any((c) => c.id == id);
     if (!exists) {
-      await _db.insertConversation(
-        ConversationsCompanion.insert(id: id),
-      );
+      await _db.insertConversation(ConversationsCompanion.insert(id: id));
     }
   }
 

@@ -1,3 +1,5 @@
+import 'package:aios/domain/agent/tool_result.dart';
+
 enum ErrorType {
   toolNotFound,
   appNotInstalled,
@@ -32,27 +34,25 @@ class ErrorRecovery {
   int _totalErrors = 0;
 
   ErrorRecovery({Set<String>? availableTools})
-      : _availableTools = availableTools ?? {};
+    : _availableTools = availableTools ?? {};
 
   void reset() {
     _retryCount.clear();
     _totalErrors = 0;
   }
 
-  bool isError(String observation) =>
+  bool isErrorString(String observation) =>
       observation.trimLeft().startsWith('Error:');
 
-  bool canRetry(String toolName) =>
-      (_retryCount[toolName] ?? 0) < _maxRetries;
+  bool isError(ToolResult result) => result.isError;
 
-  RecoveryHint? analyze(
-    String toolName,
-    String args,
-    String observation,
-  ) {
-    if (!isError(observation)) return null;
+  bool canRetry(String toolName) => (_retryCount[toolName] ?? 0) < _maxRetries;
+
+  RecoveryHint? analyze(String toolName, String args, ToolResult result) {
+    if (!result.isError) return null;
 
     _totalErrors++;
+    final observation = result.toContent();
     final type = _categorize(observation);
     final retryAvailable = canRetry(toolName);
 
@@ -80,15 +80,12 @@ class ErrorRecovery {
     final lower = observation.toLowerCase();
 
     if (lower.contains('unknown tool')) return ErrorType.toolNotFound;
-    if (lower.contains('not installed') ||
-        lower.contains('no apps found')) {
+    if (lower.contains('not installed') || lower.contains('no apps found')) {
       return ErrorType.appNotInstalled;
     }
     if (lower.contains('toolcontext not initialized') ||
-        lower.contains('accessibility') &&
-            lower.contains('not enabled') ||
-        lower.contains('notification') &&
-            lower.contains('not enabled')) {
+        lower.contains('accessibility') && lower.contains('not enabled') ||
+        lower.contains('notification') && lower.contains('not enabled')) {
       return ErrorType.serviceUnavailable;
     }
     if (lower.contains('permission') || lower.contains('denied')) {
@@ -108,29 +105,29 @@ class ErrorRecovery {
       type == ErrorType.generic;
 
   String _userMessage(ErrorType type) => switch (type) {
-        ErrorType.toolNotFound =>
-          '\uC694\uCCAD\uD55C \uB3C4\uAD6C\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.',
-        ErrorType.appNotInstalled =>
-          '\uD574\uB2F9 \uC571\uC774 \uC124\uCE58\uB418\uC5B4 \uC788\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.',
-        ErrorType.serviceUnavailable =>
-          '\uD544\uC694\uD55C \uC11C\uBE44\uC2A4\uAC00 \uD65C\uC131\uD654\uB418\uC9C0 '
-              '\uC54A\uC558\uC2B5\uB2C8\uB2E4. \uC124\uC815\uC5D0\uC11C '
-              '\uD65C\uC131\uD654\uD574\uC8FC\uC138\uC694.',
-        ErrorType.permissionDenied =>
-          '\uAD8C\uD55C\uC774 \uAC70\uBD80\uB418\uC5C8\uC2B5\uB2C8\uB2E4. '
-              '\uC124\uC815\uC5D0\uC11C \uAD8C\uD55C\uC744 \uD5C8\uC6A9\uD574\uC8FC\uC138\uC694.',
-        ErrorType.invalidAction =>
-          '\uC798\uBABB\uB41C \uBA85\uB839\uC785\uB2C8\uB2E4. '
-              '\uC62C\uBC14\uB978 \uD615\uC2DD\uC73C\uB85C \uB2E4\uC2DC '
-              '\uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
-        ErrorType.missingParameter =>
-          '\uD544\uC218 \uD56D\uBAA9\uC774 \uB204\uB77D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
-        ErrorType.cancelled =>
-          '\uC0AC\uC6A9\uC790\uAC00 \uC791\uC5C5\uC744 \uCDE8\uC18C\uD588\uC2B5\uB2C8\uB2E4.',
-        ErrorType.generic =>
-          '\uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4. '
-              '\uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
-      };
+    ErrorType.toolNotFound =>
+      '\uC694\uCCAD\uD55C \uB3C4\uAD6C\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.',
+    ErrorType.appNotInstalled =>
+      '\uD574\uB2F9 \uC571\uC774 \uC124\uCE58\uB418\uC5B4 \uC788\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.',
+    ErrorType.serviceUnavailable =>
+      '\uD544\uC694\uD55C \uC11C\uBE44\uC2A4\uAC00 \uD65C\uC131\uD654\uB418\uC9C0 '
+          '\uC54A\uC558\uC2B5\uB2C8\uB2E4. \uC124\uC815\uC5D0\uC11C '
+          '\uD65C\uC131\uD654\uD574\uC8FC\uC138\uC694.',
+    ErrorType.permissionDenied =>
+      '\uAD8C\uD55C\uC774 \uAC70\uBD80\uB418\uC5C8\uC2B5\uB2C8\uB2E4. '
+          '\uC124\uC815\uC5D0\uC11C \uAD8C\uD55C\uC744 \uD5C8\uC6A9\uD574\uC8FC\uC138\uC694.',
+    ErrorType.invalidAction =>
+      '\uC798\uBABB\uB41C \uBA85\uB839\uC785\uB2C8\uB2E4. '
+          '\uC62C\uBC14\uB978 \uD615\uC2DD\uC73C\uB85C \uB2E4\uC2DC '
+          '\uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
+    ErrorType.missingParameter =>
+      '\uD544\uC218 \uD56D\uBAA9\uC774 \uB204\uB77D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+    ErrorType.cancelled =>
+      '\uC0AC\uC6A9\uC790\uAC00 \uC791\uC5C5\uC744 \uCDE8\uC18C\uD588\uC2B5\uB2C8\uB2E4.',
+    ErrorType.generic =>
+      '\uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4. '
+          '\uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.',
+  };
 
   String _retryPromptNudge(String toolName, ErrorType type) {
     switch (type) {

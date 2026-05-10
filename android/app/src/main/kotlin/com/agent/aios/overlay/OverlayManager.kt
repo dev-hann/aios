@@ -18,6 +18,7 @@ class OverlayManager(
 
     private var floatingButton: FloatingButtonView? = null
     private var chatOverlay: ChatOverlayView? = null
+    private var statusOverlay: StatusOverlayView? = null
     private var overlayChannel: MethodChannel? = null
     private var isOverlayVisible = false
 
@@ -36,6 +37,15 @@ class OverlayManager(
                     "updateResult" -> {
                         val text = call.arguments as? String ?: ""
                         showResult(text)
+                        result.success(true)
+                    }
+                    "showStatus" -> {
+                        val text = call.arguments as? String ?: ""
+                        showStatus(text)
+                        result.success(true)
+                    }
+                    "hideStatus" -> {
+                        hideStatus()
                         result.success(true)
                     }
                     "isOverlayPermissionGranted" -> {
@@ -75,6 +85,7 @@ class OverlayManager(
     }
 
     private fun stopOverlay() {
+        hideStatus()
         chatOverlay?.removeFromWindow()
         chatOverlay = null
         floatingButton?.removeFromWindow()
@@ -105,6 +116,20 @@ class OverlayManager(
             it.showResult(text)
             it.hideLoading()
         }
+    }
+
+    private fun showStatus(text: String) {
+        if (!Settings.canDrawOverlays(context)) return
+        if (statusOverlay == null) {
+            statusOverlay = StatusOverlayView(context).also { it.addToWindow() }
+        }
+        statusOverlay?.updateText(text)
+        Log.d(TAG, "Status: $text")
+    }
+
+    private fun hideStatus() {
+        statusOverlay?.removeFromWindow()
+        statusOverlay = null
     }
 
     private fun sendToFlutter(text: String) {

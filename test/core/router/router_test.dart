@@ -31,9 +31,9 @@ void main() {
       expect(routes.any((r) => r.path == '/settings'), isTrue);
     });
 
-    test('routerProvider_hasModelManagementRoute', () {
+    test('routerProvider_hasProviderSettingsRoute', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
-      expect(routes.any((r) => r.path == '/settings/model'), isTrue);
+      expect(routes.any((r) => r.path == '/settings/provider'), isTrue);
     });
 
     test('routerProvider_hasInferenceSettingsRoute', () {
@@ -58,24 +58,27 @@ void main() {
       expect(settingsRoute.builder, isNotNull);
     });
 
-    test('modelManagementRoute_hasBuilder', () {
+    test('providerSettingsRoute_hasBuilder', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
-      final modelRoute =
-          routes.firstWhere((r) => r.path == '/settings/model');
-      expect(modelRoute.builder, isNotNull);
+      final providerRoute = routes.firstWhere(
+        (r) => r.path == '/settings/provider',
+      );
+      expect(providerRoute.builder, isNotNull);
     });
 
     test('inferenceSettingsRoute_hasBuilder', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
-      final inferenceRoute =
-          routes.firstWhere((r) => r.path == '/settings/inference');
+      final inferenceRoute = routes.firstWhere(
+        (r) => r.path == '/settings/inference',
+      );
       expect(inferenceRoute.builder, isNotNull);
     });
 
     test('permissionsRoute_hasBuilder', () {
       final routes = router.configuration.routes.whereType<GoRoute>();
-      final permRoute =
-          routes.firstWhere((r) => r.path == '/settings/permissions');
+      final permRoute = routes.firstWhere(
+        (r) => r.path == '/settings/permissions',
+      );
       expect(permRoute.builder, isNotNull);
     });
   });

@@ -1,91 +1,92 @@
 import 'package:aios/agent/tools/notepad_tool.dart';
+import 'mock_note_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late NotePadTool tool;
-  late Map<String, String> notes;
+  late MockNoteRepository noteRepo;
 
   setUp(() {
-    notes = {};
-    tool = NotePadTool(notes);
+    noteRepo = MockNoteRepository();
+    tool = NotePadTool(noteRepo);
   });
 
   group('execute_save', () {
     test('execute_saveWithKeyAndValue_succeeds', () async {
-      final result =
-          await tool.execute('{"action": "save", "key": "test", "value": "hello"}');
-      expect(result, "Saved note 'test'");
-      expect(notes['test'], 'hello');
+      final result = await tool.execute(
+        '{"action": "save", "key": "test", "value": "hello"}',
+      );
+      expect(result.output, "Saved note 'test'");
+      expect(noteRepo['test'], 'hello');
     });
 
     test('execute_saveWithoutKey_returnsError', () async {
       final result = await tool.execute('{"action": "save", "value": "hello"}');
-      expect(result, "Error: 'key' required");
+      expect(result.toContent(), "Error: 'key' required");
     });
 
     test('execute_saveOverwritesExistingNote_succeeds', () async {
-      notes['test'] = 'old';
-      await tool.execute(
-          '{"action": "save", "key": "test", "value": "new"}');
-      expect(notes['test'], 'new');
+      noteRepo.setNote('test', 'old');
+      await tool.execute('{"action": "save", "key": "test", "value": "new"}');
+      expect(noteRepo['test'], 'new');
     });
   });
 
   group('execute_get', () {
     test('execute_getExistingNote_returnsValue', () async {
-      notes['test'] = 'hello';
+      noteRepo.setNote('test', 'hello');
       final result = await tool.execute('{"action": "get", "key": "test"}');
-      expect(result, 'hello');
+      expect(result.output, 'hello');
     });
 
     test('execute_getNonExistentNote_returnsNotFound', () async {
       final result = await tool.execute('{"action": "get", "key": "missing"}');
-      expect(result, "Note 'missing' not found");
+      expect(result.output, "Note 'missing' not found");
     });
   });
 
   group('execute_list', () {
     test('execute_listEmptyNotes_returnsNoNotes', () async {
       final result = await tool.execute('{"action": "list"}');
-      expect(result, 'No notes saved');
+      expect(result.output, 'No notes saved');
     });
 
     test('execute_listWithNotes_returnsFormattedList', () async {
-      notes['a'] = 'alpha';
-      notes['b'] = 'beta';
+      noteRepo.seed({'a': 'alpha', 'b': 'beta'});
       final result = await tool.execute('{"action": "list"}');
-      expect(result.contains('- a: alpha'), isTrue);
-      expect(result.contains('- b: beta'), isTrue);
+      expect(result.output!.contains('- a: alpha'), isTrue);
+      expect(result.output!.contains('- b: beta'), isTrue);
     });
   });
 
   group('execute_delete', () {
     test('execute_deleteExistingNote_succeeds', () async {
-      notes['test'] = 'hello';
+      noteRepo.setNote('test', 'hello');
       final result = await tool.execute('{"action": "delete", "key": "test"}');
-      expect(result, "Deleted note 'test'");
-      expect(notes.containsKey('test'), isFalse);
+      expect(result.output, "Deleted note 'test'");
+      expect(noteRepo.containsKey('test'), isFalse);
     });
 
     test('execute_deleteNonExistentNote_returnsNotFound', () async {
-      final result =
-          await tool.execute('{"action": "delete", "key": "missing"}');
-      expect(result, "Note 'missing' not found");
+      final result = await tool.execute(
+        '{"action": "delete", "key": "missing"}',
+      );
+      expect(result.output, "Note 'missing' not found");
     });
   });
 
   group('execute_unknownAction', () {
     test('execute_unknownAction_returnsErrorWithAvailableActions', () async {
       final result = await tool.execute('{"action": "unknown"}');
-      expect(result, contains("Error: Unknown action 'unknown'"));
-      expect(result, contains('save'));
+      expect(result.toContent(), contains("Error: Unknown action 'unknown'"));
+      expect(result.toContent(), contains('save'));
     });
   });
 
   group('execute_malformedInput', () {
     test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json');
-      expect(result.startsWith('Error:'), isTrue);
+      expect(result.isError, isTrue);
     });
   });
 

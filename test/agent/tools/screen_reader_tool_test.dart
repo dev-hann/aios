@@ -17,7 +17,7 @@ void main() {
       test('execute_returnsScreenTextFromPlatform', () async {
         mockContext.setInvokeResult('Home Screen\nSettings Button');
         final result = await tool.execute('{}', mockContext);
-        expect(result, 'Home Screen\nSettings Button');
+        expect(result.output, 'Home Screen\nSettings Button');
       });
 
       test('execute_invokesGetScreenTextMethod', () async {
@@ -32,13 +32,13 @@ void main() {
       test('execute_nullResult_returnsError', () async {
         mockContext.setInvokeResult(null);
         final result = await tool.execute('{}', mockContext);
-        expect(result, 'Error: No result');
+        expect(result.toContent(), 'Error: No result');
       });
 
       test('execute_platformException_returnsErrorString', () async {
         mockContext.onInvokeMethod = (_, __) => throw Exception('fail');
         final result = await tool.execute('{}', mockContext);
-        expect(result, contains('Error:'));
+        expect(result.toContent(), contains('Error:'));
       });
     });
 
@@ -80,50 +80,43 @@ void main() {
     setUp(() {
       tool = ScreenFindTool();
       mockContext = MockToolContext()
-        ..setInvokeResult(
-          '[{"text": "Settings", "bounds": "[0,0][100,50]"}]',
-        );
+        ..setInvokeResult('[{"text": "Settings", "bounds": "[0,0][100,50]"}]');
     });
 
     group('execute_happyPath', () {
       test('execute_findWithText_invokesFindNodesByText', () async {
         await tool.execute('{"text": "Settings"}', mockContext);
         expect(mockContext.methodCalls.last.method, 'findNodesByText');
-        expect(
-          mockContext.methodCalls.last.arguments,
-          {'text': 'Settings'},
-        );
+        expect(mockContext.methodCalls.last.arguments, {'text': 'Settings'});
       });
 
       test('execute_nullResult_returnsNoElementsFound', () async {
         mockContext.setInvokeResult(null);
-        final result =
-            await tool.execute('{"text": "test"}', mockContext);
-        expect(result, 'No elements found');
+        final result = await tool.execute('{"text": "test"}', mockContext);
+        expect(result.output, 'No elements found');
       });
     });
 
     group('execute_errorHandling', () {
       test('execute_missingText_returnsError', () async {
         final result = await tool.execute('{}', mockContext);
-        expect(result, contains("'text' required"));
+        expect(result.toContent(), contains("'text' required"));
       });
 
       test('execute_emptyText_returnsError', () async {
         final result = await tool.execute('{"text": ""}', mockContext);
-        expect(result, contains("'text' required"));
+        expect(result.toContent(), contains("'text' required"));
       });
 
       test('execute_malformedJson_returnsError', () async {
         final result = await tool.execute('not json', mockContext);
-        expect(result, contains('Error:'));
+        expect(result.toContent(), contains('Error:'));
       });
 
       test('execute_platformException_returnsErrorString', () async {
         mockContext.onInvokeMethod = (_, __) => throw Exception('fail');
-        final result =
-            await tool.execute('{"text": "test"}', mockContext);
-        expect(result, contains('Error:'));
+        final result = await tool.execute('{"text": "test"}', mockContext);
+        expect(result.toContent(), contains('Error:'));
       });
     });
 

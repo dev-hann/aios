@@ -32,25 +32,25 @@ void main() {
   group('execute_errorHandling', () {
     test('execute_missingQuery_returnsError', () async {
       final result = await tool.execute('{}', mockContext);
-      expect(result, contains("'query' required"));
+      expect(result.toContent(), contains("'query' required"));
     });
 
     test('execute_emptyQuery_returnsError', () async {
       final result = await tool.execute('{"query": "  "}', mockContext);
-      expect(result, contains("'query' required"));
+      expect(result.toContent(), contains("'query' required"));
     });
 
     test('execute_nullResult_returnsNoContactsFound', () async {
       mockContext.setInvokeResult(null);
       final result = await tool.execute('{"query": "Kim"}', mockContext);
-      expect(result, 'No contacts found');
+      expect(result.output, 'No contacts found');
     });
   });
 
   group('execute_malformedInput', () {
     test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json', mockContext);
-      expect(result, contains("'query' required"));
+      expect(result.toContent(), contains("'query' required"));
     });
   });
 

@@ -2,40 +2,33 @@ import 'package:aios/agent/tools/calculator_tool.dart';
 import 'package:aios/agent/tools/device_info_tool.dart';
 import 'package:aios/agent/tools/notepad_tool.dart';
 import 'package:aios/agent/tools/timer_tool.dart';
-import 'package:aios/data/providers/real_llama_engine_provider.dart';
+import 'package:aios/data/providers/remote/llm_remote_engine.dart';
 import 'package:aios/data/providers/tool_context_impl.dart';
-import 'package:aios/data/repositories/llm_repository_impl.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/agent/tool_context.dart';
-import 'package:aios/domain/entities/agent_models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'model_test.dart' show ensureModelAvailable, modelPath, modelReady;
+import 'model_test.dart'
+    show ensureProviderAvailable, providerReady, testConfig;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    await ensureModelAvailable();
+    await ensureProviderAvailable();
   });
 
   group('Tool execution via Agent (LLM + Tool E2E)', () {
-    late RealLlamaEngineProvider engineProvider;
-    late LlmRepositoryImpl repository;
+    late LlmRemoteEngine engine;
     late ReactStrategy strategy;
 
     setUp(() {
-      engineProvider = RealLlamaEngineProvider();
-      repository = LlmRepositoryImpl(engineProvider);
-    });
-
-    tearDown(() async {
-      repository.dispose();
-      await engineProvider.releaseModel();
+      if (!providerReady) return;
+      engine = LlmRemoteEngine(testConfig!);
     });
 
     ReactStrategy _createStrategy({
@@ -43,8 +36,6 @@ void main() {
       Map<String, ExtendedTool>? extendedTools,
       ToolContext? toolContext,
     }) {
-      final engine = engineProvider.engine;
-      if (engine == null) throw StateError('Model not loaded');
       return ReactStrategy(
         engine: engine,
         toolContext: toolContext,
@@ -55,9 +46,8 @@ void main() {
 
     group('calculator', () {
       testWidgets('agent_selectsCalculator_forMath', (tester) async {
-        if (!modelReady) return;
+        if (!providerReady) return;
 
-        await repository.loadModel(modelPath, contextSize: 512);
         strategy = _createStrategy(
           basicTools: {'calculator': CalculatorTool()},
         );
@@ -72,7 +62,9 @@ void main() {
           (s) => s.type == 'action' && s.toolName == 'calculator',
         );
         debugPrint('Calculator used: $usedCalculator');
-        debugPrint('Steps: ${result.steps.map((s) => '${s.type}:${s.toolName}').join(' -> ')}');
+        debugPrint(
+          'Steps: ${result.steps.map((s) => '${s.type}:${s.toolName}').join(' -> ')}',
+        );
 
         expect(result.steps, isNotEmpty);
         expect(result.success, isTrue);
@@ -81,13 +73,10 @@ void main() {
 
     group('notepad', () {
       testWidgets('agent_selectsNotepad_forWriteNote', (tester) async {
-        if (!modelReady) return;
+        if (!providerReady) return;
 
-        await repository.loadModel(modelPath, contextSize: 512);
         final notes = <String, String>{};
-        strategy = _createStrategy(
-          basicTools: {'notepad': NotePadTool(notes)},
-        );
+        strategy = _createStrategy(basicTools: {'notepad': NotePadTool(notes)});
 
         final result = await strategy.execute(
           'Write a note: buy milk',
@@ -106,13 +95,10 @@ void main() {
       });
 
       testWidgets('agent_selectsNotepad_forListNotes', (tester) async {
-        if (!modelReady) return;
+        if (!providerReady) return;
 
-        await repository.loadModel(modelPath, contextSize: 512);
         final notes = <String, String>{'test': 'hello world'};
-        strategy = _createStrategy(
-          basicTools: {'notepad': NotePadTool(notes)},
-        );
+        strategy = _createStrategy(basicTools: {'notepad': NotePadTool(notes)});
 
         final result = await strategy.execute(
           'Show my notes',
@@ -132,13 +118,10 @@ void main() {
 
     group('timer', () {
       testWidgets('agent_selectsTimer_forSetTimer', (tester) async {
-        if (!modelReady) return;
+        if (!providerReady) return;
 
-        await repository.loadModel(modelPath, contextSize: 512);
         final timers = <String, TimerEntry>{};
-        strategy = _createStrategy(
-          basicTools: {'timer': TimerTool(timers)},
-        );
+        strategy = _createStrategy(basicTools: {'timer': TimerTool(timers)});
 
         final result = await strategy.execute(
           'Set a timer for 60 seconds',
@@ -159,9 +142,7 @@ void main() {
 
     group('device_info (ExtendedTool)', () {
       testWidgets('agent_selectsDeviceInfo_forBatteryQuery', (tester) async {
-        if (!modelReady) return;
-
-        await repository.loadModel(modelPath, contextSize: 512);
+        if (!providerReady) return;
 
         final toolContext = ToolContextImpl();
         strategy = _createStrategy(
@@ -179,7 +160,9 @@ void main() {
           (s) => s.type == 'action' && s.toolName == 'device_info',
         );
         debugPrint('Device info used: $usedDeviceInfo');
-        debugPrint('Steps: ${result.steps.map((s) => '${s.type}:${s.toolName}').join(' -> ')}');
+        debugPrint(
+          'Steps: ${result.steps.map((s) => '${s.type}:${s.toolName}').join(' -> ')}',
+        );
 
         expect(result.steps, isNotEmpty);
         expect(result.success, isTrue);
@@ -188,9 +171,8 @@ void main() {
 
     group('plain text answer (no tool)', () {
       testWidgets('agent_respondsDirectly_forGreeting', (tester) async {
-        if (!modelReady) return;
+        if (!providerReady) return;
 
-        await repository.loadModel(modelPath, contextSize: 512);
         final notes = <String, String>{};
         final timers = <String, TimerEntry>{};
         strategy = _createStrategy(
@@ -216,10 +198,11 @@ void main() {
     });
 
     group('multi-tool chaining', () {
-      testWidgets('agent_usesMultipleTools_forSequentialRequest', (tester) async {
-        if (!modelReady) return;
+      testWidgets('agent_usesMultipleTools_forSequentialRequest', (
+        tester,
+      ) async {
+        if (!providerReady) return;
 
-        await repository.loadModel(modelPath, contextSize: 1024);
         final notes = <String, String>{};
         strategy = _createStrategy(
           basicTools: {

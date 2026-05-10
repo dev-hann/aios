@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class PhoneCallerTool extends ExtendedTool {
   static const _tag = 'AIOS-PhoneCaller';
@@ -14,8 +15,7 @@ class PhoneCallerTool extends ExtendedTool {
       'Call or dial a phone number. Args: {action: call|dial, number}';
 
   @override
-  String get parameters =>
-      '{"action": "call|dial", "number": "string"}';
+  String get parameters => '{"action": "call|dial", "number": "string"}';
 
   @override
   String get toolPrompt =>
@@ -31,19 +31,24 @@ class PhoneCallerTool extends ExtendedTool {
       '- Respond with user language';
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);
       final action = json['action']?.toString().toLowerCase() ?? 'dial';
       final number = json['number']?.toString().trim() ?? '';
-      if (number.isEmpty) return "Error: 'number' required";
-      return await toolContext.invokeMethod(
-            'makeCall',
-            {'action': action, 'number': number},
-          ) ??
-          'Error: phone call failed - no response from platform';
+      if (number.isEmpty) return const ToolResult.err("'number' required");
+      final result = await toolContext.invokeMethod('makeCall', {
+        'action': action,
+        'number': number,
+      });
+      if (result == null) {
+        return const ToolResult.err(
+          'phone call failed - no response from platform',
+        );
+      }
+      return ToolResult.ok(result);
     } on Object catch (e) {
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 

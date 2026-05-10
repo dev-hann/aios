@@ -21,55 +21,35 @@ void main() {
     test('execute_listDefault_invokesGetNotifications', () async {
       await tool.execute('{"action": "list"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'getNotifications');
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['max_count'],
-        20,
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['max_count'], 20);
     });
 
     test('execute_listWithMaxCount_passesMaxCount', () async {
-      await tool.execute(
-          '{"action": "list", "max_count": 5}', mockContext);
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['max_count'],
-        5,
-      );
+      await tool.execute('{"action": "list", "max_count": 5}', mockContext);
+      expect((mockContext.methodCalls.last.arguments as Map)['max_count'], 5);
     });
 
     test('execute_listWithAppFilter_passesAppFilter', () async {
-      await tool.execute(
-          '{"action": "list", "app": "kakao"}', mockContext);
+      await tool.execute('{"action": "list", "app": "kakao"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'getNotifications');
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['app'],
-        'kakao',
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['app'], 'kakao');
     });
   });
 
   group('execute_read', () {
     test('execute_readWithApp_invokesGetNotificationsWithApp', () async {
-      await tool.execute(
-          '{"action": "read", "app": "kakao"}', mockContext);
+      await tool.execute('{"action": "read", "app": "kakao"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'getNotifications');
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['app'],
-        'kakao',
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['app'], 'kakao');
     });
 
     test('execute_readWithMaxCount_passesMaxCount', () async {
       await tool.execute(
-          '{"action": "read", "app": "gmail", "max_count": 3}',
-          mockContext);
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['max_count'],
-        3,
+        '{"action": "read", "app": "gmail", "max_count": 3}',
+        mockContext,
       );
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['app'],
-        'gmail',
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['max_count'], 3);
+      expect((mockContext.methodCalls.last.arguments as Map)['app'], 'gmail');
     });
   });
 
@@ -77,10 +57,7 @@ void main() {
     test('execute_noAction_defaultsToList', () async {
       await tool.execute('{}', mockContext);
       expect(mockContext.methodCalls.last.method, 'getNotifications');
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['max_count'],
-        20,
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['max_count'], 20);
     });
 
     test('execute_emptyAction_defaultsToList', () async {
@@ -92,19 +69,12 @@ void main() {
   group('execute_customMaxCount', () {
     test('execute_maxCountAsString_parsesCorrectly', () async {
       await tool.execute('{"max_count": "10"}', mockContext);
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['max_count'],
-        10,
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['max_count'], 10);
     });
 
     test('execute_maxCountAsStringInList_parsesCorrectly', () async {
-      await tool.execute(
-          '{"action": "list", "max_count": "5"}', mockContext);
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['max_count'],
-        5,
-      );
+      await tool.execute('{"action": "list", "max_count": "5"}', mockContext);
+      expect((mockContext.methodCalls.last.arguments as Map)['max_count'], 5);
     });
   });
 
@@ -112,32 +82,27 @@ void main() {
     test('execute_nullResult_returnsNoNotifications', () async {
       mockContext.setInvokeResult(null);
       final result = await tool.execute('{}', mockContext);
-      expect(result, 'No notifications');
+      expect(result.output, 'No notifications');
     });
 
-    test('execute_nullResultWithAppFilter_returnsNoNotifications',
-        () async {
+    test('execute_nullResultWithAppFilter_returnsNoNotifications', () async {
       mockContext.setInvokeResult(null);
-      final result =
-          await tool.execute('{"app": "kakao"}', mockContext);
-      expect(result, 'No notifications');
+      final result = await tool.execute('{"app": "kakao"}', mockContext);
+      expect(result.output, 'No notifications');
     });
 
     test('execute_platformException_returnsErrorString', () async {
       mockContext.onInvokeMethod = (_, __) => throw Exception('fail');
       final result = await tool.execute('{}', mockContext);
-      expect(result, contains('Error:'));
+      expect(result.toContent(), contains('Error:'));
     });
   });
 
   group('execute_malformedInput', () {
     test('execute_malformedJson_usesDefaults', () async {
       final result = await tool.execute('not json', mockContext);
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['max_count'],
-        20,
-      );
-      expect(result, isNot(contains('Error')));
+      expect((mockContext.methodCalls.last.arguments as Map)['max_count'], 20);
+      expect(result.toContent(), isNot(contains('Error')));
     });
   });
 
@@ -148,13 +113,9 @@ void main() {
     });
 
     test('execute_mixedCaseAction_treatedAsRead', () async {
-      await tool.execute('{"action": "Read", "app": "kakao"}',
-          mockContext);
+      await tool.execute('{"action": "Read", "app": "kakao"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'getNotifications');
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['app'],
-        'kakao',
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['app'], 'kakao');
     });
   });
 

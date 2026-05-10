@@ -19,7 +19,7 @@ dependencies:
   freezed_annotation: ^2.4.4
   go_router: ^14.8.1
   json_annotation: ^4.9.0
-  llamadart: ^0.6.11
+
   open_file: ^3.5.11
   package_info_plus: ^8.3.0
   path: ^1.9.1

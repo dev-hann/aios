@@ -40,9 +40,7 @@ void main() {
       final firstEmission = await stream.first;
       expect(firstEmission, isEmpty);
 
-      await db.insertConversation(
-        ConversationsCompanion.insert(id: 'conv-1'),
-      );
+      await db.insertConversation(ConversationsCompanion.insert(id: 'conv-1'));
 
       final secondEmission = await stream.first;
       expect(secondEmission, hasLength(1));
@@ -50,9 +48,7 @@ void main() {
     });
 
     test('deleteConversation_removesConversation', () async {
-      await db.insertConversation(
-        ConversationsCompanion.insert(id: 'conv-1'),
-      );
+      await db.insertConversation(ConversationsCompanion.insert(id: 'conv-1'));
       expect(await db.getAllConversations(), hasLength(1));
 
       await db.deleteConversation('conv-1');
@@ -68,10 +64,7 @@ void main() {
         ),
       );
       await db.insertConversation(
-        ConversationsCompanion.insert(
-          id: 'conv-2',
-          updatedAt: Value(now),
-        ),
+        ConversationsCompanion.insert(id: 'conv-2', updatedAt: Value(now)),
       );
 
       final conversations = await db.getAllConversations();
@@ -84,9 +77,7 @@ void main() {
     const convId = 'conv-1';
 
     setUp(() async {
-      await db.insertConversation(
-        ConversationsCompanion.insert(id: convId),
-      );
+      await db.insertConversation(ConversationsCompanion.insert(id: convId));
     });
 
     test('insertMessage_and_getMessages', () async {
@@ -212,9 +203,7 @@ void main() {
 
   group('deleteAllData', () {
     test('deleteAllData_clearsEverything', () async {
-      await db.insertConversation(
-        ConversationsCompanion.insert(id: 'conv-1'),
-      );
+      await db.insertConversation(ConversationsCompanion.insert(id: 'conv-1'));
       await db.insertMessage(
         MessagesCompanion.insert(
           id: 'msg-1',
@@ -236,26 +225,27 @@ void main() {
 
   group('deleteConversation_cascadesMessages', () {
     test(
-        'deleteConversation_doesNotCascade_manuallyDeleteMessagesFirst',
-        () async {
-      await db.insertConversation(
-        ConversationsCompanion.insert(id: 'conv-1'),
-      );
-      await db.insertMessage(
-        MessagesCompanion.insert(
-          id: 'msg-1',
-          conversationId: 'conv-1',
-          role: 'user',
-          content: 'Hello',
-        ),
-      );
+      'deleteConversation_doesNotCascade_manuallyDeleteMessagesFirst',
+      () async {
+        await db.insertConversation(
+          ConversationsCompanion.insert(id: 'conv-1'),
+        );
+        await db.insertMessage(
+          MessagesCompanion.insert(
+            id: 'msg-1',
+            conversationId: 'conv-1',
+            role: 'user',
+            content: 'Hello',
+          ),
+        );
 
-      await db.deleteMessages('conv-1');
-      await db.deleteConversation('conv-1');
+        await db.deleteMessages('conv-1');
+        await db.deleteConversation('conv-1');
 
-      expect(await db.getAllConversations(), isEmpty);
-      expect(await db.getMessages('conv-1'), isEmpty);
-    });
+        expect(await db.getAllConversations(), isEmpty);
+        expect(await db.getMessages('conv-1'), isEmpty);
+      },
+    );
   });
 }
 

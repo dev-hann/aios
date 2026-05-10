@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class NotificationTool extends ExtendedTool {
   static const _tag = 'AIOS-Notification';
@@ -35,24 +36,20 @@ class NotificationTool extends ExtendedTool {
       '- Respond with user language';
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);
       final action = json['action']?.toString().toLowerCase() ?? 'list';
       final app = json['app']?.toString() ?? '';
       final maxCount = _parseInt(json['max_count']) ?? 20;
 
-      return await _handleRead(
-        toolContext,
-        maxCount: maxCount,
-        app: app,
-      );
+      return await _handleRead(toolContext, maxCount: maxCount, app: app);
     } on Object catch (e) {
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 
-  Future<String> _handleRead(
+  Future<ToolResult> _handleRead(
     ToolContext toolContext, {
     int maxCount = 20,
     String app = '',
@@ -63,11 +60,10 @@ class NotificationTool extends ExtendedTool {
       methodArgs['app'] = app;
     }
     final result = await toolContext.invokeMethod(
-          'getNotifications',
-          methodArgs,
-        ) ??
-        'No notifications';
-    return result;
+      'getNotifications',
+      methodArgs,
+    );
+    return ToolResult.ok(result ?? 'No notifications');
   }
 
   int? _parseInt(dynamic value) {

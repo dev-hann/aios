@@ -1,4 +1,5 @@
 import 'package:aios/core/theme/app_colors.dart';
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/entities/conversation.dart';
 import 'package:aios/presentation/providers/chat_providers.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
@@ -49,8 +50,11 @@ class SessionDrawer extends ConsumerWidget {
                 ),
                 error: (e, _) => Center(
                   child: Text(
-                    'Error loading conversations',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    Strings.drawer.errorLoadConversations,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ),
@@ -100,7 +104,7 @@ class _DrawerHeader extends StatelessWidget {
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
-              'AIOS',
+              Strings.appName,
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 18,
@@ -114,7 +118,7 @@ class _DrawerHeader extends StatelessWidget {
               color: AppColors.primary,
               size: 24,
             ),
-            tooltip: '새 대화',
+            tooltip: Strings.chat.newConversation,
             onPressed: onNewChat,
           ),
         ],
@@ -141,11 +145,8 @@ class _ConversationList extends StatelessWidget {
     if (conversations.isEmpty) {
       return Center(
         child: Text(
-          '대화가 없습니다',
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13,
-          ),
+          Strings.drawer.noConversations,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
       );
     }
@@ -174,21 +175,21 @@ class _ConversationList extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        title: const Text('대화 삭제'),
-        content: Text('"${conv.title}" 대화를 삭제하시겠습니까?'),
+        title: Text(Strings.drawer.deleteConversation),
+        content: Text(Strings.drawer.deleteConfirm(conv.title)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('취소'),
+            child: Text(Strings.drawer.settings),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
               onDelete(conv.id);
             },
-            child: const Text(
-              '삭제',
-              style: TextStyle(color: AppColors.error),
+            child: Text(
+              Strings.drawer.delete,
+              style: const TextStyle(color: AppColors.error),
             ),
           ),
         ],
@@ -216,6 +217,9 @@ class _ConversationItem extends StatelessWidget {
       dense: true,
       selected: isActive,
       selectedTileColor: AppColors.surfaceElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
       leading: Icon(
         Icons.chat_bubble_outline,
         size: 18,
@@ -235,7 +239,7 @@ class _ConversationItem extends StatelessWidget {
           ? Text(
               _formatDate(conversation.updatedAt!),
               style: TextStyle(
-                color: AppColors.textSecondary.withOpacity(0.6),
+                color: AppColors.textSecondary.withValues(alpha: 0.6),
                 fontSize: 11,
               ),
             )
@@ -248,7 +252,7 @@ class _ConversationItem extends StatelessWidget {
                 size: 16,
                 color: AppColors.textSecondary,
               ),
-              tooltip: '삭제',
+              tooltip: Strings.drawer.delete,
               onPressed: onDelete,
             ),
       onTap: onSelect,
@@ -261,7 +265,7 @@ class _ConversationItem extends StatelessWidget {
     if (diff.inDays == 0) {
       return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (diff.inDays < 7) {
-      return '${diff.inDays}일 전';
+      return Strings.daysAgo(diff.inDays);
     } else {
       return '${date.month}/${date.day}';
     }
@@ -282,12 +286,9 @@ class _DrawerFooter extends StatelessWidget {
         size: 20,
         color: AppColors.textSecondary,
       ),
-      title: const Text(
-        '설정',
-        style: TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 13,
-        ),
+      title: Text(
+        Strings.drawer.settings,
+        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
       ),
       onTap: onSettings,
     );

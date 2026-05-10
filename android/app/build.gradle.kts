@@ -67,7 +67,3 @@ android {
         }
     }
 }
-
-dependencies {
-    implementation(files("libs/llama-cpp-dart-hexagon.aar"))
-}

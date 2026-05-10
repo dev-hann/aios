@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:aios/domain/agent/agent_tool.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class CalculatorTool extends AgentTool {
   static const _tag = 'AIOS-CalculatorTool';
@@ -9,8 +10,7 @@ class CalculatorTool extends AgentTool {
   String get name => 'calculator';
 
   @override
-  String get description =>
-      'Evaluate math expression. Args: {expression}';
+  String get description => 'Evaluate math expression. Args: {expression}';
 
   @override
   String get parameters =>
@@ -28,17 +28,18 @@ class CalculatorTool extends AgentTool {
       '- Respond with user language';
 
   @override
-  Future<String> execute(String args) async {
+  Future<ToolResult> execute(String args) async {
     try {
       final json = _tryParseJson(args);
       final expr = json['expression']?.toString() ?? '';
-      final sanitized =
-          expr.replaceAll(RegExp(r'[^0-9+\-*/.()% ]'), '');
-      if (sanitized.isEmpty) return "Error: 'expression' required";
+      final sanitized = expr.replaceAll(RegExp(r'[^0-9+\-*/.()% ]'), '');
+      if (sanitized.isEmpty) {
+        return const ToolResult.err("'expression' required");
+      }
       final result = _evalExpr(sanitized);
-      return result.toStringAsFixed(4);
+      return ToolResult.ok(result.toStringAsFixed(4));
     } on Object catch (e) {
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 
@@ -73,8 +74,7 @@ class CalculatorTool extends AgentTool {
         ops.removeLast();
       } else if (RegExp('[0-9.]').hasMatch(c)) {
         final sb = StringBuffer();
-        while (i < tokens.length &&
-            RegExp('[0-9.]').hasMatch(tokens[i])) {
+        while (i < tokens.length && RegExp('[0-9.]').hasMatch(tokens[i])) {
           sb.write(tokens[i]);
           i++;
         }

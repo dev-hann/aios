@@ -21,11 +21,11 @@ class UpdateRepositoryImpl implements UpdateRepository {
     required Dio dio,
     Future<String> Function()? getCachePath,
     Future<OpenResult> Function(String path)? openFile,
-  })  : _api = api,
-        _currentVersion = currentVersion,
-        _dio = dio,
-        _getCachePath = getCachePath ?? _defaultCachePath,
-        _openFile = openFile ?? _defaultOpenFile;
+  }) : _api = api,
+       _currentVersion = currentVersion,
+       _dio = dio,
+       _getCachePath = getCachePath ?? _defaultCachePath,
+       _openFile = openFile ?? _defaultOpenFile;
 
   static Future<String> _defaultCachePath() async {
     final dir = await getTemporaryDirectory();
@@ -55,14 +55,16 @@ class UpdateRepositoryImpl implements UpdateRepository {
         return const UpdateResult.error('No APK asset found in release');
       }
 
-      return UpdateResult.success(UpdateInfo(
-        currentVersion: _currentVersion,
-        latestVersion: latestVersion,
-        downloadUrl: apkAsset.browserDownloadUrl,
-        fileSize: apkAsset.size,
-        releaseNotes: release.body,
-        publishedAt: DateTime.parse(release.publishedAt),
-      ));
+      return UpdateResult.success(
+        UpdateInfo(
+          currentVersion: _currentVersion,
+          latestVersion: latestVersion,
+          downloadUrl: apkAsset.browserDownloadUrl,
+          fileSize: apkAsset.size,
+          releaseNotes: release.body,
+          publishedAt: DateTime.parse(release.publishedAt),
+        ),
+      );
     } catch (e) {
       print('[AIOS-UpdateRepo] ERROR: checkForUpdate failed: $e');
       return UpdateResult.error(e.toString());
@@ -106,7 +108,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
     if (!await file.exists()) return false;
     try {
       final result = await _openFile(apkPath);
-        print('[AIOS-UpdateRepo] open_file result: ${result.type}');
+      print('[AIOS-UpdateRepo] open_file result: ${result.type}');
       return result.type == ResultType.done;
     } catch (e) {
       print('[AIOS-UpdateRepo] ERROR: installApk failed: $e');

@@ -7,15 +7,10 @@ class RiskClassifier {
 
   ToolRisk classify(String toolName, String args) {
     final json = _tryParseJson(args);
-    final action =
-        json['action']?.toString().toLowerCase() ?? '';
+    final action = json['action']?.toString().toLowerCase() ?? '';
 
     return switch (toolName) {
-      'calculator' ||
-      'timer' ||
-      'device_info' ||
-      'notepad' =>
-        ToolRisk.safe,
+      'calculator' || 'timer' || 'device_info' || 'notepad' => ToolRisk.safe,
       'screen_reader' || 'screen_find' => ToolRisk.safe,
       'notification_reader' => ToolRisk.safe,
       'contact_search' => ToolRisk.safe,
@@ -28,16 +23,15 @@ class RiskClassifier {
   }
 
   ToolRisk _classifyAppLauncher(String action) => switch (action) {
-        'open_settings' || 'list_apps' => ToolRisk.low,
-        'open_app' || 'open_url' => ToolRisk.high,
-        _ => ToolRisk.low,
-      };
+    'open_settings' || 'list_apps' => ToolRisk.low,
+    'open_app' || 'open_url' => ToolRisk.high,
+    _ => ToolRisk.low,
+  };
 
   ToolRisk _classifyScreenAction(String action, Map<String, dynamic> json) {
     if (action == 'global') return ToolRisk.low;
     if (action == 'type') {
-      final content =
-          json['content']?.toString().toLowerCase() ?? '';
+      final content = json['content']?.toString().toLowerCase() ?? '';
       const sensitive = [
         'password',
         'pin',
@@ -51,25 +45,25 @@ class RiskClassifier {
       if (sensitive.any((s) => content.contains(s))) {
         return ToolRisk.critical;
       }
-      return ToolRisk.high;
+      return ToolRisk.low;
     }
     if (['tap', 'long_click', 'scroll', 'swipe'].contains(action)) {
-      return ToolRisk.high;
+      return ToolRisk.low;
     }
-    return ToolRisk.high;
+    return ToolRisk.low;
   }
 
   ToolRisk _classifySmsSender(String action) => switch (action) {
-        'send' => ToolRisk.critical,
-        'read' => ToolRisk.high,
-        _ => ToolRisk.high,
-      };
+    'send' => ToolRisk.critical,
+    'read' => ToolRisk.high,
+    _ => ToolRisk.high,
+  };
 
   ToolRisk _classifyPhoneCaller(String action) => switch (action) {
-        'call' => ToolRisk.critical,
-        'dial' => ToolRisk.high,
-        _ => ToolRisk.high,
-      };
+    'call' => ToolRisk.critical,
+    'dial' => ToolRisk.high,
+    _ => ToolRisk.high,
+  };
 
   Map<String, dynamic> _tryParseJson(String args) {
     try {

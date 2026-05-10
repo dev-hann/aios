@@ -9,8 +9,7 @@ class MockToolContext implements ToolContext {
 
   final _methodCalls = <({String method, dynamic arguments})>[];
 
-  List<({String method, dynamic arguments})> get methodCalls =>
-      _methodCalls;
+  List<({String method, dynamic arguments})> get methodCalls => _methodCalls;
 
   void setInvokeResult(String? result) {
     onInvokeMethod = (_, __) => result;
@@ -22,6 +21,21 @@ class MockToolContext implements ToolContext {
       if (index < results.length) return results[index++];
       return null;
     };
+  }
+
+  void setMethodResult(String method, String? result) {
+    final previous = onInvokeMethod;
+    onInvokeMethod = (m, args) {
+      if (m == method) return result;
+      return previous?.call(m, args);
+    };
+  }
+
+  ({String method, dynamic arguments})? findCall(String method) {
+    for (final call in _methodCalls) {
+      if (call.method == method) return call;
+    }
+    return null;
   }
 
   @override
@@ -39,4 +53,7 @@ class MockToolContext implements ToolContext {
   Future<bool> isNotificationListenerEnabled() async {
     return onIsNotificationListenerEnabled?.call() ?? true;
   }
+
+  @override
+  Future<void> openAccessibilitySettings() async {}
 }

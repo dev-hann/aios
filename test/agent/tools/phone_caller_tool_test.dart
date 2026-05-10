@@ -9,14 +9,15 @@ void main() {
 
   setUp(() {
     tool = PhoneCallerTool();
-    mockContext = MockToolContext()
-      ..setInvokeResult('OK');
+    mockContext = MockToolContext()..setInvokeResult('OK');
   });
 
   group('execute_happyPath', () {
     test('execute_callAction_invokesMakeCallWithCallAction', () async {
       await tool.execute(
-          '{"action": "call", "number": "01012345678"}', mockContext);
+        '{"action": "call", "number": "01012345678"}',
+        mockContext,
+      );
       expect(mockContext.methodCalls.last.method, 'makeCall');
       final args = mockContext.methodCalls.last.arguments as Map;
       expect(args['action'], 'call');
@@ -25,7 +26,9 @@ void main() {
 
     test('execute_dialAction_invokesMakeCallWithDialAction', () async {
       await tool.execute(
-          '{"action": "dial", "number": "01012345678"}', mockContext);
+        '{"action": "dial", "number": "01012345678"}',
+        mockContext,
+      );
       final args = mockContext.methodCalls.last.arguments as Map;
       expect(args['action'], 'dial');
     });
@@ -40,20 +43,22 @@ void main() {
   group('execute_errorHandling', () {
     test('execute_missingNumber_returnsError', () async {
       final result = await tool.execute('{"action": "call"}', mockContext);
-      expect(result, contains("'number' required"));
+      expect(result.toContent(), contains("'number' required"));
     });
 
     test('execute_emptyNumber_returnsError', () async {
-      final result =
-          await tool.execute('{"action": "call", "number": "  "}', mockContext);
-      expect(result, contains("'number' required"));
+      final result = await tool.execute(
+        '{"action": "call", "number": "  "}',
+        mockContext,
+      );
+      expect(result.toContent(), contains("'number' required"));
     });
   });
 
   group('execute_malformedInput', () {
     test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json', mockContext);
-      expect(result, contains("'number' required"));
+      expect(result.toContent(), contains("'number' required"));
     });
   });
 
@@ -61,8 +66,10 @@ void main() {
     test('execute_nullResult_returnsError', () async {
       mockContext.setInvokeResult(null);
       final result = await tool.execute(
-          '{"action": "call", "number": "010"}', mockContext);
-      expect(result, contains('Error:'));
+        '{"action": "call", "number": "010"}',
+        mockContext,
+      );
+      expect(result.toContent(), contains('Error:'));
     });
   });
 
@@ -102,7 +109,9 @@ void main() {
   group('execute_caseInsensitive', () {
     test('execute_upperCaseCall_treatedAsCall', () async {
       await tool.execute(
-          '{"action": "CALL", "number": "01012345678"}', mockContext);
+        '{"action": "CALL", "number": "01012345678"}',
+        mockContext,
+      );
       expect(mockContext.methodCalls.last.method, 'makeCall');
       final args = mockContext.methodCalls.last.arguments as Map;
       expect(args['action'], 'call');
@@ -110,7 +119,9 @@ void main() {
 
     test('execute_upperCaseDial_treatedAsDial', () async {
       await tool.execute(
-          '{"action": "DIAL", "number": "01012345678"}', mockContext);
+        '{"action": "DIAL", "number": "01012345678"}',
+        mockContext,
+      );
       final args = mockContext.methodCalls.last.arguments as Map;
       expect(args['action'], 'dial');
     });

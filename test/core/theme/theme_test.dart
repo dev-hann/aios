@@ -88,17 +88,11 @@ void main() {
     });
 
     test('aiosDarkTheme_appBarBackground_isSurface', () {
-      expect(
-        aiosDarkTheme.appBarTheme.backgroundColor,
-        AppColors.surface,
-      );
+      expect(aiosDarkTheme.appBarTheme.backgroundColor, AppColors.surface);
     });
 
     test('aiosDarkTheme_appBarForeground_isTextPrimary', () {
-      expect(
-        aiosDarkTheme.appBarTheme.foregroundColor,
-        AppColors.textPrimary,
-      );
+      expect(aiosDarkTheme.appBarTheme.foregroundColor, AppColors.textPrimary);
     });
 
     test('aiosDarkTheme_cardThemeColor_isSurface', () {

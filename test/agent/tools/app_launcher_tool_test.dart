@@ -21,26 +21,20 @@ void main() {
     });
 
     test('validate_withTarget_returnsNull', () async {
-      final result = await tool.validate(
-        '{"target": "youtube"}',
-        mockContext,
-      );
+      final result = await tool.validate('{"target": "youtube"}', mockContext);
       expect(result, isNull);
     });
   });
 
   group('execute_openApp', () {
     test('execute_packageName_opensApp', () async {
-      final result = await tool.execute(
-        '{"target": "com.test"}',
-        mockContext,
-      );
-      expect(result, contains('Opened'));
+      final result = await tool.execute('{"target": "com.test"}', mockContext);
+      expect(result.output, contains('Opened'));
     });
 
     test('execute_emptyTarget_returnsError', () async {
       final result = await tool.execute('{}', mockContext);
-      expect(result, contains("'target' required"));
+      expect(result.toContent(), contains("'target' required"));
     });
   });
 
@@ -58,17 +52,14 @@ void main() {
     });
 
     test('execute_packageName_notDetectedAsUrl', () {
-      expect(
-        tool.testLooksLikeUrl('com.google.android.youtube'),
-        isFalse,
-      );
+      expect(tool.testLooksLikeUrl('com.google.android.youtube'), isFalse);
     });
   });
 
   group('execute_malformedInput', () {
     test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json', mockContext);
-      expect(result, contains('Error'));
+      expect(result.toContent(), contains('Error'));
     });
   });
 

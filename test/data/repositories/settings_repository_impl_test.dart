@@ -14,27 +14,14 @@ void main() {
     });
 
     test('defaults_returnExpectedValues', () {
-      expect(repository.contextSize, SettingsRepository.defaultContextSize);
       expect(repository.maxTokens, SettingsRepository.defaultMaxTokens);
       expect(repository.temperature, SettingsRepository.defaultTemperature);
-      expect(repository.topK, SettingsRepository.defaultTopK);
       expect(repository.topP, SettingsRepository.defaultTopP);
-      expect(repository.repeatPenalty, SettingsRepository.defaultRepeatPenalty);
       expect(
         repository.agentMaxIterations,
         SettingsRepository.defaultAgentMaxIterations,
       );
-      expect(repository.lastModelPath, isNull);
-    });
-
-    test('setContextSize_persistsValue', () async {
-      await repository.setContextSize(4096);
-
-      expect(repository.contextSize, 4096);
-
-      final repo2 = SettingsRepositoryImpl();
-      await repo2.init();
-      expect(repo2.contextSize, 4096);
+      expect(repository.providerConfig, isNull);
     });
 
     test('setTemperature_persistsValue', () async {
@@ -47,16 +34,6 @@ void main() {
       expect(repo2.temperature, 0.5);
     });
 
-    test('setTopK_persistsValue', () async {
-      await repository.setTopK(20);
-
-      expect(repository.topK, 20);
-
-      final repo2 = SettingsRepositoryImpl();
-      await repo2.init();
-      expect(repo2.topK, 20);
-    });
-
     test('setTopP_persistsValue', () async {
       await repository.setTopP(0.8);
 
@@ -65,16 +42,6 @@ void main() {
       final repo2 = SettingsRepositoryImpl();
       await repo2.init();
       expect(repo2.topP, 0.8);
-    });
-
-    test('setRepeatPenalty_persistsValue', () async {
-      await repository.setRepeatPenalty(1.2);
-
-      expect(repository.repeatPenalty, 1.2);
-
-      final repo2 = SettingsRepositoryImpl();
-      await repo2.init();
-      expect(repo2.repeatPenalty, 1.2);
     });
 
     test('setMaxTokens_persistsValue', () async {
@@ -87,17 +54,19 @@ void main() {
       expect(repo2.maxTokens, 1024);
     });
 
-    test('setLastModelPath_persistsAndClears', () async {
-      await repository.setLastModelPath('/path/to/model.gguf');
+    test('setProviderConfig_persistsAndClears', () async {
+      await repository.setProviderConfig(
+        '{"type":"openai","apiKey":"key","model":"gpt-4o"}',
+      );
 
-      expect(repository.lastModelPath, '/path/to/model.gguf');
+      expect(repository.providerConfig, isNotNull);
 
       final repo2 = SettingsRepositoryImpl();
       await repo2.init();
-      expect(repo2.lastModelPath, '/path/to/model.gguf');
+      expect(repo2.providerConfig, isNotNull);
 
-      await repository.clearLastModelPath();
-      expect(repository.lastModelPath, isNull);
+      await repository.clearProviderConfig();
+      expect(repository.providerConfig, isNull);
     });
 
     test('onboardingCompleted_defaultIsFalse', () {
@@ -112,7 +81,6 @@ void main() {
       final repo2 = SettingsRepositoryImpl();
       await repo2.init();
       expect(repo2.onboardingCompleted, isTrue);
-
     });
   });
 }

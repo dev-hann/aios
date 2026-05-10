@@ -35,10 +35,7 @@ void main() {
     });
 
     test('classify_notificationReader_returnsSafe', () {
-      expect(
-        classifier.classify('notification_reader', '{}'),
-        ToolRisk.safe,
-      );
+      expect(classifier.classify('notification_reader', '{}'), ToolRisk.safe);
     });
 
     test('classify_contactSearch_returnsSafe', () {
@@ -79,10 +76,10 @@ void main() {
   });
 
   group('classifyRisk_screenAction', () {
-    test('classify_screenActionTap_returnsHigh', () {
+    test('classify_screenActionTap_returnsLow', () {
       expect(
         classifier.classify('screen_action', '{"action": "tap"}'),
-        ToolRisk.high,
+        ToolRisk.low,
       );
     });
 
@@ -133,13 +130,13 @@ void main() {
       );
     });
 
-    test('classify_screenActionTypeNormal_returnsHigh', () {
+    test('classify_screenActionTypeNormal_returnsLow', () {
       expect(
         classifier.classify(
           'screen_action',
           '{"action": "type", "content": "hello world"}',
         ),
-        ToolRisk.high,
+        ToolRisk.low,
       );
     });
   });
@@ -162,22 +159,13 @@ void main() {
 
   group('classifyRisk_edgeCases', () {
     test('classify_unknownTool_returnsHigh', () {
-      expect(
-        classifier.classify('nonexistent_tool', '{}'),
-        ToolRisk.high,
-      );
+      expect(classifier.classify('nonexistent_tool', '{}'), ToolRisk.high);
     });
 
     test('classify_invalidJson_defaultsToEmptyAction', () {
       expect(classifier.classify('calculator', 'not json'), ToolRisk.safe);
-      expect(
-        classifier.classify('screen_action', 'not json'),
-        ToolRisk.high,
-      );
-      expect(
-        classifier.classify('app_launcher', 'not json'),
-        ToolRisk.low,
-      );
+      expect(classifier.classify('screen_action', 'not json'), ToolRisk.low);
+      expect(classifier.classify('app_launcher', 'not json'), ToolRisk.low);
     });
 
     test('classify_caseInsensitiveAction_classifiesCorrectly', () {
@@ -193,7 +181,7 @@ void main() {
 
     test('classify_emptyArgs_defaultsAppropriately', () {
       expect(classifier.classify('calculator', ''), ToolRisk.safe);
-      expect(classifier.classify('screen_action', ''), ToolRisk.high);
+      expect(classifier.classify('screen_action', ''), ToolRisk.low);
     });
 
     test('classify_appLauncherListApps_returnsLow', () {
@@ -240,24 +228,24 @@ void main() {
       );
     });
 
-    test('classify_screenActionLongClick_returnsHigh', () {
+    test('classify_screenActionLongClick_returnsLow', () {
       expect(
         classifier.classify('screen_action', '{"action": "long_click"}'),
-        ToolRisk.high,
+        ToolRisk.low,
       );
     });
 
-    test('classify_screenActionScroll_returnsHigh', () {
+    test('classify_screenActionScroll_returnsLow', () {
       expect(
         classifier.classify('screen_action', '{"action": "scroll"}'),
-        ToolRisk.high,
+        ToolRisk.low,
       );
     });
 
-    test('classify_screenActionSwipe_returnsHigh', () {
+    test('classify_screenActionSwipe_returnsLow', () {
       expect(
         classifier.classify('screen_action', '{"action": "swipe"}'),
-        ToolRisk.high,
+        ToolRisk.low,
       );
     });
 

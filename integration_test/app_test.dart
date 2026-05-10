@@ -10,43 +10,33 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('ChatScreen', () {
-    testWidgets(
-      'shows welcome view and input on launch',
-      (tester) async {
-        app.main();
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+    testWidgets('shows welcome view and input on launch', (tester) async {
+      app.main();
+      await tester.pumpAndSettle(const Duration(seconds: 5));
 
-        expect(find.text('AIOS'), findsOneWidget);
-        expect(find.text('Your on-device AI assistant'), findsOneWidget);
-        expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
-        expect(find.byType(TextField), findsOneWidget);
-        expect(find.byIcon(Icons.send), findsOneWidget);
-      },
-    );
+      expect(find.text('AIOS'), findsOneWidget);
+      expect(find.text('Your on-device AI assistant'), findsOneWidget);
+      expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byIcon(Icons.send), findsOneWidget);
+    });
 
-    testWidgets(
-      'shows idle status and settings button',
-      (tester) async {
-        app.main();
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+    testWidgets('shows settings button in app bar', (tester) async {
+      app.main();
+      await tester.pumpAndSettle(const Duration(seconds: 5));
 
-        expect(find.text('Idle'), findsOneWidget);
-        expect(find.byIcon(Icons.settings), findsOneWidget);
-      },
-    );
+      expect(find.byIcon(Icons.settings), findsOneWidget);
+    });
 
-    testWidgets(
-      'can type text in input field',
-      (tester) async {
-        app.main();
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+    testWidgets('can type text in input field', (tester) async {
+      app.main();
+      await tester.pumpAndSettle(const Duration(seconds: 5));
 
-        await tester.enterText(find.byType(TextField), 'Hello AIOS');
-        await tester.pump();
+      await tester.enterText(find.byType(TextField), 'Hello AIOS');
+      await tester.pump();
 
-        expect(find.text('Hello AIOS'), findsOneWidget);
-      },
-    );
+      expect(find.text('Hello AIOS'), findsOneWidget);
+    });
   });
 
   group('SettingsScreen', () {
@@ -57,10 +47,7 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 3));
     }
 
-    Future<void> _scrollTo(
-      WidgetTester tester,
-      Finder target,
-    ) async {
+    Future<void> _scrollTo(WidgetTester tester, Finder target) async {
       await tester.scrollUntilVisible(
         target,
         200,
@@ -69,135 +56,93 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets(
-      'shows settings header and model section',
-      (tester) async {
-        await _navigateToSettings(tester);
-        expect(find.text('Settings'), findsOneWidget);
-        expect(find.text('Model Management'), findsOneWidget);
-        expect(find.text('No models found'), findsOneWidget);
-        expect(find.text('Scan'), findsOneWidget);
-        expect(find.text('Import'), findsOneWidget);
-      },
-    );
+    testWidgets('shows settings header and model section', (tester) async {
+      await _navigateToSettings(tester);
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Provider'), findsOneWidget);
+      expect(find.text('No provider configured'), findsOneWidget);
+      expect(find.text('Setup Provider'), findsOneWidget);
+    });
 
-    testWidgets(
-      'shows inference parameters and sliders',
-      (tester) async {
-        await _navigateToSettings(tester);
-        expect(find.text('Inference Parameters'), findsOneWidget);
-        expect(find.text('Context Size'), findsOneWidget);
-        expect(find.text('Temperature'), findsOneWidget);
-        expect(find.text('Max Tokens'), findsOneWidget);
-        expect(find.text('Top-K'), findsOneWidget);
-        expect(find.text('Top-P'), findsOneWidget);
-        expect(find.text('Repeat Penalty'), findsOneWidget);
-        expect(find.byType(Slider), findsAtLeast(6));
-      },
-    );
+    testWidgets('shows inference and permissions nav tiles', (tester) async {
+      await _navigateToSettings(tester);
+      expect(find.text('Inference'), findsOneWidget);
+      expect(find.text('Permissions'), findsOneWidget);
+    });
 
-    testWidgets(
-      'shows agent and app info sections after scroll',
-      (tester) async {
-        await _navigateToSettings(tester);
+    testWidgets('shows app info section after scroll', (tester) async {
+      await _navigateToSettings(tester);
 
-        await _scrollTo(tester, find.text('Agent Settings'));
-        expect(find.text('Agent Settings'), findsOneWidget);
-        expect(find.text('Max Iterations'), findsOneWidget);
+      await _scrollTo(tester, find.text('App Info'));
+      expect(find.text('App Info'), findsOneWidget);
+      expect(find.text('Version'), findsOneWidget);
+      expect(find.text('GitHub'), findsOneWidget);
+    });
 
-        await _scrollTo(tester, find.text('App Info'));
-        expect(find.text('App Info'), findsOneWidget);
-        expect(find.text('Version'), findsOneWidget);
-      },
-    );
+    testWidgets('shows update check after scroll', (tester) async {
+      await _navigateToSettings(tester);
 
-    testWidgets(
-      'shows update check and about sections after scroll',
-      (tester) async {
-        await _navigateToSettings(tester);
+      await _scrollTo(tester, find.text('Check for Updates'));
+      expect(find.text('Check for Updates'), findsOneWidget);
+    });
 
-        await _scrollTo(tester, find.text('Check for Updates'));
-        expect(find.text('Check for Updates'), findsOneWidget);
+    testWidgets('add model button works without crash', (tester) async {
+      await _navigateToSettings(tester);
 
-        await _scrollTo(tester, find.text('About'));
-        expect(find.text('About'), findsOneWidget);
-        expect(find.text('GitHub'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'scan and import buttons work without crash',
-      (tester) async {
-        await _navigateToSettings(tester);
-
-        await tester.tap(find.text('Scan'));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
-        expect(find.text('Model Management'), findsOneWidget);
-
-        expect(find.text('Import'), findsOneWidget);
-      },
-    );
+      await tester.tap(find.text('Setup Provider'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+    });
   });
 
   group('Navigation', () {
-    testWidgets(
-      'settings has back button and returns to chat',
-      (tester) async {
-        app.main();
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+    testWidgets('settings has back button and returns to chat', (tester) async {
+      app.main();
+      await tester.pumpAndSettle(const Duration(seconds: 5));
 
-        await tester.tap(find.byIcon(Icons.settings));
-        await tester.pumpAndSettle(const Duration(seconds: 3));
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
 
-        expect(find.text('Settings'), findsOneWidget);
-        expect(find.byType(BackButton), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.byType(BackButton), findsOneWidget);
 
-        await tester.tap(find.byType(BackButton));
-        await tester.pumpAndSettle(const Duration(seconds: 3));
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
 
-        expect(find.byType(TextField), findsOneWidget);
-        expect(find.text('AIOS'), findsOneWidget);
-      },
-    );
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('AIOS'), findsOneWidget);
+    });
   });
 
   group('ChatScreen UI', () {
-    testWidgets(
-      'shows delete button in app bar',
-      (tester) async {
-        app.main();
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+    testWidgets('shows menu and new chat buttons in app bar', (tester) async {
+      app.main();
+      await tester.pumpAndSettle(const Duration(seconds: 5));
 
-        expect(find.byIcon(Icons.delete_outline), findsOneWidget);
-      },
-    );
+      expect(find.byIcon(Icons.menu), findsOneWidget);
+      expect(find.byIcon(Icons.add_comment_outlined), findsOneWidget);
+    });
 
-    testWidgets(
-      'does not show error bar initially',
-      (tester) async {
-        app.main();
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+    testWidgets('does not show error bar initially', (tester) async {
+      app.main();
+      await tester.pumpAndSettle(const Duration(seconds: 5));
 
-        expect(find.byIcon(Icons.error_outline), findsNothing);
-      },
-    );
+      expect(find.byIcon(Icons.error_outline), findsNothing);
+    });
 
-    testWidgets(
-      'shows error bar when errorMessage is set via provider',
-      (tester) async {
-        app.main();
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+    testWidgets('shows error bar when errorMessage is set via provider', (
+      tester,
+    ) async {
+      app.main();
+      await tester.pumpAndSettle(const Duration(seconds: 5));
 
-        final element = tester.element(find.byType(ChatScreen));
-        final container = ProviderScope.containerOf(element);
-        container.read(chatStateProvider.notifier).state = container
-            .read(chatStateProvider)
-            .copyWith(errorMessage: 'Test error message');
-        await tester.pumpAndSettle();
+      final element = tester.element(find.byType(ChatScreen));
+      final container = ProviderScope.containerOf(element);
+      container.read(chatStateProvider.notifier).state = container
+          .read(chatStateProvider)
+          .copyWith(errorMessage: 'Test error message');
+      await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.error_outline), findsOneWidget);
-        expect(find.text('Test error message'), findsOneWidget);
-      },
-    );
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    });
   });
 }

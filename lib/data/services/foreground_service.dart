@@ -5,7 +5,8 @@ class ForegroundService {
 
   static Future<bool> start() async {
     try {
-      return await _channel.invokeMethod<bool>('startForegroundService') ?? false;
+      return await _channel.invokeMethod<bool>('startForegroundService') ??
+          false;
     } on PlatformException catch (e) {
       print('[AIOS-FgService] ERROR: start failed - $e');
       return false;
@@ -14,7 +15,8 @@ class ForegroundService {
 
   static Future<bool> stop() async {
     try {
-      return await _channel.invokeMethod<bool>('stopForegroundService') ?? false;
+      return await _channel.invokeMethod<bool>('stopForegroundService') ??
+          false;
     } on PlatformException catch (e) {
       print('[AIOS-FgService] ERROR: stop failed - $e');
       return false;
@@ -23,7 +25,8 @@ class ForegroundService {
 
   static Future<bool> isRunning() async {
     try {
-      return await _channel.invokeMethod<bool>('isForegroundServiceRunning') ?? false;
+      return await _channel.invokeMethod<bool>('isForegroundServiceRunning') ??
+          false;
     } on PlatformException catch (e) {
       print('[AIOS-FgService] ERROR: isRunning check failed - $e');
       return false;

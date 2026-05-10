@@ -24,11 +24,7 @@ class ToolPermissionMapper {
       displayName: '전화',
       isService: false,
     ),
-    'sms': RequiredPermission(
-      key: 'sms',
-      displayName: 'SMS',
-      isService: false,
-    ),
+    'sms': RequiredPermission(key: 'sms', displayName: 'SMS', isService: false),
     'accessibility': RequiredPermission(
       key: 'accessibility',
       displayName: '접근성 서비스',
@@ -66,6 +62,5 @@ class ToolPermissionMapper {
     }
   }
 
-  static RequiredPermission? getByKey(String key) =>
-      _permissionMap[key];
+  static RequiredPermission? getByKey(String key) => _permissionMap[key];
 }

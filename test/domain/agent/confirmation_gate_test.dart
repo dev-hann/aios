@@ -100,15 +100,9 @@ void main() {
       });
 
       test('requestConfirmation_timeout_returnsFalse', () async {
-        final result = await gate.requestConfirmation(
-          ToolRisk.high,
-          'test',
-          '{}',
-          (_) {},
-        ).timeout(
-          const Duration(milliseconds: 100),
-          onTimeout: () => false,
-        );
+        final result = await gate
+            .requestConfirmation(ToolRisk.high, 'test', '{}', (_) {})
+            .timeout(const Duration(milliseconds: 100), onTimeout: () => false);
 
         expect(result, isFalse);
       });
@@ -198,21 +192,30 @@ void main() {
     group('sequentialRequests', () {
       test('multipleSequentialRequests_eachIndependent', () async {
         final future1 = gate.requestConfirmation(
-          ToolRisk.high, 't1', '{}', (_) {},
+          ToolRisk.high,
+          't1',
+          '{}',
+          (_) {},
         );
         gate.resolve(true);
         final r1 = await future1;
         expect(r1, isTrue);
 
         final future2 = gate.requestConfirmation(
-          ToolRisk.high, 't2', '{}', (_) {},
+          ToolRisk.high,
+          't2',
+          '{}',
+          (_) {},
         );
         gate.resolve(false);
         final r2 = await future2;
         expect(r2, isFalse);
 
         final future3 = gate.requestConfirmation(
-          ToolRisk.critical, 't3', '{}', (_) {},
+          ToolRisk.critical,
+          't3',
+          '{}',
+          (_) {},
         );
         gate.resolve(true);
         final r3 = await future3;

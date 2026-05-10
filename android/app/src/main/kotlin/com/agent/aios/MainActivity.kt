@@ -254,14 +254,24 @@ class MainActivity : FlutterActivity() {
 
                 "performGlobalAction" -> {
                     val action = args["action"] as? String ?: ""
-                    val svc = AIOSAccessibilityService.getInstance()
-                    if (svc == null) {
-                        result.success("Error: Accessibility service not enabled")
-                    } else if (action.isBlank()) {
-                        result.success("Error: 'action' required")
+                    if (action.equals("enter", ignoreCase = true)) {
+                        val svc = AIOSAccessibilityService.getInstance()
+                        if (svc == null) {
+                            result.success("Error: Accessibility service not enabled")
+                        } else {
+                            val success = svc.pressEnter()
+                            result.success(if (success) "Pressed Enter" else "Failed to press Enter")
+                        }
                     } else {
-                        val success = svc.performGlobalAction(action)
-                        result.success(if (success) "Performed: $action" else "Failed: $action")
+                        val svc = AIOSAccessibilityService.getInstance()
+                        if (svc == null) {
+                            result.success("Error: Accessibility service not enabled")
+                        } else if (action.isBlank()) {
+                            result.success("Error: 'action' required")
+                        } else {
+                            val success = svc.performGlobalAction(action)
+                            result.success(if (success) "Performed: $action" else "Failed: $action")
+                        }
                     }
                 }
 

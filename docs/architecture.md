@@ -4,7 +4,7 @@ AIOS의 내부 아키텍처를 설명합니다.
 
 ## System Overview
 
-AIOS는 **Dart Layer** (UI + logic)와 **llamadart** (inference via Isolate) 두 파트로 구성됩니다.
+AIOS는 **Dart Layer** (UI + logic)와 **Remote OpenAI-compatible API** (LLM 추론) 두 파트로 구성됩니다.
 
 Dart Layer 내부는 Clean Architecture 기반 **3계층 + Core** 구조를 따릅니다.
 
@@ -26,21 +26,26 @@ Dart Layer 내부는 Clean Architecture 기반 **3계층 + Core** 구조를 따�
 │  ┌──────────────────────────▼─────────────────────────────┐  │
 │  │  Data                                                   │  │
 │  │  Repository Impls + DataSource (Drift, Dio)             │  │
-│  │  LlamaEngineProvider + ToolContextImpl                  │  │
+│  │  LlmRemoteEngine + OpenAiClient + ToolContextImpl       │  │
 │  └──────────────────────────┬─────────────────────────────┘  │
 └─────────────────────────────┼────────────────────────────────┘
                               │
-┌─────────────────────────────▼────────────────────────────────┐
-│                      llamadart (Isolate)                      │
-│  LLM 추론 엔진 — Native tool calling 지원                     │
-└──────────────────────────────────────────────────────────────┘
+         ┌────────────────────┼────────────────────┐
+         ▼                                         ▼
+┌─────────────────────┐               ┌─────────────────────────┐
+│  Remote LLM API     │               │  Android Native          │
+│  OpenAI-compatible  │               │  AccessibilityService    │
+│  (glm-4.5-air       │               │  OverlayService          │
+│   via z.ai)         │               │  MethodChannel           │
+│  HTTP/SSE streaming │               └─────────────────────────┘
+└─────────────────────┘
 ```
 
 ## Layer Rules
 
 ### Domain (`lib/domain/`)
 
-**역할**: 비즈니스 로직의 핵심. 외부 의존성 없이 순수 Dart로만 구성.
+**역할**: 비즈니스 로직의 핸심. 외부 의존성 없이 순수 Dart로만 구성.
 
 | 하위 디렉토리 | 역할 |
 |--------------|------|
@@ -61,7 +66,9 @@ Dart Layer 내부는 Clean Architecture 기반 **3계층 + Core** 구조를 따�
 | `repositories/` | Domain Repository 구현체 |
 | `datasources/local/` | 로컬 저장소 (Drift/SQLite) |
 | `datasources/remote/` | 원격 API (GitHub Releases 등) |
-| `providers/` | 외부 엔진 추상화 (llamadart, MethodChannel) |
+| `providers/remote/` | LLM 엔진 (LlmRemoteEngine, OpenAiClient) |
+| `providers/` | ToolContextImpl (MethodChannel) |
+| `services/` | OverlayService 등 플랫폼 서비스 |
 
 **규칙**:
 - Data는 Domain을 참조 가능
@@ -109,24 +116,81 @@ Dart Layer 내부는 Clean Architecture 기반 **3계층 + Core** 구조를 따�
 | `router/` | GoRouter 화면 라우팅 설정 |
 | `theme/` | 색상 상수, ThemeData (Light/Dark) |
 
+## LLM Engine Architecture
+
+### Remote API 구조
+
+```
+ReactStrategy
+  │
+  ├─ LlmEngine (abstract interface, domain/agent/llm_engine.dart)
+  │   ├─ LlmToolSchema: tool 이름, 설명, 파라미터 스키마
+  │   ├─ LlmChatSession: 대화 히스토리 + tool result 주입
+  │   └─ LlmResponseChunk: streaming 응답 (text + toolCallDeltas)
+  │
+  └─ LlmRemoteEngine (concrete, data/providers/remote/)
+      ├─ OpenAiClient: HTTP/SSE → OpenAI-compatible API
+      │   → POST /chat/completions with stream: true
+      │   → SSE data: lines → LlmResponseChunk 파싱
+      │   → Tool schemas를 OpenAI function-calling JSON으로 변환
+      │
+      └─ LlmRemoteSession: 메시지 히스토리 관리
+          → _messages: List<Map<String, dynamic>> (OpenAI format)
+          → addToolResult(): tool 결과를 role: tool 메시지로 추가
+          → chat(): userParts + 전체 히스토리를 API에 전송
+```
+
+### Tool Schema 변환
+
+```dart
+// Dart LlmToolSchema → OpenAI function format
+{
+  "type": "function",
+  "function": {
+    "name": "screen_action",
+    "description": "Control the device screen...",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "action": {"type": "string", "enum": ["tap","type","scroll",...]},
+        "content": {"type": "string", "description": "..."}
+      },
+      "required": ["action"]
+    }
+  }
+}
+```
+
+### Streaming Flow
+
+```
+OpenAiClient.streamChat()
+  → Dio POST with responseType: ResponseType.stream
+  → SSE data: lines → JSON 파싱
+  → delta.tool_calls[] 추출
+  → LlmResponseChunk(toolCallDeltas: [LlmToolCallDelta(index, id, name, arguments)])
+  → ReactStrategy._ToolCallAccumulator가 chunk 누적
+  → 완전한 tool call 구성 후 실행
+```
+
 ## Agent System
 
-### 네이티브 툴 콜링 ReAct 루프
+### 단일 루프 ReAct 구조
 
-llamadart의 네이티브 tool-calling API를 사용하는 **단일 루프** 구조입니다.
+OpenAI function-calling API를 사용하는 **단일 루프** 구조입니다.
 
 ```
 User Input → ChatNotifier → ReactStrategy.execute()
   → for 루프 (최대 8회, 타임아웃 120초):
-      1. ChatSession.chat() — LLM에 tool schemas 전달, streaming 응답 수신
+      1. LlmRemoteSession.chat() — LLM에 tool schemas 전달, SSE streaming 응답 수신
       2. LLM 응답이 tool_calls → Safety Pipeline 통과 후 실행
       3. LLM 응답이 text → Answer 반환 (루프 종료)
       4. LLM 응답이 비어있음 → 넛지 후 재시도 (max 2회)
 ```
 
 **핵심 원칙**:
-- LLM이 직접 tool 선택 및 args 생성 (텍스트 파싱 불필요)
-- llamadart가 `LlmToolSchema` 기반으로 `LlmToolCallDelta` 스트리밍
+- LLM이 직접 tool 선택 및 args 생성 (OpenAI function-calling)
+- SSE streaming으로 LlmToolCallDelta 수신
 - `_ToolCallAccumulator`가 chunk를 누적하여 완전한 tool call 구성
 - Multi-tool chaining: 이전 Tool 결과가 자동으로 다음 LLM 호출에 포함
 - Context Tracking: 대화 맥락(최근 5턴)과 Tool 사용 빈도(top 3)가 system prompt에 주입
@@ -136,31 +200,23 @@ User Input → ChatNotifier → ReactStrategy.execute()
 
 모든 Tool 실행은 아래 순서를 거칩니다:
 
-1. **RiskClassifier** — tool + args 기반 위험도 분류
-2. **Tool.validate()** — args 유효성 검증
-3. **ConfirmationGate** — HIGH/CRITICAL 위험도 시 사용자 승인 요청
-4. **Tool.execute()** — 실제 실행
-5. **AuditLog** — 실행 기록
-6. **ErrorRecovery** — 실패 시 에러 분류 및 복구 힌트
-7. **LoopDetector** — 반복 감지 및 강제 종료
+1. **PermissionGate** — Android 권한 확인 (카메라, 연락처 등)
+2. **RiskClassifier** — tool + args 기반 위험도 분류 (safe/low/high/critical)
+3. **Tool.validate()** — args 유효성 검증
+4. **ConfirmationGate** — HIGH/CRITICAL 위험도 시 사용자 승인 요청
+5. **Tool.execute()** — 실제 실행
+6. **AuditLog** — 실행 기록
+7. **ErrorRecovery** — 실패 시 에러 분류 및 복구 힌트 (8가지 타입)
+8. **LoopDetector** — 반복 감지 및 강제 종료 (3-strike)
 
 ### Error Recovery 규칙
 
 - 에러 분류 후 복구 가능한 경우에만 재시도
 - Tool별 최대 1회 재시도
 - 실행 간 복구 상태 초기화
+- 에러 판별: `"Error:"` 문자열 prefix로 감지
 
 ## State Management
-
-### ServiceState
-
-```
-idle → loadingModel → ready ↔ generating → ready
-  │        │              ↘ error ↗       │
-  │        └────→ error                   │
-  └───────────────────────────────────────┘
-                        (releaseModel → idle from any state)
-```
 
 ### Riverpod Provider 스코프
 
@@ -173,25 +229,31 @@ idle → loadingModel → ready ↔ generating → ready
 
 | 역할 | 위치 |
 |------|------|
-| LLM 추론 | 별도 Isolate (llamadart) |
-| 에이전트 실행 | LLM Isolate에서 실행, Stream으로 UI 전달 |
+| LLM 추론 | 원격 API (HTTP/SSE) |
+| 에이전트 실행 | Main Isolate에서 실행, Stream으로 UI 전달 |
 | 플랫폼 채널 | MethodChannel / EventChannel (Android 네이티브) |
 | UI 업데이트 | Main Isolate |
 | 취소 | 취소 플래그 + StreamController.close() |
 
 ## Key Design Decisions
 
-### Why Native Tool Calling?
+### Why OpenAI-compatible Tool Calling?
 
 - 텍스트 파싱(Action:/Answer:) 없이 LLM이 직접 tool 선택
 - 프롬프트 엔지니어링 부담 감소 (포맷 넛지, 재시도 로직 불필요)
-- llamadart가 tool 스키마 기반으로 args 검증 처리
+- OpenAI function-calling 표준으로 다양한 LLM 백엔드 교체 가능
+
+### Why Remote API over On-device?
+
+- 소형 온디바이스 모델 대비 높은 tool-calling 정확도
+- 기기 리소스(CPU/메모리/배터리) 절약
+- 모델 업데이트 시 앱 업데이트 불필요
 
 ### Why Flutter?
 
-- JNI + C++ ~1500줄 → llamadart ~20줄
 - 단일 언어 (Dart)로 유지보수 간소화
-- Isolate 기반으로 Foreground Service 불필요
+- Android/iOS 크로스 플랫폼
+- 접근성 서비스 + MethodChannel으로 네이티브 제어
 
 ### Why ReAct?
 

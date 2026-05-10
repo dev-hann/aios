@@ -37,33 +37,27 @@ void main() {
 
   group('stateLabel', () {
     test('stateLabel_idle_returnsIdleLabel', () {
-      expect(AppColors.stateLabel(ServiceState.idle), 'Idle');
+      expect(AppColors.stateLabel(ServiceState.idle), '대기 중');
     });
 
     test('stateLabel_loadingModel_returnsLoadingModelLabel', () {
-      expect(
-        AppColors.stateLabel(ServiceState.loadingModel),
-        'Loading Model...',
-      );
+      expect(AppColors.stateLabel(ServiceState.loadingModel), '연결 중...');
     });
 
     test('stateLabel_ready_returnsReadyLabel', () {
-      expect(AppColors.stateLabel(ServiceState.ready), 'Ready');
+      expect(AppColors.stateLabel(ServiceState.ready), '준비 완료');
     });
 
     test('stateLabel_generating_returnsGeneratingLabel', () {
-      expect(
-        AppColors.stateLabel(ServiceState.generating),
-        'Generating...',
-      );
+      expect(AppColors.stateLabel(ServiceState.generating), '생성 중...');
     });
 
     test('stateLabel_error_returnsErrorLabel', () {
-      expect(AppColors.stateLabel(ServiceState.error), 'Error');
+      expect(AppColors.stateLabel(ServiceState.error), '오류');
     });
 
     test('stateLabel_null_returnsUnknownLabel', () {
-      expect(AppColors.stateLabel(null), 'Unknown');
+      expect(AppColors.stateLabel(null), '알 수 없음');
     });
   });
 }

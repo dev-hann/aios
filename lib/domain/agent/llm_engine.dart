@@ -16,16 +16,12 @@ abstract class LlmChatSession {
 
 class LlmGenerationConfig {
   final double temperature;
-  final int topK;
   final double topP;
-  final double penalty;
   final int maxTokens;
 
   const LlmGenerationConfig({
     required this.temperature,
-    required this.topK,
     required this.topP,
-    required this.penalty,
     required this.maxTokens,
   });
 }
@@ -72,15 +68,19 @@ class LlmToolSchema {
 class LlmToolParamSchema {
   final String name;
   final String description;
+  final String type;
   final bool required;
   final bool isEnum;
   final List<String>? enumValues;
+  final String? example;
 
   const LlmToolParamSchema({
     required this.name,
     required this.description,
+    this.type = 'string',
     required this.required,
     this.isEnum = false,
     this.enumValues,
+    this.example,
   });
 }

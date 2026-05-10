@@ -79,11 +79,7 @@ void main() {
       });
 
       test('formats_singleTurn', () {
-        context.addTurn(
-          'What is 2+2?',
-          '4',
-          toolUsed: 'calculator',
-        );
+        context.addTurn('What is 2+2?', '4', toolUsed: 'calculator');
 
         final prompt = context.toPromptContext();
 
@@ -111,10 +107,7 @@ void main() {
         final prompt = context.toPromptContext();
 
         expect(prompt, contains('...'));
-        expect(
-          prompt.length,
-          lessThan(longResponse.length),
-        );
+        expect(prompt.length, lessThan(longResponse.length));
       });
     });
 

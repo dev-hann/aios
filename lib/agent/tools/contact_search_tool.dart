@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class ContactSearchTool extends ExtendedTool {
   static const _tag = 'AIOS-ContactSearch';
@@ -28,19 +29,20 @@ class ContactSearchTool extends ExtendedTool {
       '- Respond with user language';
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);
       final query = json['query']?.toString().trim() ?? '';
-      if (query.isEmpty) return "Error: 'query' required";
+      if (query.isEmpty) return const ToolResult.err("'query' required");
       final limit = _parseInt(json['limit']) ?? 10;
-      return await toolContext.invokeMethod(
-            'searchContacts',
-            {'query': query, 'limit': limit},
-          ) ??
-          'No contacts found';
+      final result = await toolContext.invokeMethod('searchContacts', {
+        'query': query,
+        'limit': limit,
+      });
+      if (result == null) return const ToolResult.ok('No contacts found');
+      return ToolResult.ok(result);
     } on Object catch (e) {
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 

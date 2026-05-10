@@ -1,251 +1,240 @@
-import 'dart:io';
-
-import 'package:aios/data/providers/real_llama_engine_provider.dart';
-import 'package:aios/domain/entities/chat_message.dart';
-import 'package:dio/dio.dart';
+import 'package:aios/data/providers/remote/llm_remote_engine.dart';
+import 'package:aios/data/providers/remote/openai_client.dart';
+import 'package:aios/data/repositories/llm_repository_impl.dart';
+import 'package:aios/domain/agent/llm_engine.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
+import 'package:aios/domain/entities/service_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:path_provider/path_provider.dart';
 
-const modelName = 'test-model.gguf';
-const modelUrl =
-    'https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf';
-const localSources = [
-  '/data/local/tmp/test-model.gguf',
-  '/data/local/tmp/SmolLM2-135M-Instruct-Q4_K_M.gguf',
-];
+const _testApiKey = String.fromEnvironment('TEST_API_KEY', defaultValue: '');
+const _testModel = String.fromEnvironment(
+  'TEST_MODEL',
+  defaultValue: 'gpt-4o-mini',
+);
+const _testBaseUrl = String.fromEnvironment('TEST_BASE_URL', defaultValue: '');
+const _testProviderType = String.fromEnvironment(
+  'TEST_PROVIDER_TYPE',
+  defaultValue: '',
+);
 
-late String modelPath;
-bool modelReady = false;
+LlmProviderConfig? testConfig;
+bool providerReady = false;
 
-Future<String> get modelsDir async {
-  final appDir = await getApplicationDocumentsDirectory();
-  final dir = Directory('${appDir.path}/models');
-  if (!dir.existsSync()) dir.createSync(recursive: true);
-  return dir.path;
+LlmProviderType _resolveProviderType() {
+  switch (_testProviderType.toLowerCase()) {
+    case 'zai':
+      return LlmProviderType.zai;
+    case 'zaicoding':
+      return LlmProviderType.zaiCoding;
+    case 'openai':
+      return LlmProviderType.openai;
+    case 'anthropic':
+      return LlmProviderType.anthropic;
+    case 'custom':
+      return LlmProviderType.custom;
+    default:
+      return _testBaseUrl.isEmpty
+          ? LlmProviderType.openai
+          : LlmProviderType.custom;
+  }
 }
 
-Future<bool> copyFile(String source, String dest) async {
-  try {
-    final input = File(source).openRead();
-    final output = File(dest).openWrite();
-    await input.pipe(output);
-    return true;
-  } on Object catch (e) {
-    debugPrint('  copy failed: $e');
-    try {
-      await File(dest).delete();
-    } on Object catch (_) {}
+Future<bool> ensureProviderAvailable() async {
+  if (_testApiKey.isEmpty) {
+    debugPrint('No TEST_API_KEY provided, tests will be skipped.');
     return false;
   }
-}
 
-Future<bool> downloadModel(String dest) async {
-  debugPrint('Downloading test model (~100MB)...');
+  testConfig = LlmProviderConfig(
+    type: _resolveProviderType(),
+    apiKey: _testApiKey,
+    model: _testModel,
+    baseUrl: _testBaseUrl.isEmpty ? null : _testBaseUrl,
+  );
+
   try {
-    await Dio().download(
-      modelUrl,
-      dest,
-      onReceiveProgress: (received, total) {
-        if (total > 0 && received % (5 << 20) < (1 << 20)) {
-          debugPrint(
-            '  ${(received * 100 / total).toStringAsFixed(0)}% '
-            '(${received >> 20}MB / ${total >> 20}MB)',
-          );
-        }
-      },
-    );
-    debugPrint('Done: ${File(dest).lengthSync()} bytes');
-    return true;
+    final client = OpenAiClient(testConfig!);
+    final ok = await client.testConnection();
+    if (ok) {
+      debugPrint(
+        'Provider ready: ${testConfig!.model}@${testConfig!.effectiveBaseUrl}',
+      );
+      return true;
+    }
+    debugPrint('Connection test failed');
+    return false;
   } on Object catch (e) {
-    debugPrint('Download failed: $e');
-    try {
-      await File(dest).delete();
-    } on Object catch (_) {}
+    debugPrint('Provider connection failed: $e');
     return false;
   }
-}
-
-Future<bool> ensureModelAvailable() async {
-  final dir = await modelsDir;
-  modelPath = '$dir/$modelName';
-
-  final target = File(modelPath);
-  if (target.existsSync() && target.lengthSync() > 1 << 20) {
-    debugPrint('Model ready: $modelPath');
-    return true;
-  }
-  if (target.existsSync()) target.deleteSync();
-
-  for (final src in localSources) {
-    final f = File(src);
-    if (!f.existsSync()) continue;
-    debugPrint('Copying $src ...');
-    if (await copyFile(src, modelPath)) return true;
-  }
-
-  if (await downloadModel(modelPath)) return true;
-
-  debugPrint('No model available, tests will be skipped.');
-  return false;
 }
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    modelReady = await ensureModelAvailable();
+    providerReady = await ensureProviderAvailable();
   });
 
-  group('RealLlamaEngineProvider', () {
-    late RealLlamaEngineProvider provider;
+  group('LlmRemoteEngine', () {
+    late LlmRemoteEngine engine;
 
-    setUp(() => provider = RealLlamaEngineProvider());
-    tearDown(() async => await provider.releaseModel());
-
-    testWidgets('loads model and returns true', (tester) async {
-      if (!modelReady) return;
-      final result = await provider.loadModel(modelPath, contextSize: 512);
-      expect(result, isTrue);
-      expect(provider.isModelLoaded, isTrue);
+    setUp(() {
+      if (!providerReady) return;
+      engine = LlmRemoteEngine(testConfig!);
     });
 
-    testWidgets('getModelInfo returns engine info after load', (tester) async {
-      if (!modelReady) return;
-      await provider.loadModel(modelPath, contextSize: 512);
-      final info = provider.getModelInfo();
-      expect(info, isNot(equals('No model loaded')));
+    testWidgets('creates session without error', (tester) async {
+      if (!providerReady) return;
+      final session = engine.createSession('You are a helpful assistant.');
+      expect(session, isNotNull);
     });
 
-    testWidgets('generates text response', (tester) async {
-      if (!modelReady) return;
-      await provider.loadModel(modelPath, contextSize: 512);
+    testWidgets('chat generates text response', (tester) async {
+      if (!providerReady) return;
 
+      final session = engine.createSession('You are a helpful assistant.');
       final tokens = <String>[];
-      await for (final token in provider.generate(
-        [],
-        'Hello',
-        temperature: 0.1,
-        maxTokens: 16,
+      await for (final chunk in session.chat(
+        [LlmContentPart.text('Hello')],
+        config: const LlmGenerationConfig(
+          temperature: 0.1,
+          topP: 0.9,
+          maxTokens: 256,
+        ),
+        tools: [],
       )) {
-        tokens.add(token);
+        if (chunk.text != null) tokens.add(chunk.text!);
       }
-      expect(tokens.join(), isNotEmpty);
+      final result = tokens.join();
+      if (result.isEmpty) {
+        debugPrint(
+          'Remote response was empty (reasoning model may consume tokens for thinking)',
+        );
+      } else {
+        debugPrint('Remote response: $result');
+      }
+      expect(result, isNotEmpty);
     });
 
-    testWidgets('engine is available after model load', (tester) async {
-      if (!modelReady) return;
-      await provider.loadModel(modelPath, contextSize: 512);
+    testWidgets('chat with history context', (tester) async {
+      if (!providerReady) return;
 
-      final eng = provider.engine;
-      debugPrint('Engine available: ${eng != null}');
-    });
-
-    testWidgets('generates with custom sampler params', (tester) async {
-      if (!modelReady) return;
-      await provider.loadModel(modelPath, contextSize: 512);
-
-      final tokens = <String>[];
-      await for (final token in provider.generate(
-        [],
-        'Say hello',
-        temperature: 0.1,
-        maxTokens: 16,
-        topK: 10,
-        topP: 0.9,
-        repeatPenalty: 1.1,
+      final session = engine.createSession('You are a helpful assistant.');
+      final tokens1 = <String>[];
+      await for (final chunk in session.chat(
+        [LlmContentPart.text('My favorite number is 42.')],
+        config: const LlmGenerationConfig(
+          temperature: 0.1,
+          topP: 0.9,
+          maxTokens: 256,
+        ),
+        tools: [],
       )) {
-        tokens.add(token);
+        if (chunk.text != null) tokens1.add(chunk.text!);
       }
-      expect(tokens.join(), isNotEmpty);
-    });
+      expect(tokens1.join(), isNotEmpty);
 
-    testWidgets('generates with history without duplication', (tester) async {
-      if (!modelReady) return;
-      await provider.loadModel(modelPath, contextSize: 2048);
-
-      final history = [
-        ChatMessage(
-          id: '1',
-          role: 'system',
-          content: 'You are a helpful assistant.',
-          createdAt: DateTime.now(),
+      final tokens2 = <String>[];
+      await for (final chunk in session.chat(
+        [LlmContentPart.text('What was my favorite number?')],
+        config: const LlmGenerationConfig(
+          temperature: 0.1,
+          topP: 0.9,
+          maxTokens: 256,
         ),
-        ChatMessage(
-          id: '2',
-          role: 'user',
-          content: 'What is 2+2?',
-          createdAt: DateTime.now(),
-        ),
-        ChatMessage(
-          id: '3',
-          role: 'assistant',
-          content: '4',
-          createdAt: DateTime.now(),
-        ),
-      ];
-
-      final tokens = <String>[];
-      await for (final token in provider.generate(
-        history,
-        'What was my previous question?',
-        temperature: 0.1,
-        maxTokens: 32,
+        tools: [],
       )) {
-        tokens.add(token);
+        if (chunk.text != null) tokens2.add(chunk.text!);
       }
-      final response = tokens.join();
+      final response = tokens2.join();
       expect(response, isNotEmpty);
       debugPrint('History-aware response: $response');
     });
 
-    testWidgets('generate stream error closes controller', (tester) async {
-      if (!modelReady) return;
-      await provider.loadModel(modelPath, contextSize: 512);
-
-      final tokens = <String>[];
-      Object? streamError;
-      try {
-        await for (final token in provider.generate(
-          [],
-          'Hi',
-          temperature: 0.1,
-          maxTokens: 8,
-        )) {
-          tokens.add(token);
-        }
-      } on Object catch (e) {
-        streamError = e;
-      }
-      if (streamError != null) {
-        debugPrint('Stream error (expected for some models): $streamError');
-      } else {
-        expect(tokens.join(), isNotEmpty);
-      }
+    testWidgets('warmup completes without error', (tester) async {
+      if (!providerReady) return;
+      await engine.warmup();
     });
 
-    testWidgets('releaseModel clears loaded state', (tester) async {
-      if (!modelReady) return;
-      await provider.loadModel(modelPath, contextSize: 512);
-      expect(provider.isModelLoaded, isTrue);
-      await provider.releaseModel();
-      expect(provider.isModelLoaded, isFalse);
-      expect(provider.getModelInfo(), equals('No model loaded'));
+    testWidgets('cancelGeneration does not throw', (tester) async {
+      if (!providerReady) return;
+      engine.cancelGeneration();
+    });
+  });
+
+  group('LlmRepositoryImpl', () {
+    late LlmRepositoryImpl repository;
+
+    setUp(() {
+      repository = LlmRepositoryImpl();
     });
 
-    testWidgets('loadModel with invalid path returns false', (tester) async {
-      final result = await provider.loadModel('/no/model.gguf');
+    tearDown(() {
+      repository.dispose();
+    });
+
+    testWidgets('connect with valid config returns true', (tester) async {
+      if (!providerReady) return;
+
+      final states = <ServiceState>[];
+      repository.state.listen(states.add);
+
+      final result = await repository.connect(testConfig!);
+      expect(result, isTrue);
+      expect(states, contains(ServiceState.loadingModel));
+      expect(states, contains(ServiceState.ready));
+    });
+
+    testWidgets('connect with invalid config returns false', (tester) async {
+      final badConfig = LlmProviderConfig(
+        type: LlmProviderType.openai,
+        apiKey: 'invalid-key',
+        model: 'nonexistent-model',
+      );
+
+      final result = await repository.connect(badConfig);
       expect(result, isFalse);
-      expect(provider.isModelLoaded, isFalse);
     });
 
-    testWidgets('generate without model returns error', (tester) async {
-      final tokens = <String>[];
-      await for (final token in provider.generate([], 'Hi')) {
-        tokens.add(token);
-      }
-      expect(tokens.join(), contains('Error'));
+    testWidgets('fetchModels returns list', (tester) async {
+      if (!providerReady) return;
+
+      final models = await repository.fetchModels(testConfig!);
+      debugPrint('Available models: ${models.length}');
+      expect(models, isNotNull);
+    });
+
+    testWidgets('testConnection returns true', (tester) async {
+      if (!providerReady) return;
+
+      final result = await repository.testConnection(testConfig!);
+      expect(result, isTrue);
+    });
+
+    testWidgets('testConnection with bad key returns false', (tester) async {
+      final badConfig = LlmProviderConfig(
+        type: LlmProviderType.openai,
+        apiKey: 'bad-key',
+        model: 'gpt-4o-mini',
+      );
+
+      final result = await repository.testConnection(badConfig);
+      expect(result, isFalse);
+    });
+
+    testWidgets('disconnect emits idle', (tester) async {
+      if (!providerReady) return;
+
+      final states = <ServiceState>[];
+      repository.state.listen(states.add);
+
+      await repository.connect(testConfig!);
+      await repository.disconnect();
+
+      expect(states, contains(ServiceState.idle));
     });
   });
 }

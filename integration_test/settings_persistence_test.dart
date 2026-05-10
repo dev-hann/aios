@@ -19,33 +19,18 @@ void main() {
 
     group('defaults', () {
       testWidgets('all settings have correct defaults', (tester) async {
-        expect(repo.contextSize, SettingsRepository.defaultContextSize);
         expect(repo.maxTokens, SettingsRepository.defaultMaxTokens);
         expect(repo.temperature, SettingsRepository.defaultTemperature);
-        expect(repo.topK, SettingsRepository.defaultTopK);
         expect(repo.topP, SettingsRepository.defaultTopP);
-        expect(
-          repo.repeatPenalty,
-          SettingsRepository.defaultRepeatPenalty,
-        );
         expect(
           repo.agentMaxIterations,
           SettingsRepository.defaultAgentMaxIterations,
         );
-        expect(repo.lastModelPath, isNull);
+        expect(repo.providerConfig, isNull);
       });
     });
 
     group('persistence', () {
-      testWidgets('contextSize persists across instances', (tester) async {
-        await repo.setContextSize(4096);
-        expect(repo.contextSize, 4096);
-
-        final repo2 = SettingsRepositoryImpl();
-        await repo2.init();
-        expect(repo2.contextSize, 4096);
-      });
-
       testWidgets('maxTokens persists across instances', (tester) async {
         await repo.setMaxTokens(1024);
         expect(repo.maxTokens, 1024);
@@ -64,15 +49,6 @@ void main() {
         expect(repo2.temperature, 0.5);
       });
 
-      testWidgets('topK persists across instances', (tester) async {
-        await repo.setTopK(100);
-        expect(repo.topK, 100);
-
-        final repo2 = SettingsRepositoryImpl();
-        await repo2.init();
-        expect(repo2.topK, 100);
-      });
-
       testWidgets('topP persists across instances', (tester) async {
         await repo.setTopP(0.95);
         expect(repo.topP, 0.95);
@@ -80,16 +56,6 @@ void main() {
         final repo2 = SettingsRepositoryImpl();
         await repo2.init();
         expect(repo2.topP, 0.95);
-      });
-
-      testWidgets('repeatPenalty persists across instances',
-          (tester) async {
-        await repo.setRepeatPenalty(1.5);
-        expect(repo.repeatPenalty, 1.5);
-
-        final repo2 = SettingsRepositoryImpl();
-        await repo2.init();
-        expect(repo2.repeatPenalty, 1.5);
       });
 
       testWidgets('agentMaxIterations persists', (tester) async {
@@ -101,43 +67,41 @@ void main() {
         expect(repo2.agentMaxIterations, 12);
       });
 
-      testWidgets('lastModelPath persists and clears', (tester) async {
-        await repo.setLastModelPath('/path/to/model.gguf');
-        expect(repo.lastModelPath, '/path/to/model.gguf');
+      testWidgets('providerConfig persists and clears', (tester) async {
+        await repo.setProviderConfig(
+          '{"type":"openai","apiKey":"test","model":"gpt-4o"}',
+        );
+        expect(repo.providerConfig, isNotNull);
 
         final repo2 = SettingsRepositoryImpl();
         await repo2.init();
-        expect(repo2.lastModelPath, '/path/to/model.gguf');
+        expect(repo2.providerConfig, isNotNull);
 
-        await repo2.clearLastModelPath();
-        expect(repo2.lastModelPath, isNull);
+        await repo2.clearProviderConfig();
+        expect(repo2.providerConfig, isNull);
 
         final repo3 = SettingsRepositoryImpl();
         await repo3.init();
-        expect(repo3.lastModelPath, isNull);
+        expect(repo3.providerConfig, isNull);
       });
 
       testWidgets('all settings persist together', (tester) async {
-        await repo.setContextSize(8192);
         await repo.setMaxTokens(2048);
         await repo.setTemperature(1.0);
-        await repo.setTopK(50);
         await repo.setTopP(0.8);
-        await repo.setRepeatPenalty(1.2);
         await repo.setAgentMaxIterations(5);
-        await repo.setLastModelPath('/models/test.gguf');
+        await repo.setProviderConfig(
+          '{"type":"openai","apiKey":"key","model":"gpt-4o"}',
+        );
 
         final repo2 = SettingsRepositoryImpl();
         await repo2.init();
 
-        expect(repo2.contextSize, 8192);
         expect(repo2.maxTokens, 2048);
         expect(repo2.temperature, 1.0);
-        expect(repo2.topK, 50);
         expect(repo2.topP, 0.8);
-        expect(repo2.repeatPenalty, 1.2);
         expect(repo2.agentMaxIterations, 5);
-        expect(repo2.lastModelPath, '/models/test.gguf');
+        expect(repo2.providerConfig, isNotNull);
       });
     });
   });

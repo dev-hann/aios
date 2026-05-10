@@ -11,30 +11,30 @@ void main() {
     setUp(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.agent.aios/tools'),
-        null,
-      );
+            const MethodChannel('com.agent.aios/tools'),
+            null,
+          );
       toolContext = ToolContextImpl();
     });
 
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.agent.aios/tools'),
-        null,
-      );
+            const MethodChannel('com.agent.aios/tools'),
+            null,
+          );
     });
 
     group('invokeMethod', () {
       test('invokeMethod_success_returnsResult', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            if (call.method == 'getScreenText') return 'Home Screen';
-            return null;
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                if (call.method == 'getScreenText') return 'Home Screen';
+                return null;
+              },
+            );
 
         final result = await toolContext.invokeMethod('getScreenText');
 
@@ -44,9 +44,9 @@ void main() {
       test('invokeMethod_nullResult_returnsNull', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async => null,
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async => null,
+            );
 
         final result = await toolContext.invokeMethod('unknownMethod');
 
@@ -56,14 +56,14 @@ void main() {
       test('invokeMethod_platformException_returnsErrorString', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            throw PlatformException(
-              code: 'ERROR',
-              message: 'Service not available',
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                throw PlatformException(
+                  code: 'ERROR',
+                  message: 'Service not available',
+                );
+              },
             );
-          },
-        );
 
         final result = await toolContext.invokeMethod('getScreenText');
 
@@ -76,12 +76,12 @@ void main() {
         dynamic capturedArgs;
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            capturedArgs = call.arguments;
-            return 'ok';
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                capturedArgs = call.arguments;
+                return 'ok';
+              },
+            );
 
         await toolContext.invokeMethod('tapByText', {'text': 'Button'});
 
@@ -92,44 +92,46 @@ void main() {
         String? capturedMethod;
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            capturedMethod = call.method;
-            return 'ok';
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                capturedMethod = call.method;
+                return 'ok';
+              },
+            );
 
         await toolContext.invokeMethod('getScreenText');
 
         expect(capturedMethod, 'getScreenText');
       });
 
-      test('invokeMethod_platformExceptionWithNullMessage_returnsError',
-          () async {
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            throw PlatformException(code: 'CRASH', message: null);
-          },
-        );
+      test(
+        'invokeMethod_platformExceptionWithNullMessage_returnsError',
+        () async {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(
+                const MethodChannel('com.agent.aios/tools'),
+                (call) async {
+                  throw PlatformException(code: 'CRASH', message: null);
+                },
+              );
 
-        final result = await toolContext.invokeMethod('getScreenText');
+          final result = await toolContext.invokeMethod('getScreenText');
 
-        expect(result, contains('Error'));
-      });
+          expect(result, contains('Error'));
+        },
+      );
     });
 
     group('isAccessibilityEnabled', () {
       test('returnsTrue_whenServiceEnabled', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            if (call.method == 'isAccessibilityEnabled') return true;
-            return null;
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                if (call.method == 'isAccessibilityEnabled') return true;
+                return null;
+              },
+            );
 
         final result = await toolContext.isAccessibilityEnabled();
 
@@ -139,12 +141,12 @@ void main() {
       test('returnsFalse_whenServiceDisabled', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            if (call.method == 'isAccessibilityEnabled') return false;
-            return null;
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                if (call.method == 'isAccessibilityEnabled') return false;
+                return null;
+              },
+            );
 
         final result = await toolContext.isAccessibilityEnabled();
 
@@ -154,9 +156,9 @@ void main() {
       test('returnsFalse_whenNullResult', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async => null,
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async => null,
+            );
 
         final result = await toolContext.isAccessibilityEnabled();
 
@@ -166,11 +168,11 @@ void main() {
       test('returnsFalse_onPlatformException', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            throw PlatformException(code: 'ERROR');
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                throw PlatformException(code: 'ERROR');
+              },
+            );
 
         final result = await toolContext.isAccessibilityEnabled();
 
@@ -182,12 +184,12 @@ void main() {
       test('returnsTrue_whenServiceEnabled', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            if (call.method == 'isNotificationListenerEnabled') return true;
-            return null;
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                if (call.method == 'isNotificationListenerEnabled') return true;
+                return null;
+              },
+            );
 
         final result = await toolContext.isNotificationListenerEnabled();
 
@@ -197,12 +199,13 @@ void main() {
       test('returnsFalse_whenServiceDisabled', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            if (call.method == 'isNotificationListenerEnabled') return false;
-            return null;
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                if (call.method == 'isNotificationListenerEnabled')
+                  return false;
+                return null;
+              },
+            );
 
         final result = await toolContext.isNotificationListenerEnabled();
 
@@ -212,9 +215,9 @@ void main() {
       test('returnsFalse_whenNullResult', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async => null,
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async => null,
+            );
 
         final result = await toolContext.isNotificationListenerEnabled();
 
@@ -224,11 +227,11 @@ void main() {
       test('returnsFalse_onPlatformException', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.agent.aios/tools'),
-          (call) async {
-            throw PlatformException(code: 'ERROR');
-          },
-        );
+              const MethodChannel('com.agent.aios/tools'),
+              (call) async {
+                throw PlatformException(code: 'ERROR');
+              },
+            );
 
         final result = await toolContext.isNotificationListenerEnabled();
 

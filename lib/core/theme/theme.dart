@@ -126,10 +126,7 @@ final aiosDarkTheme = ThemeData.dark().copyWith(
   textButtonTheme: TextButtonThemeData(
     style: TextButton.styleFrom(
       foregroundColor: AppColors.primary,
-      textStyle: const TextStyle(
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-      ),
+      textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
     ),
   ),
   inputDecorationTheme: InputDecorationTheme(
@@ -165,17 +162,12 @@ final aiosDarkTheme = ThemeData.dark().copyWith(
       fontSize: 13,
     ),
   ),
-  dividerTheme: const DividerThemeData(
-    color: AppColors.divider,
-    thickness: 1,
-  ),
+  dividerTheme: const DividerThemeData(color: AppColors.divider, thickness: 1),
   listTileTheme: const ListTileThemeData(
     textColor: AppColors.textPrimary,
     iconColor: AppColors.textSecondary,
   ),
-  iconTheme: const IconThemeData(
-    color: AppColors.textSecondary,
-  ),
+  iconTheme: const IconThemeData(color: AppColors.textSecondary),
   snackBarTheme: SnackBarThemeData(
     backgroundColor: AppColors.surfaceElevated,
     contentTextStyle: const TextStyle(color: AppColors.textPrimary),
@@ -184,5 +176,3 @@ final aiosDarkTheme = ThemeData.dark().copyWith(
     ),
   ),
 );
-
-

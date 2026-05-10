@@ -42,14 +42,16 @@ void main() {
     });
 
     test('checkForUpdate_returnsSuccess_whenUpdateAvailable', () async {
-      repository._nextResult = UpdateResult.success(UpdateInfo(
-        currentVersion: '2.0.0',
-        latestVersion: '2.1.0',
-        downloadUrl: 'https://example.com/app.apk',
-        fileSize: 50000000,
-        releaseNotes: 'Bug fixes',
-        publishedAt: DateTime(2026, 5, 1),
-      ));
+      repository._nextResult = UpdateResult.success(
+        UpdateInfo(
+          currentVersion: '2.0.0',
+          latestVersion: '2.1.0',
+          downloadUrl: 'https://example.com/app.apk',
+          fileSize: 50000000,
+          releaseNotes: 'Bug fixes',
+          publishedAt: DateTime(2026, 5, 1),
+        ),
+      );
 
       final result = await repository.checkForUpdate();
 

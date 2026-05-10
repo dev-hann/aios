@@ -1,10 +1,14 @@
 import 'package:aios/core/theme/app_colors.dart';
+import 'package:aios/core/theme/app_strings.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/update_info.dart';
-
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/providers/settings_state.dart';
 import 'package:aios/presentation/providers/update_provider.dart';
 import 'package:aios/presentation/providers/update_state.dart';
+import 'package:aios/presentation/widgets/connection_status_badge.dart';
+import 'package:aios/presentation/widgets/nav_tile.dart';
+import 'package:aios/presentation/widgets/section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,7 +25,7 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(Strings.settings.title),
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
@@ -29,7 +33,7 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          _ModelNavTile(state: state),
+          _ProviderSection(state: state),
           const SizedBox(height: 8),
           _InferenceNavTile(state: state),
           const SizedBox(height: 8),
@@ -43,143 +47,128 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
+String _providerName(LlmProviderType type) => switch (type) {
+  LlmProviderType.zai => Strings.provider.zai,
+  LlmProviderType.zaiCoding => 'Z.AI (Coding)',
+  LlmProviderType.openai => Strings.provider.openai,
+  LlmProviderType.anthropic => Strings.provider.anthropic,
+  LlmProviderType.custom => Strings.provider.custom,
+};
 
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Card(
-        color: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          side: const BorderSide(color: AppColors.divider),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: AppColors.primary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              child,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavTile extends StatelessWidget {
-  const _NavTile({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    required this.onTap,
-    this.trailing,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback onTap;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      child: Card(
-        color: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          side: const BorderSide(color: AppColors.divider),
-        ),
-        child: ListTile(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          leading: Icon(icon, color: AppColors.primary, size: 20),
-          title: Text(
-            title,
-            style: const TextStyle(fontSize: 14),
-          ),
-          subtitle: subtitle != null
-              ? Text(
-                  subtitle!,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                )
-              : null,
-          trailing: trailing ??
-              const Icon(Icons.chevron_right,
-                  color: AppColors.textSecondary, size: 20),
-          onTap: onTap,
-        ),
-      ),
-    );
-  }
-}
-
-class _ModelNavTile extends StatelessWidget {
-  const _ModelNavTile({required this.state});
+class _ProviderSection extends StatelessWidget {
+  const _ProviderSection({required this.state});
 
   final SettingsState state;
 
   @override
   Widget build(BuildContext context) {
-    final activeName = _activeModelName();
-    final subtitle = activeName ?? 'No model loaded';
+    final config = state.providerConfig;
 
-    return _NavTile(
-      icon: Icons.psychology,
-      title: 'Model',
-      subtitle: subtitle,
-      onTap: () => context.push('/settings/model'),
-      trailing: state.isLoadingModel
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary,
+    return SectionCard(
+      title: Strings.settings.provider,
+      icon: Icons.cloud,
+      child: Column(
+        children: [
+          if (config != null)
+            _ConnectedRow(config: config)
+          else
+            _NotConnectedRow(),
+          const SizedBox(height: 12),
+          ConnectionStatusBadge(
+            config: config,
+            onTap: () => context.push('/settings/provider'),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: Semantics(
+              label: 'provider_settings_button',
+              button: true,
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/settings/provider'),
+                icon: const Icon(Icons.settings, size: 18),
+                label: Text(
+                  config != null
+                      ? Strings.settings.providerSettings
+                      : Strings.settings.setupProvider,
+                ),
               ),
-            )
-          : null,
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
 
-  String? _activeModelName() {
-    if (state.lastModelPath == null) return null;
-    final model = state.availableModels
-        .where((m) => m.path == state.lastModelPath)
-        .firstOrNull;
-    return model?.name;
+class _ConnectedRow extends StatelessWidget {
+  const _ConnectedRow({required this.config});
+
+  final LlmProviderConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                config.model,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                _providerName(config.type),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotConnectedRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(Icons.cloud_off, color: AppColors.textSecondary, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                Strings.settings.noProvider,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                Strings.settings.needSetup,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -190,11 +179,13 @@ class _InferenceNavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _NavTile(
+    return NavTile(
       icon: Icons.tune,
-      title: 'Inference',
+      title: Strings.settings.inference,
       subtitle:
-          'Temp ${state.temperature.toStringAsFixed(1)} · MaxTok ${state.maxTokens} · Ctx ${state.contextSize}',
+          '온도 ${state.temperature.toStringAsFixed(1)} · '
+          '최대토큰 ${state.maxTokens}',
+      semanticsLabel: 'settings_inference_tile',
       onTap: () => context.push('/settings/inference'),
     );
   }
@@ -203,10 +194,11 @@ class _InferenceNavTile extends StatelessWidget {
 class _PermissionNavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return _NavTile(
+    return NavTile(
       icon: Icons.security,
-      title: 'Permissions',
-      subtitle: 'Manage app permissions',
+      title: Strings.settings.permissions,
+      subtitle: Strings.settings.managePermissions,
+      semanticsLabel: 'settings_permissions_tile',
       onTap: () => context.push('/settings/permissions'),
     );
   }
@@ -239,17 +231,17 @@ class _AppInfoSectionState extends ConsumerState<_AppInfoSection> {
   Widget build(BuildContext context) {
     final updateState = ref.watch(updateProvider);
 
-    return _SectionCard(
-      title: 'App Info',
+    return SectionCard(
+      title: Strings.settings.appInfo,
       icon: Icons.info_outline,
       child: Column(
         children: [
           ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Version'),
+            title: Text(Strings.settings.version),
             trailing: Text(
-              _version.isNotEmpty ? _version : 'Loading...',
+              _version.isNotEmpty ? _version : '로딩 중...',
               style: const TextStyle(color: AppColors.textSecondary),
             ),
           ),
@@ -288,18 +280,21 @@ class _InlineUpdateStatus extends ConsumerWidget {
     if (status == UpdateStatus.idle) {
       return SizedBox(
         width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: () =>
-              ref.read(updateProvider.notifier).checkForUpdate(),
-          icon: const Icon(Icons.system_update, size: 18),
-          label: const Text('Check for Updates'),
+        child: Semantics(
+          label: 'check_for_updates_button',
+          button: true,
+          child: OutlinedButton.icon(
+            onPressed: () => ref.read(updateProvider.notifier).checkForUpdate(),
+            icon: const Icon(Icons.system_update, size: 18),
+            label: Text(Strings.settings.checkUpdates),
+          ),
         ),
       );
     }
     if (status == UpdateStatus.checking) {
-      return const Row(
+      return Row(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(
@@ -307,10 +302,13 @@ class _InlineUpdateStatus extends ConsumerWidget {
               color: AppColors.primary,
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Text(
-            'Checking for updates...',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            Strings.settings.checkingUpdates,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
         ],
       );
@@ -320,7 +318,8 @@ class _InlineUpdateStatus extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Update available: v${state.updateInfo!.latestVersion}',
+            '${Strings.settings.updateAvailable}: '
+            'v${state.updateInfo!.latestVersion}',
             style: const TextStyle(
               color: AppColors.success,
               fontSize: 13,
@@ -341,10 +340,9 @@ class _InlineUpdateStatus extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () =>
-                  ref.read(updateProvider.notifier).downloadApk(),
+              onPressed: () => ref.read(updateProvider.notifier).downloadApk(),
               icon: const Icon(Icons.download, size: 18),
-              label: const Text('Download'),
+              label: Text(Strings.settings.download),
             ),
           ),
         ],
@@ -360,8 +358,12 @@ class _InlineUpdateStatus extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Downloading... ${(state.downloadProgress * 100).toStringAsFixed(0)}%',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            '${Strings.settings.downloading} '
+            '${(state.downloadProgress * 100).toStringAsFixed(0)}%',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
         ],
       );
@@ -370,10 +372,9 @@ class _InlineUpdateStatus extends ConsumerWidget {
       return SizedBox(
         width: double.infinity,
         child: ElevatedButton.icon(
-          onPressed: () =>
-              ref.read(updateProvider.notifier).installApk(),
+          onPressed: () => ref.read(updateProvider.notifier).installApk(),
           icon: const Icon(Icons.install_mobile, size: 18),
-          label: const Text('Install Update'),
+          label: Text(Strings.settings.installUpdate),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,
             foregroundColor: AppColors.textPrimary,
@@ -382,9 +383,9 @@ class _InlineUpdateStatus extends ConsumerWidget {
       );
     }
     if (status == UpdateStatus.installing) {
-      return const Row(
+      return Row(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(
@@ -392,22 +393,25 @@ class _InlineUpdateStatus extends ConsumerWidget {
               color: AppColors.primary,
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Text(
-            'Installing update...',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            Strings.settings.installing,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
         ],
       );
     }
     if (status == UpdateStatus.installed) {
-      return const Row(
+      return Row(
         children: [
-          Icon(Icons.check_circle, color: AppColors.success, size: 18),
-          SizedBox(width: 8),
+          const Icon(Icons.check_circle, color: AppColors.success, size: 18),
+          const SizedBox(width: 8),
           Text(
-            'Update installed — app will restart',
-            style: TextStyle(color: AppColors.success, fontSize: 13),
+            Strings.settings.updateInstalled,
+            style: const TextStyle(color: AppColors.success, fontSize: 13),
           ),
         ],
       );
@@ -416,17 +420,17 @@ class _InlineUpdateStatus extends ConsumerWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.check_circle_outline,
-                  color: AppColors.success, size: 18),
-              SizedBox(width: 8),
+              const Icon(
+                Icons.check_circle_outline,
+                color: AppColors.success,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
               Text(
-                'Already up to date',
-                style: TextStyle(
-                  color: AppColors.success,
-                  fontSize: 13,
-                ),
+                Strings.settings.upToDate,
+                style: const TextStyle(color: AppColors.success, fontSize: 13),
               ),
             ],
           ),
@@ -437,7 +441,7 @@ class _InlineUpdateStatus extends ConsumerWidget {
               onPressed: () =>
                   ref.read(updateProvider.notifier).checkForUpdate(),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Check Again'),
+              label: Text(Strings.settings.checkAgain),
             ),
           ),
         ],
@@ -448,7 +452,7 @@ class _InlineUpdateStatus extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            state.errorMessage ?? 'Unknown error',
+            state.errorMessage ?? '알 수 없는 오류',
             style: const TextStyle(color: AppColors.error, fontSize: 13),
           ),
           const SizedBox(height: 8),
@@ -458,7 +462,7 @@ class _InlineUpdateStatus extends ConsumerWidget {
               onPressed: () =>
                   ref.read(updateProvider.notifier).checkForUpdate(),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(Strings.chat.retry),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: AppColors.textPrimary,

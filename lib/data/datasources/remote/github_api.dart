@@ -32,14 +32,14 @@ class GitHubRelease {
   });
 
   factory GitHubRelease.fromJson(Map<String, dynamic> json) => GitHubRelease(
-        tagName: _asString(json['tag_name']),
-        name: _asString(json['name']),
-        body: _asString(json['body']),
-        assets: _asList(json['assets'])
-            .map((a) => GitHubAsset.fromJson(_asMap(a)))
-            .toList(),
-        publishedAt: _asString(json['published_at']),
-      );
+    tagName: _asString(json['tag_name']),
+    name: _asString(json['name']),
+    body: _asString(json['body']),
+    assets: _asList(
+      json['assets'],
+    ).map((a) => GitHubAsset.fromJson(_asMap(a))).toList(),
+    publishedAt: _asString(json['published_at']),
+  );
 
   final String tagName;
   final String name;
@@ -56,10 +56,10 @@ class GitHubAsset {
   });
 
   factory GitHubAsset.fromJson(Map<String, dynamic> json) => GitHubAsset(
-        name: _asString(json['name']),
-        browserDownloadUrl: _asString(json['browser_download_url']),
-        size: _asInt(json['size']),
-      );
+    name: _asString(json['name']),
+    browserDownloadUrl: _asString(json['browser_download_url']),
+    size: _asInt(json['size']),
+  );
 
   final String name;
   final String browserDownloadUrl;
@@ -68,19 +68,21 @@ class GitHubAsset {
 
 class GitHubApi {
   GitHubApi({required String repo, Dio? dio})
-      : _repo = repo,
-        _dio = dio ??
-            Dio(BaseOptions(
+    : _repo = repo,
+      _dio =
+          dio ??
+          Dio(
+            BaseOptions(
               baseUrl: 'https://api.github.com',
               headers: {'Accept': 'application/vnd.github.v3+json'},
-            ));
+            ),
+          );
 
   final Dio _dio;
   final String _repo;
 
   Future<GitHubRelease> getLatestRelease() async {
-    final response =
-        await _dio.get<dynamic>('/repos/$_repo/releases/latest');
+    final response = await _dio.get<dynamic>('/repos/$_repo/releases/latest');
     return GitHubRelease.fromJson(_asMap(response.data));
   }
 }

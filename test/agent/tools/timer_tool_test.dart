@@ -12,11 +12,9 @@ void main() {
 
   group('execute_set', () {
     test('execute_setWithSeconds_succeeds', () async {
-      final result = await tool.execute(
-        '{"action": "set", "seconds": 60}',
-      );
-      expect(result, contains('Timer'));
-      expect(result, contains('60'));
+      final result = await tool.execute('{"action": "set", "seconds": 60}');
+      expect(result.output, contains('Timer'));
+      expect(result.output, contains('60'));
       expect(timers.containsKey('default'), isTrue);
       expect(timers['default']!.durationSeconds, 60);
     });
@@ -25,48 +23,38 @@ void main() {
       final result = await tool.execute(
         '{"action": "set", "seconds": 30, "name": "egg"}',
       );
-      expect(result, contains('30'));
+      expect(result.output, contains('30'));
       expect(timers.containsKey('egg'), isTrue);
     });
 
     test('execute_setOneSecond_succeeds', () async {
-      final result = await tool.execute(
-        '{"action": "set", "seconds": 1}',
-      );
-      expect(result.startsWith('Error:'), isFalse);
+      final result = await tool.execute('{"action": "set", "seconds": 1}');
+      expect(result.isError, isFalse);
     });
 
     test('execute_set300Seconds_succeeds', () async {
-      final result = await tool.execute(
-        '{"action": "set", "seconds": 300}',
-      );
-      expect(result.startsWith('Error:'), isFalse);
+      final result = await tool.execute('{"action": "set", "seconds": 300}');
+      expect(result.isError, isFalse);
     });
 
     test('execute_setZeroSeconds_returnsError', () async {
-      final result = await tool.execute(
-        '{"action": "set", "seconds": 0}',
-      );
-      expect(result, "Error: 'seconds' must be 1-300");
+      final result = await tool.execute('{"action": "set", "seconds": 0}');
+      expect(result.toContent(), "Error: 'seconds' must be 1-300");
     });
 
     test('execute_setNegativeSeconds_returnsError', () async {
-      final result = await tool.execute(
-        '{"action": "set", "seconds": -1}',
-      );
-      expect(result, "Error: 'seconds' must be 1-300");
+      final result = await tool.execute('{"action": "set", "seconds": -1}');
+      expect(result.toContent(), "Error: 'seconds' must be 1-300");
     });
 
     test('execute_setOver300Seconds_returnsError', () async {
-      final result = await tool.execute(
-        '{"action": "set", "seconds": 301}',
-      );
-      expect(result, "Error: 'seconds' must be 1-300");
+      final result = await tool.execute('{"action": "set", "seconds": 301}');
+      expect(result.toContent(), "Error: 'seconds' must be 1-300");
     });
 
     test('execute_setMissingSeconds_returnsError', () async {
       final result = await tool.execute('{"action": "set"}');
-      expect(result, "Error: 'seconds' must be 1-300");
+      expect(result.toContent(), "Error: 'seconds' must be 1-300");
     });
 
     test('execute_setOverwritesExistingTimer', () async {
@@ -74,10 +62,8 @@ void main() {
         startedAt: DateTime.now(),
         durationSeconds: 10,
       );
-      final result = await tool.execute(
-        '{"action": "set", "seconds": 60}',
-      );
-      expect(result.startsWith('Error:'), isFalse);
+      final result = await tool.execute('{"action": "set", "seconds": 60}');
+      expect(result.isError, isFalse);
       expect(timers['default']!.durationSeconds, 60);
     });
   });
@@ -89,7 +75,7 @@ void main() {
         durationSeconds: 60,
       );
       final result = await tool.execute('{"action": "check"}');
-      expect(result, contains('remaining'));
+      expect(result.output, contains('remaining'));
     });
 
     test('execute_checkNamedTimer_returnsRemaining', () async {
@@ -97,15 +83,13 @@ void main() {
         startedAt: DateTime.now(),
         durationSeconds: 30,
       );
-      final result = await tool.execute(
-        '{"action": "check", "name": "egg"}',
-      );
-      expect(result, contains('remaining'));
+      final result = await tool.execute('{"action": "check", "name": "egg"}');
+      expect(result.output, contains('remaining'));
     });
 
     test('execute_checkNonExistentTimer_returnsError', () async {
       final result = await tool.execute('{"action": "check"}');
-      expect(result, "Error: No timer found");
+      expect(result.toContent(), "Error: No timer found");
     });
 
     test('execute_checkExpiredTimer_returnsExpired', () async {
@@ -114,7 +98,7 @@ void main() {
         durationSeconds: 30,
       );
       final result = await tool.execute('{"action": "check"}');
-      expect(result, contains('expired'));
+      expect(result.output, contains('expired'));
     });
   });
 
@@ -125,7 +109,7 @@ void main() {
         durationSeconds: 60,
       );
       final result = await tool.execute('{"action": "cancel"}');
-      expect(result, contains('Cancelled'));
+      expect(result.output, contains('Cancelled'));
       expect(timers.containsKey('default'), isFalse);
     });
 
@@ -134,23 +118,21 @@ void main() {
         startedAt: DateTime.now(),
         durationSeconds: 30,
       );
-      final result = await tool.execute(
-        '{"action": "cancel", "name": "egg"}',
-      );
-      expect(result, contains('Cancelled'));
+      final result = await tool.execute('{"action": "cancel", "name": "egg"}');
+      expect(result.output, contains('Cancelled'));
       expect(timers.containsKey('egg'), isFalse);
     });
 
     test('execute_cancelNonExistentTimer_returnsError', () async {
       final result = await tool.execute('{"action": "cancel"}');
-      expect(result, "Error: No timer found");
+      expect(result.toContent(), "Error: No timer found");
     });
   });
 
   group('execute_list', () {
     test('execute_listEmpty_returnsNoTimers', () async {
       final result = await tool.execute('{"action": "list"}');
-      expect(result, 'No active timers');
+      expect(result.output, 'No active timers');
     });
 
     test('execute_listWithTimers_returnsFormatted', () async {
@@ -163,30 +145,28 @@ void main() {
         durationSeconds: 30,
       );
       final result = await tool.execute('{"action": "list"}');
-      expect(result, contains('default'));
-      expect(result, contains('egg'));
+      expect(result.output, contains('default'));
+      expect(result.output, contains('egg'));
     });
   });
 
   group('execute_unknownAction', () {
     test('execute_unknownAction_returnsError', () async {
       final result = await tool.execute('{"action": "unknown"}');
-      expect(result, contains("Error: Unknown action 'unknown'"));
-      expect(result, contains('set'));
+      expect(result.toContent(), contains("Error: Unknown action 'unknown'"));
+      expect(result.toContent(), contains('set'));
     });
   });
 
   group('execute_malformedInput', () {
     test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json');
-      expect(result.startsWith('Error:'), isTrue);
+      expect(result.isError, isTrue);
     });
 
     test('execute_stringSeconds_parsesCorrectly', () async {
-      final result = await tool.execute(
-        '{"action": "set", "seconds": "60"}',
-      );
-      expect(result.startsWith('Error:'), isFalse);
+      final result = await tool.execute('{"action": "set", "seconds": "60"}');
+      expect(result.isError, isFalse);
     });
   });
 

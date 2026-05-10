@@ -150,6 +150,16 @@ class AIOSAccessibilityService : AccessibilityService() {
         return performGlobalAction(globalAction)
     }
 
+    fun pressEnter(): Boolean {
+        return try {
+            Runtime.getRuntime().exec(arrayOf("input", "keyevent", "KEYCODE_ENTER"))
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "pressEnter failed: $e")
+            false
+        }
+    }
+
     fun getNodeInfo(node: AccessibilityNodeInfo): String {
         val bounds = Rect()
         node.getBoundsInScreen(bounds)

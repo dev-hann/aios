@@ -1,13 +1,15 @@
 import 'dart:convert';
 
 import 'package:aios/domain/agent/agent_tool.dart';
+import 'package:aios/domain/agent/tool_result.dart';
+import 'package:aios/domain/repositories/note_repository.dart';
 
 class NotePadTool extends AgentTool {
-  NotePadTool(this._notes);
+  NotePadTool(this._noteRepo);
 
   static const _tag = 'AIOS-NotepadTool';
 
-  final Map<String, String> _notes;
+  final NoteRepository _noteRepo;
 
   @override
   String get name => 'notepad';
@@ -34,49 +36,52 @@ class NotePadTool extends AgentTool {
       '- Respond with user language';
 
   @override
-  Future<String> execute(String args) async {
+  Future<ToolResult> execute(String args) async {
     try {
       final json = _tryParseJson(args);
       final action = json['action']?.toString().toLowerCase() ?? '';
       return switch (action) {
-        'save' => _save(json),
-        'get' => _get(json),
-        'list' => _list(),
-        'delete' => _delete(json),
-        _ => "Error: Unknown action '$action'. "
-            'Use save, get, list, or delete.',
+        'save' => await _save(json),
+        'get' => await _get(json),
+        'list' => await _list(),
+        'delete' => await _delete(json),
+        _ => ToolResult.err(
+          "Unknown action '$action'. Use save, get, list, or delete.",
+        ),
       };
     } on Object catch (e) {
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 
-  String _save(Map<String, dynamic> json) {
+  Future<ToolResult> _save(Map<String, dynamic> json) async {
     final key = json['key']?.toString() ?? '';
     final value = json['value']?.toString() ?? '';
-    if (key.isEmpty) return "Error: 'key' required";
-    _notes[key] = value;
-    return "Saved note '$key'";
+    if (key.isEmpty) return const ToolResult.err("'key' required");
+    await _noteRepo.save(key, value);
+    return ToolResult.ok("Saved note '$key'");
   }
 
-  String _get(Map<String, dynamic> json) {
+  Future<ToolResult> _get(Map<String, dynamic> json) async {
     final key = json['key']?.toString() ?? '';
-    return _notes[key] ?? "Note '$key' not found";
+    final value = await _noteRepo.get(key);
+    if (value == null) return ToolResult.ok("Note '$key' not found");
+    return ToolResult.ok(value);
   }
 
-  String _list() {
-    if (_notes.isEmpty) return 'No notes saved';
-    return _notes.entries
-        .map((e) => '- ${e.key}: ${e.value}')
-        .join('\n');
+  Future<ToolResult> _list() async {
+    final notes = await _noteRepo.getAll();
+    if (notes.isEmpty) return const ToolResult.ok('No notes saved');
+    return ToolResult.ok(
+      notes.entries.map((e) => '- ${e.key}: ${e.value}').join('\n'),
+    );
   }
 
-  String _delete(Map<String, dynamic> json) {
+  Future<ToolResult> _delete(Map<String, dynamic> json) async {
     final key = json['key']?.toString() ?? '';
-    if (_notes.remove(key) != null) {
-      return "Deleted note '$key'";
-    }
-    return "Note '$key' not found";
+    final deleted = await _noteRepo.delete(key);
+    if (deleted) return ToolResult.ok("Deleted note '$key'");
+    return ToolResult.ok("Note '$key' not found");
   }
 
   Map<String, dynamic> _tryParseJson(String args) {

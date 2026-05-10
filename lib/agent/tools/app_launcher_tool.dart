@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 import 'package:flutter/foundation.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
@@ -37,10 +38,7 @@ class AppLauncherTool extends ExtendedTool {
       '- Use URL only for web pages (e.g. "https://google.com")';
 
   @override
-  Future<String?> phaseContext(
-    String args,
-    ToolContext toolContext,
-  ) async {
+  Future<String?> phaseContext(String args, ToolContext toolContext) async {
     return null;
   }
 
@@ -75,12 +73,12 @@ class AppLauncherTool extends ExtendedTool {
   }
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);
       final target = json['target']?.toString() ?? '';
 
-      if (target.isEmpty) return "Error: 'target' required";
+      if (target.isEmpty) return const ToolResult.err("'target' required");
 
       if (_looksLikeUrl(target)) {
         return _openUrl(target);
@@ -88,7 +86,7 @@ class AppLauncherTool extends ExtendedTool {
 
       return _openApp(target, toolContext);
     } on Object catch (e) {
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 
@@ -100,10 +98,7 @@ class AppLauncherTool extends ExtendedTool {
     return false;
   }
 
-  Future<String> _openApp(
-    String input,
-    ToolContext toolContext,
-  ) async {
+  Future<ToolResult> _openApp(String input, ToolContext toolContext) async {
     print('[$_tag] openApp: input="$input"');
 
     var packageName = input;
@@ -112,27 +107,30 @@ class AppLauncherTool extends ExtendedTool {
       final resolved = await _resolveAppName(input);
       if (resolved == null) {
         final suggestions = await _searchApps(input);
-        return "Error: '$input' 앱을 찾을 수 없습니다.\n"
-            '$suggestions';
+        return ToolResult.err("'$input' 앱을 찾을 수 없습니다.\n$suggestions");
       }
       if (resolved.startsWith('MULTIPLE_MATCH:')) {
-        final candidates =
-            resolved.substring('MULTIPLE_MATCH:'.length);
-        return "'$input'과(와) 일치하는 앱이 여러 개입니다:\n"
-            '$candidates\n\n'
-            '사용자에게 어느 앱을 원하는지 물어보세요.';
+        final candidates = resolved.substring('MULTIPLE_MATCH:'.length);
+        return ToolResult.ok(
+          "'$input'과(와) 일치하는 앱이 여러 개입니다:\n"
+          '$candidates\n\n'
+          '사용자에게 어느 앱을 원하는지 물어보세요.',
+        );
       }
       packageName = resolved;
       print('[$_tag] Resolved to: $packageName');
     }
 
-    final result = await toolContext.invokeMethod(
-          'openApp',
-          {'package_name': packageName},
-        ) ??
-        'Error: app launch failed - no response from platform';
+    final result = await toolContext.invokeMethod('openApp', {
+      'package_name': packageName,
+    });
+    if (result == null) {
+      return const ToolResult.err(
+        'app launch failed - no response from platform',
+      );
+    }
     print('[$_tag] openApp result: $result');
-    return result;
+    return ToolResult.ok(result);
   }
 
   Future<String?> _resolveAppName(String name) async {
@@ -141,9 +139,7 @@ class AppLauncherTool extends ExtendedTool {
 
     final query = name.toLowerCase().trim();
 
-    final exact = apps
-        .where((a) => a.name.toLowerCase() == query)
-        .toList();
+    final exact = apps.where((a) => a.name.toLowerCase() == query).toList();
     if (exact.length == 1) return exact.first.packageName;
     if (exact.length > 1) return _multiMatchResponse(exact);
 
@@ -160,9 +156,7 @@ class AppLauncherTool extends ExtendedTool {
     if (contains.length > 1) return _multiMatchResponse(contains);
 
     final pkgContains = apps
-        .where(
-          (a) => a.packageName.toLowerCase().contains(query),
-        )
+        .where((a) => a.packageName.toLowerCase().contains(query))
         .toList();
     if (pkgContains.length == 1) return pkgContains.first.packageName;
     if (pkgContains.length > 1) return _multiMatchResponse(pkgContains);
@@ -171,10 +165,13 @@ class AppLauncherTool extends ExtendedTool {
   }
 
   String _multiMatchResponse(List<AppInfo> matches) {
-    final list = matches.take(5).toList().asMap().entries.map(
-          (e) =>
-              '${e.key + 1}. ${e.value.name} (${e.value.packageName})',
-        ).join('\n');
+    final list = matches
+        .take(5)
+        .toList()
+        .asMap()
+        .entries
+        .map((e) => '${e.key + 1}. ${e.value.name} (${e.value.packageName})')
+        .join('\n');
     return 'MULTIPLE_MATCH:$list';
   }
 
@@ -183,30 +180,33 @@ class AppLauncherTool extends ExtendedTool {
     if (apps == null || apps.isEmpty) return 'No apps found';
 
     final q = query.toLowerCase();
-    final filtered = apps
-        .where(
-          (a) =>
-              a.name.toLowerCase().contains(q) ||
-              a.packageName.toLowerCase().contains(q),
-        )
-        .toList()
-      ..sort(
-        (a, b) =>
-            a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-      );
+    final filtered =
+        apps
+            .where(
+              (a) =>
+                  a.name.toLowerCase().contains(q) ||
+                  a.packageName.toLowerCase().contains(q),
+            )
+            .toList()
+          ..sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
 
     if (filtered.isEmpty) return "No apps found matching '$query'";
 
-    return filtered.take(10).toList().asMap().entries.map(
-      (e) => '${e.key + 1}. ${e.value.name} (${e.value.packageName})',
-    ).join('\n');
+    return filtered
+        .take(10)
+        .toList()
+        .asMap()
+        .entries
+        .map((e) => '${e.key + 1}. ${e.value.name} (${e.value.packageName})')
+        .join('\n');
   }
 
   Future<List<AppInfo>?> _getCachedApps() async {
     if (_appsCache != null &&
         _cacheTime != null &&
-        DateTime.now().difference(_cacheTime!) <
-            const Duration(minutes: 5)) {
+        DateTime.now().difference(_cacheTime!) < const Duration(minutes: 5)) {
       return _appsCache;
     }
     try {
@@ -223,18 +223,18 @@ class AppLauncherTool extends ExtendedTool {
     }
   }
 
-  Future<String> _openUrl(String url) async {
+  Future<ToolResult> _openUrl(String url) async {
     var finalUrl = url;
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       finalUrl = 'https://$url';
     }
     final uri = Uri.tryParse(finalUrl);
-    if (uri == null) return 'Error: Invalid URL';
+    if (uri == null) return const ToolResult.err('Invalid URL');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return 'Opened $finalUrl';
+      return ToolResult.ok('Opened $finalUrl');
     }
-    return 'Error: Cannot open URL';
+    return const ToolResult.err('Cannot open URL');
   }
 
   Map<String, dynamic> _tryParseJson(String args) {

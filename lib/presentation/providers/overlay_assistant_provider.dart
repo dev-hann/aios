@@ -60,7 +60,9 @@ class OverlayAssistantNotifier extends StateNotifier<bool> {
         },
       );
 
-      final answerStep = result.steps.where((s) => s.type == 'answer').lastOrNull;
+      final answerStep = result.steps
+          .where((s) => s.type == 'answer')
+          .lastOrNull;
       if (answerStep != null) {
         await _overlayService.updateResult(answerStep.content);
       } else {

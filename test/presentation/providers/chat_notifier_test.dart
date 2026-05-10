@@ -5,113 +5,57 @@ import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/conversation.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
+import 'package:aios/data/services/overlay_service.dart';
 import 'package:aios/presentation/providers/chat_notifier.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _MockLlmRepository implements LlmRepository {
   final _stateController = StreamController<ServiceState>.broadcast();
-  final _tokenController = StreamController<String>.broadcast();
-  final _progressController = StreamController<double>.broadcast();
-
-  bool modelLoaded = false;
-  String? lastModelPath;
-  int? lastContextSize;
-  List<ChatMessage> lastHistory = [];
-  String? lastUserMessage;
-  bool stopGenerationCalled = false;
-  Object? sendMessageError;
-  List<String> tokens = [];
-  double? lastTemperature;
-  int? lastMaxTokens;
-  int? lastTopK;
-  double? lastTopP;
-  double? lastRepeatPenalty;
+  bool connected = false;
 
   @override
   Stream<ServiceState> get state => _stateController.stream;
 
   @override
-  Stream<String> get tokenStream => _tokenController.stream;
-
-  @override
-  Stream<double> get loadProgress => _progressController.stream;
-
-  @override
-  Future<bool> loadModel(String path, {int? contextSize}) async {
-    lastModelPath = path;
-    lastContextSize = contextSize;
-    modelLoaded = true;
+  Future<bool> connect(LlmProviderConfig config) async {
+    connected = true;
     _stateController.add(ServiceState.ready);
     return true;
   }
 
   @override
-  Future<void> releaseModel() async {
-    modelLoaded = false;
+  Future<void> disconnect() async {
+    connected = false;
     _stateController.add(ServiceState.idle);
   }
 
   @override
-  bool get isModelLoaded => modelLoaded;
+  bool get isConnected => connected;
 
   @override
-  String getModelInfo() => 'MockModel v1.0';
-
-  @override
-  String getContextUsage() => '0/2048 tokens';
-
-  @override
-  Future<void> resetContext() async {}
-
-  @override
-  Future<void> sendMessage(
-    List<ChatMessage> history, {
-    required String userMessage,
-    double? temperature,
-    int? maxTokens,
-    int? topK,
-    double? topP,
-    double? repeatPenalty,
-    String? grammar,
-  }) async {
-    if (sendMessageError != null) {
-      throw sendMessageError!;
-    }
-    lastHistory = history;
-    lastUserMessage = userMessage;
-    lastTemperature = temperature;
-    lastMaxTokens = maxTokens;
-    lastTopK = topK;
-    lastTopP = topP;
-    lastRepeatPenalty = repeatPenalty;
-    _stateController.add(ServiceState.generating);
-    for (final token in tokens) {
-      _tokenController.add(token);
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-    _stateController.add(ServiceState.ready);
+  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
+    return [];
   }
 
   @override
-  Future<void> stopGeneration() async {
-    stopGenerationCalled = true;
-  }
+  Future<bool> testConnection(LlmProviderConfig config) async => true;
 
   @override
-  Future<void> saveSession(String path) async {}
+  Future<void> stopGeneration() async {}
 
   @override
-  Future<void> loadSession(String path) async {}
+  Future<void> loadModel(String path, {int? contextSize}) async {}
+
+  void emitState(ServiceState s) => _stateController.add(s);
 
   void dispose() {
     _stateController.close();
-    _tokenController.close();
-    _progressController.close();
   }
 }
 
@@ -128,8 +72,7 @@ class _MockConversationRepository implements ConversationRepository {
   }
 
   @override
-  Future<List<ChatMessage>> load() async =>
-      List.unmodifiable(savedMessages);
+  Future<List<ChatMessage>> load() async => List.unmodifiable(savedMessages);
 
   @override
   Future<void> clear() async {
@@ -220,10 +163,11 @@ class _MockAgentStrategy implements AgentStrategy {
       await Future<void>.delayed(executeDelay);
     }
 
-    return resultToReturn ?? AgentResult(
-      steps: [const AgentStep('answer', 'Default response')],
-      success: true,
-    );
+    return resultToReturn ??
+        AgentResult(
+          steps: [const AgentStep('answer', 'Default response')],
+          success: true,
+        );
   }
 
   @override
@@ -260,12 +204,12 @@ class _MockAgentStrategy implements AgentStrategy {
   void setConversationContext(ConversationContext? context) {}
 
   @override
-  void setToolPreferenceTracker(
-    ToolPreferenceTracker? tracker,
-  ) {}
+  void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {}
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('ChatNotifier', () {
     late _MockLlmRepository llmRepo;
     late _MockConversationRepository conversationRepo;
@@ -276,7 +220,12 @@ void main() {
       llmRepo = _MockLlmRepository();
       conversationRepo = _MockConversationRepository();
       agent = _MockAgentStrategy();
-      notifier = ChatNotifier(llmRepo, conversationRepo, agent);
+      notifier = ChatNotifier(
+        llmRepo,
+        conversationRepo,
+        agent,
+        OverlayService(),
+      );
     });
 
     tearDown(() {
@@ -340,10 +289,7 @@ void main() {
     });
 
     test('sendMessage_setsIsGeneratingFalseOnError', () async {
-      agent.resultToReturn = AgentResult(
-        steps: const [],
-        success: false,
-      );
+      agent.resultToReturn = AgentResult(steps: const [], success: false);
 
       await notifier.sendMessage('Hello');
 
@@ -365,8 +311,12 @@ void main() {
       agent.resultToReturn = AgentResult(
         steps: [
           const AgentStep('thought', 'Thinking...'),
-          const AgentStep('action', 'Using calculator',
-              toolName: 'calculator', toolArgs: '{"expression": "2+2"}'),
+          const AgentStep(
+            'action',
+            'Using calculator',
+            toolName: 'calculator',
+            toolArgs: '{"expression": "2+2"}',
+          ),
           const AgentStep('observation', '4.0000'),
           const AgentStep('answer', 'The result is 4'),
         ],
@@ -409,16 +359,6 @@ void main() {
       expect(agent.lastConfirmationApproved, isFalse);
     });
 
-    test('loadModel_delegatesToRepository', () async {
-      await notifier.loadModel(
-        '/path/to/model.gguf',
-        contextSize: 4096,
-      );
-
-      expect(llmRepo.lastModelPath, '/path/to/model.gguf');
-      expect(llmRepo.lastContextSize, 4096);
-    });
-
     test('sendMessage_doesNothingForEmptyText', () async {
       await notifier.sendMessage('');
       await notifier.sendMessage('   ');
@@ -426,8 +366,7 @@ void main() {
       expect(notifier.state.messages, isEmpty);
     });
 
-    test('sendMessage_savesAssistantMessageToConversationRepo',
-        () async {
+    test('sendMessage_savesAssistantMessageToConversationRepo', () async {
       agent.resultToReturn = AgentResult(
         steps: [const AgentStep('answer', 'Response')],
         success: true,
@@ -439,53 +378,62 @@ void main() {
       expect(conversationRepo.lastAppendedMessage!.content, 'Response');
     });
 
-    test('handleStep_confirmationRequired_setsIsConfirmingAndStepTogether',
-        () async {
-      final states = <ChatState>[];
-      notifier.addListener((state) => states.add(state));
+    test(
+      'handleStep_confirmationRequired_setsIsConfirmingAndStepTogether',
+      () async {
+        final states = <ChatState>[];
+        notifier.addListener((state) => states.add(state));
 
-      agent.resultToReturn = AgentResult(
-        steps: [
-          const AgentStep('thought', 'I need to open YouTube'),
-          const AgentStep(
-            'confirmation_required',
-            'High risk: app_launcher',
-            toolName: 'app_launcher',
-            toolArgs: '{"action": "open_app", "package": "youtube"}',
-            riskLevel: 'high',
-          ),
-        ],
-        success: true,
-      );
+        agent.resultToReturn = AgentResult(
+          steps: [
+            const AgentStep('thought', 'I need to open YouTube'),
+            const AgentStep(
+              'confirmation_required',
+              'High risk: app_launcher',
+              toolName: 'app_launcher',
+              toolArgs: '{"action": "open_app", "package": "youtube"}',
+              riskLevel: 'high',
+            ),
+          ],
+          success: true,
+        );
 
-      await notifier.sendMessage('open youtube');
+        await notifier.sendMessage('open youtube');
 
-      final confirmState = states.firstWhere(
-        (s) => s.isConfirming && s.agentSteps.any((s) => s.type == 'confirmation_required'),
-        orElse: () => const ChatState(),
-      );
+        final confirmState = states.firstWhere(
+          (s) =>
+              s.isConfirming &&
+              s.agentSteps.any((s) => s.type == 'confirmation_required'),
+          orElse: () => const ChatState(),
+        );
 
-      expect(confirmState.isConfirming, isTrue,
-          reason: 'isConfirming and agentSteps must be set '
-              'in the SAME state update');
-      expect(
-        confirmState.agentSteps
-            .where((s) => s.type == 'confirmation_required')
-            .isNotEmpty,
-        isTrue,
-        reason: 'confirmation_required step must exist when '
-            'isConfirming is true',
-      );
-    });
+        expect(
+          confirmState.isConfirming,
+          isTrue,
+          reason:
+              'isConfirming and agentSteps must be set '
+              'in the SAME state update',
+        );
+        expect(
+          confirmState.agentSteps
+              .where((s) => s.type == 'confirmation_required')
+              .isNotEmpty,
+          isTrue,
+          reason:
+              'confirmation_required step must exist when '
+              'isConfirming is true',
+        );
+      },
+    );
 
-    test('handleStep_confirmationRequired_noOrphanIsConfirming',
-        () async {
+    test('handleStep_confirmationRequired_noOrphanIsConfirming', () async {
       int confirmWithoutStepCount = 0;
       int stepWithoutConfirmCount = 0;
 
       notifier.addListener((state) {
-        final hasConfirmStep = state.agentSteps
-            .any((s) => s.type == 'confirmation_required');
+        final hasConfirmStep = state.agentSteps.any(
+          (s) => s.type == 'confirmation_required',
+        );
         if (state.isConfirming && !hasConfirmStep) {
           confirmWithoutStepCount++;
         }
@@ -509,44 +457,51 @@ void main() {
 
       await notifier.sendMessage('send SMS');
 
-      expect(confirmWithoutStepCount, 0,
-          reason: 'isConfirming should never be true '
-              'without a confirmation step');
-      expect(stepWithoutConfirmCount, 0,
-          reason: 'confirmation step should never exist '
-              'without isConfirming being true');
+      expect(
+        confirmWithoutStepCount,
+        0,
+        reason:
+            'isConfirming should never be true '
+            'without a confirmation step',
+      );
+      expect(
+        stepWithoutConfirmCount,
+        0,
+        reason:
+            'confirmation step should never exist '
+            'without isConfirming being true',
+      );
     });
 
-  test('resolveConfirmation_resetsIsConfirming', () async {
-    final completer = Completer<void>();
-    agent.resultToReturn = AgentResult(
-      steps: [
-        const AgentStep(
-          'confirmation_required',
-          'confirm',
-          toolName: 'app_launcher',
-          toolArgs: '{}',
-          riskLevel: 'high',
-        ),
-      ],
-      success: true,
-    );
-    agent.holdCompleter = completer;
+    test('resolveConfirmation_resetsIsConfirming', () async {
+      final completer = Completer<void>();
+      agent.resultToReturn = AgentResult(
+        steps: [
+          const AgentStep(
+            'confirmation_required',
+            'confirm',
+            toolName: 'app_launcher',
+            toolArgs: '{}',
+            riskLevel: 'high',
+          ),
+        ],
+        success: true,
+      );
+      agent.holdCompleter = completer;
 
-    final future = notifier.sendMessage('open youtube');
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+      final future = notifier.sendMessage('open youtube');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-    expect(notifier.state.isConfirming, isTrue);
+      expect(notifier.state.isConfirming, isTrue);
 
-    notifier.resolveConfirmation(true);
-    completer.complete();
-    await future;
+      notifier.resolveConfirmation(true);
+      completer.complete();
+      await future;
 
-    expect(notifier.state.isConfirming, isFalse);
-  });
+      expect(notifier.state.isConfirming, isFalse);
+    });
 
-    test('sendMessage_fullAgentFlow_thoughtActionObservationAnswer',
-        () async {
+    test('sendMessage_fullAgentFlow_thoughtActionObservationAnswer', () async {
       final stepTypes = <String>[];
       notifier.addListener((state) {
         for (final step in state.agentSteps) {
@@ -559,8 +514,12 @@ void main() {
       agent.resultToReturn = AgentResult(
         steps: [
           const AgentStep('thought', 'User wants to calculate'),
-          const AgentStep('action', 'calc',
-              toolName: 'calculator', toolArgs: '{"expression": "2+2"}'),
+          const AgentStep(
+            'action',
+            'calc',
+            toolName: 'calculator',
+            toolArgs: '{"expression": "2+2"}',
+          ),
           const AgentStep('observation', '4.0000'),
           const AgentStep('answer', 'The result is 4'),
         ],
@@ -578,10 +537,7 @@ void main() {
     });
 
     test('sendMessage_agentError_setsErrorMessage', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [],
-        success: false,
-      );
+      agent.resultToReturn = AgentResult(steps: [], success: false);
 
       await notifier.sendMessage('Hello');
 
@@ -682,9 +638,7 @@ void main() {
         'Test',
         temperature: 0.5,
         maxTokens: 128,
-        topK: 20,
         topP: 0.8,
-        repeatPenalty: 1.5,
         agentMaxIterations: 3,
       );
 
@@ -693,12 +647,12 @@ void main() {
     });
 
     test('state_reflectsServiceState_fromRepository', () async {
-      llmRepo._stateController.add(ServiceState.loadingModel);
+      llmRepo.emitState(ServiceState.loadingModel);
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       expect(notifier.state.serviceState, ServiceState.loadingModel);
 
-      llmRepo._stateController.add(ServiceState.ready);
+      llmRepo.emitState(ServiceState.ready);
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       expect(notifier.state.serviceState, ServiceState.ready);

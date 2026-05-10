@@ -5,13 +5,15 @@
 AI는 기기가 연결되면 사용자 개입 없이 아래 루프를 반복한다:
 
 ```
-코드 수정 → flutter test → flutter build apk --debug →
+코드 수정 → ./scripts/test.sh → flutter build apk --debug →
 adb 설치 → 스모크 테스트 → logcat 확인 → 문제 파악 → 수정 → 반복
 ```
 
 ### 테스트 의무
 
-- 코드 변경 후 **반드시 `flutter test` 전체 실행** (일부만 실행 금지)
+- 코드 변경 후 **반드시 `./scripts/test.sh` 실행** (일부만 실행 금지)
+- `./scripts/test.sh`는 `flutter test` + `flutter test integration_test/`(기기 있을 때)를 순차 실행한다
+- 기기가 연결되지 않으면 통합 테스트는 스킵되고 단위/위젯 테스트만 실행된다
 - **모든 테스트가 통과해야** 다음 단계(빌드/커밋)로 진행
 - 에러 케이스는 **모두 해결** (테스트 삭제/건너뛰기/`// ignore` 금지)
 - 기기 테스트 시 **TESTING_DEVICE.md** 스모크 테스트 전부 수행
@@ -43,9 +45,9 @@ adb 설치 → 스모크 테스트 → logcat 확인 → 문제 파악 → 수�
 
 ## 1. 프로젝트 개요
 
-- **Android 온디바이스 AI 에이전트** (Flutter/Dart + llamadart)
-- **2-Phase ReAct** 에이전트: Phase 1 (routing) → Phase 2 (tool-specific execution)
-- Privacy-first: 모든 LLM 추론은 온디바이스 (네트워크 호출 없음)
+- **Android AI 에이전트** (Flutter/Dart + Remote OpenAI-compatible API)
+- **단일 루프 ReAct** 에이전트: tool-calling 기반 추론 → 실행 → 관측 반복
+- Remote LLM: OpenAI-compatible API (glm-4.5-air via z.ai) + 온디바이스 접근성 서비스
 - GitHub Releases 기반 in-app 자동 업데이트
 - **Riverpod** DI + **Clean Architecture** + Flutter Widgets
 
@@ -159,26 +161,20 @@ print('[AIOS-{Component}] ERROR: message - $e');
 ```
 User Input → ReactStrategy.execute()
   ├─ LlmChatSession 재사용: _ensureSession()으로 세션 캐시
-  │   → 동일 세션 내 KV cache 유지, clearHistory() 시 초기화
+  │   → LlmRemoteSession이 OpenAI 메시지 히스토리 유지
   │   → Tool schemas도 캐시 (_cachedToolSchemas)
-  │
-  ├─ LLM Warmup: ServiceState.ready 시 _agent.warmup() 실행
-  │   → 첫 inference 전 1토큰 dummy generation으로 메모리 할당 완료
   │
   ├─ DB Fire-and-Forget: sendMessage()에서 appendMessage/updateTitle 비동기
   │   → agent 실행 전 DB 대기 제거
-  │
-  ├─ Auto Session Init: ServiceState.ready → initializeSession() 자동 호출
-  │   → ChatScreen.initState()의 microtask는 fallback으로 유지
   │
   ├─ System Prompt
   │   → 기본: "AIOS on-device assistant" + 응답 규칙
   │   → ConversationContext 주입: 최근 5턴 대화 기록 (있을 때만)
   │   → ToolPreferenceTracker 주입: 자주 사용하는 Tool top 3 (있을 때만)
-  │
+
   ├─ 단일 루프 (최대 8회, 타임아웃 120초)
   │   → LLM에 12개 Tool schema (LlmToolSchema) 전달
-  │   → llamadart가 streaming으로 LlmToolCallDelta 수신
+  │   → OpenAI API가 streaming SSE로 LlmToolCallDelta 수신
   │   → _ToolCallAccumulator가 chunk를 누적하여 완전한 tool call 구성
   │   │
   │   ├─ LLM 응답이 tool_calls인 경우:
@@ -200,7 +196,6 @@ User Input → ReactStrategy.execute()
   │       → 최대 2회 재시도 (phase1_retry step type)
   │
   ├─ 빈 args 추론: _inferToolArgs()로 calculator/notepad/timer에 한해 heuristic 추론
-  │
   ├─ Error Recovery
   │   → ErrorRecovery.analyze()로 에러 분류 (8가지 타입)
   │   → 재시도 가능: invalidAction, missingParameter, appNotInstalled, generic

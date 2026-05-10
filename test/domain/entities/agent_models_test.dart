@@ -5,8 +5,15 @@ void main() {
   group('ToolRisk', () {
     test('hasAllExpectedValues', () {
       expect(ToolRisk.values, hasLength(4));
-      expect(ToolRisk.values,
-          containsAll([ToolRisk.safe, ToolRisk.low, ToolRisk.high, ToolRisk.critical]));
+      expect(
+        ToolRisk.values,
+        containsAll([
+          ToolRisk.safe,
+          ToolRisk.low,
+          ToolRisk.high,
+          ToolRisk.critical,
+        ]),
+      );
     });
 
     test('name_property_matchesExpected', () {
@@ -237,8 +244,22 @@ void main() {
     test('fromJson_deserializesCorrectly', () {
       final json = {
         'steps': [
-          {'type': 'thought', 'content': 'think', 'toolName': '', 'toolArgs': '', 'toolResult': '', 'riskLevel': ''},
-          {'type': 'answer', 'content': 'done', 'toolName': '', 'toolArgs': '', 'toolResult': '', 'riskLevel': ''},
+          {
+            'type': 'thought',
+            'content': 'think',
+            'toolName': '',
+            'toolArgs': '',
+            'toolResult': '',
+            'riskLevel': '',
+          },
+          {
+            'type': 'answer',
+            'content': 'done',
+            'toolName': '',
+            'toolArgs': '',
+            'toolResult': '',
+            'riskLevel': '',
+          },
         ],
         'success': true,
       };

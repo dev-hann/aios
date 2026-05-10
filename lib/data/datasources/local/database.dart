@@ -5,36 +5,37 @@ import 'package:aios/data/datasources/local/tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Conversations, Messages])
+@DriftDatabase(tables: [Conversations, Messages, Notes])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (Migrator m) async {
-          await m.createAll();
-        },
-      );
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        await m.createTable(notes);
+      }
+    },
+  );
 
   Future<List<Conversation>> getAllConversations() {
-    return (select(conversations)
-          ..orderBy([
-            (t) => OrderingTerm.desc(t.updatedAt),
-          ]))
-        .get();
+    return (select(
+      conversations,
+    )..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).get();
   }
 
   Stream<List<Conversation>> watchAllConversations() {
-    return (select(conversations)
-          ..orderBy([
-            (t) => OrderingTerm.desc(t.updatedAt),
-          ]))
-        .watch();
+    return (select(
+      conversations,
+    )..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).watch();
   }
 
   Future<void> insertConversation(ConversationsCompanion conversation) {
@@ -57,18 +58,14 @@ class AppDatabase extends _$AppDatabase {
   Future<List<Message>> getMessages(String conversationId) {
     return (select(messages)
           ..where((t) => t.conversationId.equals(conversationId))
-          ..orderBy([
-            (t) => OrderingTerm.asc(t.createdAt),
-          ]))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
         .get();
   }
 
   Stream<List<Message>> watchMessages(String conversationId) {
     return (select(messages)
           ..where((t) => t.conversationId.equals(conversationId))
-          ..orderBy([
-            (t) => OrderingTerm.asc(t.createdAt),
-          ]))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
         .watch();
   }
 
@@ -77,9 +74,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> deleteMessages(String conversationId) {
-    return (delete(messages)
-          ..where((t) => t.conversationId.equals(conversationId)))
-        .go();
+    return (delete(
+      messages,
+    )..where((t) => t.conversationId.equals(conversationId))).go();
   }
 
   Future<int> getMessageCount(String conversationId) async {
@@ -95,7 +92,26 @@ class AppDatabase extends _$AppDatabase {
     return transaction(() async {
       await delete(messages).go();
       await delete(conversations).go();
+      await delete(notes).go();
     });
+  }
+
+  Future<List<Note>> getAllNotes() {
+    return (select(notes)..orderBy([(t) => OrderingTerm.asc(t.key)])).get();
+  }
+
+  Future<Note?> getNote(String key) {
+    return (select(notes)..where((t) => t.key.equals(key))).getSingleOrNull();
+  }
+
+  Future<void> saveNote(NotesCompanion note) {
+    return into(notes).insertOnConflictUpdate(note);
+  }
+
+  Future<bool> deleteNote(String key) {
+    return (delete(
+      notes,
+    )..where((t) => t.key.equals(key))).go().then((rows) => rows > 0);
   }
 }
 

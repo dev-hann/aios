@@ -1,4 +1,4 @@
-import 'package:aios/domain/entities/model_info.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -8,26 +8,20 @@ part 'settings_state.freezed.dart';
 class SettingsState with _$SettingsState {
   const factory SettingsState({
     required double temperature,
-    required int contextSize,
-    required int maxTokens,
-    required int topK,
     required double topP,
-    required double repeatPenalty,
+    required int maxTokens,
     required int agentMaxIterations,
-    String? lastModelPath,
-    @Default([]) List<ModelInfo> availableModels,
-    @Default(false) bool isLoadingModel,
+    LlmProviderConfig? providerConfig,
+    @Default([]) List<LlmModelInfo> availableModels,
+    @Default(false) bool isLoadingModels,
+    @Default(false) bool isTestingConnection,
     @Default(false) bool onboardingCompleted,
-
   }) = _SettingsState;
 
   factory SettingsState.initial() => SettingsState(
-        temperature: SettingsRepository.defaultTemperature,
-        contextSize: SettingsRepository.defaultContextSize,
-        maxTokens: SettingsRepository.defaultMaxTokens,
-        topK: SettingsRepository.defaultTopK,
-        topP: SettingsRepository.defaultTopP,
-        repeatPenalty: SettingsRepository.defaultRepeatPenalty,
-        agentMaxIterations: SettingsRepository.defaultAgentMaxIterations,
-      );
+    temperature: SettingsRepository.defaultTemperature,
+    topP: SettingsRepository.defaultTopP,
+    maxTokens: SettingsRepository.defaultMaxTokens,
+    agentMaxIterations: SettingsRepository.defaultAgentMaxIterations,
+  );
 }

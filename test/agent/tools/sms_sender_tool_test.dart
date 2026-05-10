@@ -9,20 +9,20 @@ void main() {
 
   setUp(() {
     tool = SmsSenderTool();
-    mockContext = MockToolContext()
-      ..setInvokeResult('OK');
+    mockContext = MockToolContext()..setInvokeResult('OK');
   });
 
   group('execute_send', () {
     test('execute_sendWithToAndBody_invokesSendSms', () async {
       await tool.execute(
-          '{"action": "send", "to": "01012345678", "body": "Hello"}',
-          mockContext);
-      expect(mockContext.methodCalls.last.method, 'sendSms');
-      expect(
-        mockContext.methodCalls.last.arguments,
-        {'to': '01012345678', 'body': 'Hello'},
+        '{"action": "send", "to": "01012345678", "body": "Hello"}',
+        mockContext,
       );
+      expect(mockContext.methodCalls.last.method, 'sendSms');
+      expect(mockContext.methodCalls.last.arguments, {
+        'to': '01012345678',
+        'body': 'Hello',
+      });
     });
 
     test('execute_sendWithoutTo_returnsError', () async {
@@ -30,19 +30,23 @@ void main() {
         '{"action": "send", "body": "Hello"}',
         mockContext,
       );
-      expect(result, contains("'to' required"));
+      expect(result.toContent(), contains("'to' required"));
     });
 
     test('execute_sendWithoutBody_returnsError', () async {
       final result = await tool.execute(
-          '{"action": "send", "to": "01012345678"}', mockContext);
-      expect(result, contains("'body' required"));
+        '{"action": "send", "to": "01012345678"}',
+        mockContext,
+      );
+      expect(result.toContent(), contains("'body' required"));
     });
 
     test('execute_sendWithEmptyTo_returnsError', () async {
       final result = await tool.execute(
-          '{"action": "send", "to": "  ", "body": "Hello"}', mockContext);
-      expect(result, contains("'to' required"));
+        '{"action": "send", "to": "  ", "body": "Hello"}',
+        mockContext,
+      );
+      expect(result.toContent(), contains("'to' required"));
     });
   });
 
@@ -50,38 +54,33 @@ void main() {
     test('execute_readWithDefaultLimit_invokesReadSms', () async {
       await tool.execute('{"action": "read"}', mockContext);
       expect(mockContext.methodCalls.last.method, 'readSms');
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['limit'],
-        10,
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['limit'], 10);
     });
 
     test('execute_readWithCustomLimit_passesLimit', () async {
       await tool.execute('{"action": "read", "limit": 20}', mockContext);
-      expect(
-        (mockContext.methodCalls.last.arguments as Map)['limit'],
-        20,
-      );
+      expect((mockContext.methodCalls.last.arguments as Map)['limit'], 20);
     });
   });
 
   group('execute_unknownAction', () {
     test('execute_unknownAction_returnsError', () async {
-      final result =
-          await tool.execute('{"action": "unknown"}', mockContext);
-      expect(result, contains("Error: Unknown action 'unknown'"));
+      final result = await tool.execute('{"action": "unknown"}', mockContext);
+      expect(result.toContent(), contains("Error: Unknown action 'unknown'"));
     });
 
     test('execute_emptyAction_returnsError', () async {
       final result = await tool.execute('{}', mockContext);
-      expect(result, contains('Error: Unknown action'));
+      expect(result.toContent(), contains('Error: Unknown action'));
     });
   });
 
   group('execute_caseInsensitive', () {
     test('execute_upperCaseSend_treatedAsSend', () async {
       await tool.execute(
-          '{"action": "SEND", "to": "010", "body": "hi"}', mockContext);
+        '{"action": "SEND", "to": "010", "body": "hi"}',
+        mockContext,
+      );
       expect(mockContext.methodCalls.last.method, 'sendSms');
     });
   });
@@ -89,7 +88,7 @@ void main() {
   group('execute_malformedInput', () {
     test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json', mockContext);
-      expect(result, contains('Error: Unknown action'));
+      expect(result.toContent(), contains('Error: Unknown action'));
     });
   });
 

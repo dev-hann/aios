@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:aios/domain/agent/agent_tool.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class TimerEntry {
   TimerEntry({required this.startedAt, required this.durationSeconds});
@@ -50,7 +51,7 @@ class TimerTool extends AgentTool {
       '- Default name is "default"';
 
   @override
-  Future<String> execute(String args) async {
+  Future<ToolResult> execute(String args) async {
     try {
       final json = _tryParseJson(args);
       final action = json['action']?.toString().toLowerCase() ?? '';
@@ -59,50 +60,54 @@ class TimerTool extends AgentTool {
         'check' => _check(json),
         'cancel' => _cancel(json),
         'list' => _list(),
-        '' => "Error: 'action' required. "
-            'Use set, check, cancel, or list.',
-        _ => "Error: Unknown action '$action'. "
-            'Use set, check, cancel, or list.',
+        '' => const ToolResult.err(
+          "'action' required. Use set, check, cancel, or list.",
+        ),
+        _ => ToolResult.err(
+          "Unknown action '$action'. Use set, check, cancel, or list.",
+        ),
       };
     } on Object catch (e) {
       print('[$_tag] ERROR: $e');
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 
-  String _set(Map<String, dynamic> json) {
+  ToolResult _set(Map<String, dynamic> json) {
     final secs = _parseInt(json['seconds']) ?? 0;
     if (secs <= 0 || secs > 300) {
-      return "Error: 'seconds' must be 1-300";
+      return const ToolResult.err("'seconds' must be 1-300");
     }
     final name = json['name']?.toString() ?? 'default';
     _timers[name] = TimerEntry(
       startedAt: DateTime.now(),
       durationSeconds: secs,
     );
-    return 'Timer "$name" set for $secs seconds';
+    return ToolResult.ok('Timer "$name" set for $secs seconds');
   }
 
-  String _check(Map<String, dynamic> json) {
+  ToolResult _check(Map<String, dynamic> json) {
     final name = json['name']?.toString() ?? 'default';
     final timer = _timers[name];
-    if (timer == null) return 'Error: No timer found';
+    if (timer == null) return const ToolResult.err('No timer found');
     if (timer.isExpired) {
       _timers.remove(name);
-      return 'Timer "$name" has expired';
+      return ToolResult.ok('Timer "$name" has expired');
     }
-    return 'Timer "$name": ${timer.remainingSeconds} seconds remaining';
+    return ToolResult.ok(
+      'Timer "$name": ${timer.remainingSeconds} seconds remaining',
+    );
   }
 
-  String _cancel(Map<String, dynamic> json) {
+  ToolResult _cancel(Map<String, dynamic> json) {
     final name = json['name']?.toString() ?? 'default';
     if (_timers.remove(name) != null) {
-      return 'Cancelled timer "$name"';
+      return ToolResult.ok('Cancelled timer "$name"');
     }
-    return 'Error: No timer found';
+    return const ToolResult.err('No timer found');
   }
 
-  String _list() {
+  ToolResult _list() {
     final expired = <String>[];
     for (final entry in _timers.entries) {
       if (entry.value.isExpired) expired.add(entry.key);
@@ -110,12 +115,16 @@ class TimerTool extends AgentTool {
     for (final name in expired) {
       _timers.remove(name);
     }
-    if (_timers.isEmpty) return 'No active timers';
-    return _timers.entries
-        .map((e) =>
-            '- ${e.key}: ${e.value.remainingSeconds}s remaining '
-            '(${e.value.durationSeconds}s total)')
-        .join('\n');
+    if (_timers.isEmpty) return const ToolResult.ok('No active timers');
+    return ToolResult.ok(
+      _timers.entries
+          .map(
+            (e) =>
+                '- ${e.key}: ${e.value.remainingSeconds}s remaining '
+                '(${e.value.durationSeconds}s total)',
+          )
+          .join('\n'),
+    );
   }
 
   int? _parseInt(dynamic value) {

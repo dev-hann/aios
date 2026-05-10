@@ -5,17 +5,15 @@ import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
-import 'package:aios/domain/entities/model_info.dart';
 import 'package:aios/domain/entities/conversation.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
-import 'package:aios/domain/repositories/model_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
-import 'package:aios/presentation/providers/model_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
 import 'package:flutter/material.dart';
@@ -24,80 +22,45 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _MockLlmRepository implements LlmRepository {
   final _stateController = StreamController<ServiceState>.broadcast();
-  final _tokenController = StreamController<String>.broadcast();
-  final _progressController = StreamController<double>.broadcast();
-
-  bool modelLoaded = false;
-  List<String> tokens = [];
+  bool connected = false;
 
   @override
   Stream<ServiceState> get state => _stateController.stream;
 
   @override
-  Stream<String> get tokenStream => _tokenController.stream;
-
-  @override
-  Stream<double> get loadProgress => _progressController.stream;
-
-  @override
-  Future<bool> loadModel(String path, {int? contextSize}) async {
-    modelLoaded = true;
+  Future<bool> connect(LlmProviderConfig config) async {
+    connected = true;
     _stateController.add(ServiceState.ready);
     return true;
   }
 
   @override
-  Future<void> releaseModel() async {
-    modelLoaded = false;
+  Future<void> disconnect() async {
+    connected = false;
     _stateController.add(ServiceState.idle);
   }
 
   @override
-  bool get isModelLoaded => modelLoaded;
+  bool get isConnected => connected;
 
   @override
-  String getModelInfo() => 'MockModel v1.0';
-
-  @override
-  String getContextUsage() => '0/2048 tokens';
-
-  @override
-  Future<void> resetContext() async {}
-
-  @override
-  Future<void> sendMessage(
-    List<ChatMessage> history, {
-    required String userMessage,
-    double? temperature,
-    int? maxTokens,
-    int? topK,
-    double? topP,
-    double? repeatPenalty,
-    String? grammar,
-  }) async {
-    _stateController.add(ServiceState.generating);
-    for (final token in tokens) {
-      _tokenController.add(token);
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-    _stateController.add(ServiceState.ready);
+  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
+    return [];
   }
+
+  @override
+  Future<bool> testConnection(LlmProviderConfig config) async => true;
 
   @override
   Future<void> stopGeneration() async {}
 
   @override
-  Future<void> saveSession(String path) async {}
-
-  @override
-  Future<void> loadSession(String path) async {}
+  Future<void> loadModel(String path, {int? contextSize}) async {}
 
   void emitState(ServiceState s) => _stateController.add(s);
 
   void dispose() {
     _stateController.close();
-    _tokenController.close();
-    _progressController.close();
   }
 }
 
@@ -145,36 +108,22 @@ class _MockConversationRepository implements ConversationRepository {
 
 class _MockSettingsRepository implements SettingsRepository {
   @override
-  int get contextSize => SettingsRepository.defaultContextSize;
-
-  @override
   int get maxTokens => SettingsRepository.defaultMaxTokens;
 
   @override
   double get temperature => SettingsRepository.defaultTemperature;
 
   @override
-  int get topK => SettingsRepository.defaultTopK;
-
-  @override
   double get topP => SettingsRepository.defaultTopP;
 
   @override
-  double get repeatPenalty => SettingsRepository.defaultRepeatPenalty;
+  int get agentMaxIterations => SettingsRepository.defaultAgentMaxIterations;
 
   @override
-  int get agentMaxIterations =>
-      SettingsRepository.defaultAgentMaxIterations;
-
-  @override
-  String? get lastModelPath => null;
+  String? get providerConfig => null;
 
   @override
   bool get onboardingCompleted => true;
-
-
-  @override
-  Future<void> setContextSize(int value) async {}
 
   @override
   Future<void> setMaxTokens(int value) async {}
@@ -183,44 +132,19 @@ class _MockSettingsRepository implements SettingsRepository {
   Future<void> setTemperature(double value) async {}
 
   @override
-  Future<void> setTopK(int value) async {}
-
-  @override
   Future<void> setTopP(double value) async {}
-
-  @override
-  Future<void> setRepeatPenalty(double value) async {}
 
   @override
   Future<void> setAgentMaxIterations(int value) async {}
 
   @override
-  Future<void> setLastModelPath(String path) async {}
+  Future<void> setProviderConfig(String json) async {}
 
   @override
-  Future<void> clearLastModelPath() async {}
+  Future<void> clearProviderConfig() async {}
 
   @override
   Future<void> setOnboardingCompleted() async {}
-
-}
-
-class _MockModelRepository implements ModelRepository {
-  @override
-  List<ModelInfo> scanModels() => [];
-
-  @override
-  List<ModelInfo> scanExternalDirs() => [];
-
-  @override
-  bool restoreModel(String name) => false;
-
-  @override
-  Future<bool> importModelFromUri(
-    String sourcePath,
-    String fileName,
-  ) async =>
-      false;
 }
 
 class _StepCapturingAgent implements AgentStrategy {
@@ -283,9 +207,7 @@ class _StepCapturingAgent implements AgentStrategy {
   void setConversationContext(ConversationContext? context) {}
 
   @override
-  void setToolPreferenceTracker(
-    ToolPreferenceTracker? tracker,
-  ) {}
+  void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {}
 }
 
 class _DelayedEmitAgent implements AgentStrategy {
@@ -338,8 +260,7 @@ class _DelayedEmitAgent implements AgentStrategy {
   String getToolManifest() => '- test: test';
 
   @override
-  List<({String role, String content})>
-      getConversationHistory() => [];
+  List<({String role, String content})> getConversationHistory() => [];
 
   @override
   void clearHistory() {}
@@ -351,9 +272,7 @@ class _DelayedEmitAgent implements AgentStrategy {
   void setConversationContext(ConversationContext? context) {}
 
   @override
-  void setToolPreferenceTracker(
-    ToolPreferenceTracker? tracker,
-  ) {}
+  void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {}
 }
 
 void main() {
@@ -364,12 +283,8 @@ void main() {
     return ProviderScope(
       overrides: [
         llmRepositoryProvider.overrideWithValue(llmRepo),
-        conversationRepositoryProvider
-            .overrideWithValue(conversationRepo),
-        settingsRepositoryProvider
-            .overrideWithValue(_MockSettingsRepository()),
-        modelRepositoryProvider
-            .overrideWithValue(_MockModelRepository()),
+        conversationRepositoryProvider.overrideWithValue(conversationRepo),
+        settingsRepositoryProvider.overrideWithValue(_MockSettingsRepository()),
         agentProvider.overrideWithValue(agent),
       ],
       child: const MaterialApp(home: ChatScreen()),
@@ -391,10 +306,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('AIOS'), findsOneWidget);
-    expect(
-      find.text('Your on-device AI assistant'),
-      findsOneWidget,
-    );
+    expect(find.text('AI 어시스턴트'), findsOneWidget);
   });
 
   testWidgets('send_message_showsMessagesAfterSending', (tester) async {
@@ -405,7 +317,7 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Hello');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     agent.completeExecution();
     await tester.pumpAndSettle();
@@ -419,11 +331,12 @@ void main() {
     await tester.pump();
 
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.byIcon(Icons.send), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
   });
 
-  testWidgets('render_whileGenerating_showsGeneratingIndicator',
-      (tester) async {
+  testWidgets('render_whileGenerating_showsGeneratingIndicator', (
+    tester,
+  ) async {
     final agent = _StepCapturingAgent(
       stepsToEmit: [const AgentStep('answer', 'R')],
     );
@@ -431,27 +344,13 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Hello');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
 
-    expect(find.byIcon(Icons.stop_circle), findsOneWidget);
+    expect(find.byIcon(Icons.stop), findsOneWidget);
 
     agent.completeExecution();
     await tester.pumpAndSettle();
-  });
-
-  testWidgets('render_loadingModel_showsModelLoadingView', (tester) async {
-    final agent = _StepCapturingAgent(stepsToEmit: []);
-    await tester.pumpWidget(_buildChatScreen(agent));
-    await tester.pump();
-
-    llmRepo.emitState(ServiceState.loadingModel);
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Loading AI model...'), findsAtLeast(1));
   });
 
   testWidgets('tapSend_triggersSendMessage', (tester) async {
@@ -461,11 +360,8 @@ void main() {
     await tester.pumpWidget(_buildChatScreen(agent));
     await tester.pump();
 
-    await tester.enterText(
-      find.byType(TextField),
-      'Test message',
-    );
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.enterText(find.byType(TextField), 'Test message');
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     agent.completeExecution();
     await tester.pumpAndSettle();
@@ -473,29 +369,17 @@ void main() {
     expect(find.text('Test message'), findsAtLeast(1));
   });
 
-  testWidgets('render_displaysSettingsIcon', (tester) async {
+  testWidgets('render_displaysNewConversationIcon', (tester) async {
     final agent = _StepCapturingAgent(stepsToEmit: []);
     await tester.pumpWidget(_buildChatScreen(agent));
     await tester.pump();
 
-    expect(find.byIcon(Icons.settings), findsOneWidget);
+    expect(find.byIcon(Icons.add_comment_outlined), findsOneWidget);
   });
 
-  testWidgets('render_errorState_showsErrorState', (tester) async {
-    final agent = _StepCapturingAgent(stepsToEmit: []);
-    await tester.pumpWidget(_buildChatScreen(agent));
-    await tester.pump();
-
-    llmRepo.emitState(ServiceState.error);
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.byType(ChatScreen), findsOneWidget);
-  });
-
-  testWidgets('render_agentSteps_showsThoughtActionObservation',
-      (tester) async {
+  testWidgets('render_agentSteps_showsThoughtActionObservation', (
+    tester,
+  ) async {
     final agent = _StepCapturingAgent(
       stepsToEmit: [
         const AgentStep('thought', 'User wants to calculate'),
@@ -513,14 +397,11 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), '2+2?');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     await tester.pump();
 
-    expect(
-      find.text('User wants to calculate'),
-      findsNothing,
-    );
+    expect(find.text('User wants to calculate'), findsNothing);
     expect(find.text('calculator 실행 중...'), findsOneWidget);
     expect(find.text('결과: 4.0000'), findsOneWidget);
 
@@ -528,8 +409,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('render_confirmationRequired_showsWaitingForConfirmation',
-      (tester) async {
+  testWidgets('render_confirmationRequired_showsWaitingForConfirmation', (
+    tester,
+  ) async {
     final agent = _StepCapturingAgent(
       stepsToEmit: [
         const AgentStep('thought', 'Opening app'),
@@ -546,22 +428,18 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'open youtube');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     await tester.pump();
 
-    expect(
-      find.text('사용자 확인 대기 중...'),
-      findsOneWidget,
-    );
+    expect(find.text('사용자 확인 대기 중...'), findsOneWidget);
     expect(find.text('app_launcher'), findsNothing);
 
     agent.cancel();
     await tester.pumpAndSettle();
   });
 
-  testWidgets('render_highRiskAction_showsConfirmationDialog',
-      (tester) async {
+  testWidgets('render_highRiskAction_showsConfirmationDialog', (tester) async {
     final agent = _StepCapturingAgent(
       stepsToEmit: [
         const AgentStep(
@@ -577,24 +455,19 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'open youtube');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Confirm Action'), findsOneWidget);
-    expect(find.text('Approve'), findsOneWidget);
-    expect(find.text('Deny'), findsOneWidget);
-    expect(
-      find.textContaining('app_launcher'),
-      findsOneWidget,
-    );
+    expect(find.text('실행 확인'), findsOneWidget);
+    expect(find.text('승인'), findsOneWidget);
+    expect(find.text('거부'), findsOneWidget);
 
     agent.cancel();
     await tester.pumpAndSettle();
   });
 
-  testWidgets('confirmationDialog_approve_resolvesTrue',
-      (tester) async {
+  testWidgets('confirmationDialog_approve_resolvesTrue', (tester) async {
     final agent = _StepCapturingAgent(
       stepsToEmit: [
         const AgentStep(
@@ -610,20 +483,19 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'open youtube');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Confirm Action'), findsOneWidget);
+    expect(find.text('실행 확인'), findsOneWidget);
 
-    await tester.tap(find.text('Approve'));
+    await tester.tap(find.text('승인'));
     await tester.pumpAndSettle();
 
     expect(agent.lastConfirmation, isTrue);
   });
 
-  testWidgets('confirmationDialog_deny_resolvesFalse',
-      (tester) async {
+  testWidgets('confirmationDialog_deny_resolvesFalse', (tester) async {
     final agent = _StepCapturingAgent(
       stepsToEmit: [
         const AgentStep(
@@ -639,20 +511,19 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'send SMS');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Confirm Action'), findsOneWidget);
+    expect(find.text('실행 확인'), findsOneWidget);
 
-    await tester.tap(find.text('Deny'));
+    await tester.tap(find.text('거부'));
     await tester.pumpAndSettle();
 
     expect(agent.lastConfirmation, isFalse);
   });
 
-  testWidgets('render_criticalRisk_showsWarningIcon',
-      (tester) async {
+  testWidgets('render_criticalRisk_showsWarningIcon', (tester) async {
     final agent = _StepCapturingAgent(
       stepsToEmit: [
         const AgentStep(
@@ -668,18 +539,17 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'send SMS');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     await tester.pump();
 
     expect(find.byIcon(Icons.warning), findsAtLeast(1));
 
-    await tester.tap(find.text('Deny'));
+    await tester.tap(find.text('거부'));
     await tester.pumpAndSettle();
   });
 
-  testWidgets('fullChatFlow_messageToAnswer_showsAll',
-      (tester) async {
+  testWidgets('fullChatFlow_messageToAnswer_showsAll', (tester) async {
     final agent = _StepCapturingAgent(
       stepsToEmit: [
         const AgentStep('thought', 'Calculating...'),
@@ -697,7 +567,7 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), '2+2?');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     await tester.pump();
 
@@ -711,8 +581,9 @@ void main() {
     expect(find.text('The result is 4'), findsOneWidget);
   });
 
-  testWidgets('render_generatingNoSteps_showsThinkingIndicator',
-      (tester) async {
+  testWidgets('render_generatingNoSteps_showsThinkingIndicator', (
+    tester,
+  ) async {
     final agent = _DelayedEmitAgent(
       delayBeforeSteps: const Duration(seconds: 5),
       stepsToEmit: [const AgentStep('answer', 'R')],
@@ -721,10 +592,10 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Hello');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
 
-    expect(find.text('Thinking...'), findsOneWidget);
+    expect(find.text('생각 중...'), findsOneWidget);
 
     agent.completeExecution();
     await tester.pumpAndSettle();
@@ -738,7 +609,7 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Hello');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     agent.completeExecution();
     await tester.pumpAndSettle();

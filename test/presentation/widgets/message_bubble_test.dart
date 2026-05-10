@@ -1,7 +1,6 @@
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/presentation/widgets/message_bubble.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ChatMessage _makeMessage({
@@ -37,28 +36,53 @@ Widget _wrapWithMaterial(Widget child) {
 
 void main() {
   group('MessageBubble', () {
-    testWidgets('user_message_showsWithPrimaryColor', (tester) async {
+    testWidgets('user_message_showsContent', (tester) async {
       final message = _makeMessage(role: 'user', content: 'Hello');
 
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
 
       expect(find.text('Hello'), findsOneWidget);
+    });
+
+    testWidgets('user_message_hasBubbleColor', (tester) async {
+      final message = _makeMessage(role: 'user', content: 'Hello');
+
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
+
       final container = tester.widget<Container>(
-        find.ancestor(
-          of: find.text('Hello'),
-          matching: find.byType(Container),
-        ),
+        find.ancestor(of: find.text('Hello'), matching: find.byType(Container)),
       );
       final decoration = container.decoration as BoxDecoration?;
       expect(decoration?.color, const Color(0xFF9146FF));
     });
 
-    testWidgets('assistant_message_rendersMarkdownBody', (tester) async {
+    testWidgets('assistant_message_showsContent', (tester) async {
       final message = _makeMessage(role: 'assistant', content: 'Hi there');
 
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
 
-      expect(find.byType(MarkdownBody), findsOneWidget);
+      expect(find.text('Hi there'), findsOneWidget);
+    });
+
+    testWidgets('assistant_message_noMarkdown', (tester) async {
+      final message = _makeMessage(role: 'assistant', content: 'No markdown');
+
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
+
+      expect(find.byType(Text), findsWidgets);
+      final textWidgets = tester.widgetList<Text>(find.byType(Text));
+      final hasMarkdownBody = textWidgets.any(
+        (t) => t.data?.contains('MarkdownBody') == true,
+      );
+      expect(hasMarkdownBody, isFalse);
     });
 
     testWidgets('messageWithToolInfo_showsToolDetails', (tester) async {
@@ -70,25 +94,51 @@ void main() {
         toolResult: 'Success',
       );
 
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
 
-      expect(find.byType(MarkdownBody), findsOneWidget);
       expect(find.text('screen_action'), findsOneWidget);
       expect(find.text('{"action": "click"}'), findsOneWidget);
       expect(find.text('Success'), findsOneWidget);
     });
 
-    testWidgets('emptyContent_showsTimestampOnly', (tester) async {
-      final message = _makeMessage(role: 'user', content: '');
+    testWidgets('messageWithToolInfo_noArgsResult', (tester) async {
+      final message = _makeMessage(
+        role: 'assistant',
+        content: 'Done',
+        toolName: 'calculator',
+      );
 
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
 
-      expect(find.byType(MarkdownBody), findsNothing);
+      expect(find.text('calculator'), findsOneWidget);
+    });
+
+    testWidgets('emptyContent_assistant_stillRenders', (tester) async {
+      final message = _makeMessage(role: 'assistant', content: '');
+
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
+
+      expect(find.byType(MessageBubble), findsOneWidget);
+    });
+
+    testWidgets('message_showsTimestamp', (tester) async {
+      final message = _makeMessage(role: 'assistant', content: 'Hello');
+
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
+      );
+
       final timestampFinder = find.byWidgetPredicate(
         (widget) =>
             widget is Text &&
             widget.data != null &&
-            widget.data!.contains('1/1'),
+            widget.data!.contains('00:00'),
       );
       expect(timestampFinder, findsOneWidget);
     });
@@ -97,54 +147,11 @@ void main() {
       final longText = 'A' * 500;
       final message = _makeMessage(role: 'assistant', content: longText);
 
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
-
-      expect(find.byType(MarkdownBody), findsOneWidget);
-    });
-
-    testWidgets('message_showsTimestamp', (tester) async {
-      final message = _makeMessage(role: 'user', content: 'Hello');
-
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
-
-      final timestampFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is Text &&
-            widget.data != null &&
-            widget.data!.contains('1/1'),
-      );
-      expect(timestampFinder, findsOneWidget);
-    });
-
-    testWidgets('longPress_copiesToClipboard', (tester) async {
-      final message = _makeMessage(role: 'user', content: 'Copy me');
-
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
-
-      await tester.longPress(find.text('Copy me'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Copied to clipboard'), findsOneWidget);
-    });
-
-    testWidgets('assistantMessage_hasMarkdownBody', (tester) async {
-      final message = _makeMessage(
-        role: 'assistant',
-        content: '# Title\n\n- item 1\n- item 2',
+      await tester.pumpWidget(
+        _wrapWithMaterial(MessageBubble(message: message)),
       );
 
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
-
-      expect(find.byType(MarkdownBody), findsOneWidget);
-    });
-
-    testWidgets('userMessage_showsPlainText', (tester) async {
-      final message = _makeMessage(role: 'user', content: 'Plain text');
-
-      await tester.pumpWidget(_wrapWithMaterial(MessageBubble(message: message)));
-
-      expect(find.text('Plain text'), findsOneWidget);
-      expect(find.byType(MarkdownBody), findsNothing);
+      expect(find.text(longText), findsOneWidget);
     });
   });
 }

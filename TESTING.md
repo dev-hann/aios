@@ -19,9 +19,9 @@
 
 ## 2. Current Status
 
-- **823 단위/위젯 테스트** 전체 통과
-- **9개 통합 테스트 파일** (기기 + GGUF 모델 필요)
-- 알려진 타임아웃: `model_test.dart`, `agent_integration_test.dart` (GGUF 모델 파일 필요)
+- **640 단위/위젯 테스트** (631 통과, 9 로딩 에러 — 기존 컴파일 이슈)
+- **11개 통합 테스트 파일** (기기 + .env.test API key 필요)
+- 알려진 로딩 에러: presentation/providers, presentation/screens, domain/repositories (컴파일 의존성 이슈)
 
 ## 3. Test Scope
 
@@ -72,11 +72,11 @@
 
 | Module | File | What to Test |
 |--------|------|--------------|
-| llamadart on-device | `model_test.dart` | 실제 GGUF 모델 로드→추론→해제 |
-| Agent integration | `agent_integration_test.dart` | ReactStrategy 실행, cancel, clearHistory |
+| Remote API agent | `agent_integration_test.dart` | ReactStrategy 실행, cancel, clearHistory |
 | Chat pipeline | `chat_pipeline_test.dart` | LlmRepository sendMessage, token stream, history |
-| Tool execution E2E | `tool_execution_test.dart` | LLM이 calculator/notepad/timer/device_info 선택·실패 |
-| User flow E2E | `user_flow_test.dart` | 모델 로드→채팅→정지→삭제 전체 플로우 |
+| Tool execution E2E | `tool_execution_test.dart` | LLM이 calculator/notepad/timer/device_info 선택·실행 |
+| Screen action workflow | `screen_action_workflow_test.dart` | YouTube search: tap → type → enter |
+| User flow E2E | `user_flow_test.dart` | 채팅→정지→삭제 전체 플로우 |
 | App launch | `app_test.dart` | ChatScreen/SettingsScreen UI 네비게이션 |
 | Database | `database_integration_test.dart` | Drift SQLite CRUD |
 | Settings persistence | `settings_persistence_test.dart` | SharedPreferences 영속성 |
@@ -86,7 +86,7 @@
 
 ```
 test/                → Unit + Widget 테스트 (호스트 머신에서 실행, 기기 불필요)
-integration_test/    → Integration 테스트 (실제 기기/에뮬레이터 필요)
+integration_test/    → Integration 테스트 (실제 기기 + .env.test API key 필요)
 ```
 
 ## 5. Naming Conventions

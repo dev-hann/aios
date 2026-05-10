@@ -25,10 +25,20 @@ void main() {
 
       test('add_multipleEntries_storedInOrder', () {
         log.add('calculator', '{}', ToolRisk.safe, true, '42');
-        log.add('screen_action', '{"action":"tap"}', ToolRisk.high, true,
-            'tapped');
-        log.add('sms_sender', '{"action":"send"}', ToolRisk.critical, false,
-            'cancelled');
+        log.add(
+          'screen_action',
+          '{"action":"tap"}',
+          ToolRisk.high,
+          true,
+          'tapped',
+        );
+        log.add(
+          'sms_sender',
+          '{"action":"send"}',
+          ToolRisk.critical,
+          false,
+          'cancelled',
+        );
 
         final entries = log.getAll();
         expect(entries, hasLength(3));

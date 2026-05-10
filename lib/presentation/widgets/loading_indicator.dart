@@ -1,12 +1,8 @@
 import 'package:aios/core/theme/app_colors.dart';
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:flutter/material.dart';
 
-enum LoadingPhase {
-  initializing,
-  loadingModel,
-  preparing,
-  ready,
-}
+enum LoadingPhase { initializing, loadingModel, preparing, ready }
 
 class LoadingIndicator extends StatelessWidget {
   const LoadingIndicator({
@@ -22,10 +18,10 @@ class LoadingIndicator extends StatelessWidget {
 
   static String _defaultLabel(LoadingPhase phase) {
     return switch (phase) {
-      LoadingPhase.initializing => 'Initializing AI engine...',
-      LoadingPhase.loadingModel => 'Loading AI model...',
-      LoadingPhase.preparing => 'Preparing workspace...',
-      LoadingPhase.ready => 'Ready!',
+      LoadingPhase.initializing => Strings.loading.initializing,
+      LoadingPhase.loadingModel => Strings.loading.loadingModel,
+      LoadingPhase.preparing => Strings.loading.preparing,
+      LoadingPhase.ready => Strings.loading.ready,
     };
   }
 
@@ -39,11 +35,7 @@ class LoadingIndicator extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isReady)
-            const Icon(
-              Icons.check_circle,
-              size: 48,
-              color: AppColors.success,
-            )
+            const Icon(Icons.check_circle, size: 48, color: AppColors.success)
           else
             SizedBox(
               width: 48,

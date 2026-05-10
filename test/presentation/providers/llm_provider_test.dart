@@ -1,4 +1,4 @@
-import 'package:aios/domain/entities/chat_message.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
@@ -10,49 +10,27 @@ class MockLlmRepository implements LlmRepository {
   Stream<ServiceState> get state => const Stream.empty();
 
   @override
-  Stream<String> get tokenStream => const Stream.empty();
+  Future<bool> connect(LlmProviderConfig config) async => true;
 
   @override
-  Stream<double> get loadProgress => const Stream.empty();
+  Future<void> disconnect() async {}
 
   @override
-  Future<bool> loadModel(String path, {int? contextSize}) async => true;
+  bool get isConnected => false;
 
   @override
-  Future<void> releaseModel() async {}
+  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
+    return [];
+  }
 
   @override
-  bool get isModelLoaded => false;
-
-  @override
-  String getModelInfo() => 'MockModel';
-
-  @override
-  String getContextUsage() => '0/2048';
-
-  @override
-  Future<void> resetContext() async {}
-
-  @override
-  Future<void> sendMessage(
-    List<ChatMessage> history, {
-    required String userMessage,
-    double? temperature,
-    int? maxTokens,
-    int? topK,
-    double? topP,
-    double? repeatPenalty,
-    String? grammar,
-  }) async {}
+  Future<bool> testConnection(LlmProviderConfig config) async => true;
 
   @override
   Future<void> stopGeneration() async {}
 
   @override
-  Future<void> saveSession(String path) async {}
-
-  @override
-  Future<void> loadSession(String path) async {}
+  Future<void> loadModel(String path, {int? contextSize}) async {}
 }
 
 void main() {
@@ -60,9 +38,7 @@ void main() {
     test('llmRepositoryProvider_providesLlmRepositoryInstance', () {
       final mock = MockLlmRepository();
       final container = ProviderContainer(
-        overrides: [
-          llmRepositoryProvider.overrideWithValue(mock),
-        ],
+        overrides: [llmRepositoryProvider.overrideWithValue(mock)],
       );
 
       final repository = container.read(llmRepositoryProvider);
@@ -75,9 +51,7 @@ void main() {
     test('llmRepositoryProvider_multipleReads_returnsSameInstance', () {
       final mock = MockLlmRepository();
       final container = ProviderContainer(
-        overrides: [
-          llmRepositoryProvider.overrideWithValue(mock),
-        ],
+        overrides: [llmRepositoryProvider.overrideWithValue(mock)],
       );
 
       final first = container.read(llmRepositoryProvider);

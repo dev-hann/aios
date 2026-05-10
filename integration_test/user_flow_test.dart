@@ -1,34 +1,26 @@
 import 'dart:async';
 
-import 'package:aios/data/providers/real_llama_engine_provider.dart';
-import 'package:aios/data/providers/tool_context_impl.dart';
-import 'package:aios/data/repositories/conversation_repository_impl.dart';
-import 'package:aios/data/repositories/llm_repository_impl.dart';
-import 'package:aios/data/repositories/model_repository_impl.dart';
+import 'package:aios/data/providers/remote/llm_remote_engine.dart';
 import 'package:aios/data/repositories/settings_repository_impl.dart';
-import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/conversation.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/conversation_repository.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
-import 'package:aios/domain/repositories/model_repository.dart';
-import 'package:aios/domain/repositories/settings_repository.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
-import 'package:aios/presentation/providers/model_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:path_provider/path_provider.dart';
 
-import 'model_test.dart' show ensureModelAvailable, modelPath, modelReady;
+import 'model_test.dart'
+    show ensureProviderAvailable, providerReady, testConfig;
 
 class _InMemoryConversationRepository implements ConversationRepository {
   final List<ChatMessage> _messages = [];
@@ -78,84 +70,54 @@ class _InMemoryConversationRepository implements ConversationRepository {
 
   @override
   Stream<List<Conversation>> watchAllConversations() => Stream.value([]);
+
+  @override
+  void setActiveConversationId(String id) {}
 }
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  late RealLlamaEngineProvider engineProvider;
-  late LlmRepositoryImpl llmRepo;
   late SettingsRepositoryImpl settingsRepo;
   late _InMemoryConversationRepository conversationRepo;
 
   setUpAll(() async {
-    await ensureModelAvailable();
+    await ensureProviderAvailable();
   });
 
-  late ReactStrategy? _cachedStrategy;
-
   setUp(() async {
-    engineProvider = RealLlamaEngineProvider();
-    llmRepo = LlmRepositoryImpl(engineProvider);
     settingsRepo = SettingsRepositoryImpl();
     await settingsRepo.init();
     conversationRepo = _InMemoryConversationRepository();
-    _cachedStrategy = null;
   });
-
-  tearDown(() async {
-    llmRepo.dispose();
-    await engineProvider.releaseModel();
-  });
-
-  ReactStrategy _getStrategy() {
-    if (_cachedStrategy != null) return _cachedStrategy!;
-    final engine = engineProvider.engine;
-    if (engine == null) throw StateError('Model not loaded');
-    _cachedStrategy = ReactStrategy(engine: engine);
-    return _cachedStrategy!;
-  }
 
   Widget _buildTestApp() {
     return ProviderScope(
       overrides: [
-        llmRepositoryProvider.overrideWithValue(llmRepo),
+        llmRepositoryProvider.overrideWithValue(_FakeLlmRepository()),
         conversationRepositoryProvider.overrideWithValue(conversationRepo),
         settingsRepositoryProvider.overrideWithValue(settingsRepo),
-        modelRepositoryProvider.overrideWithValue(
-          ModelRepositoryImpl(
-            modelsDir: '/data/local/tmp/models',
-            downloadsDir: '/data/local/tmp/downloads',
-          ),
+        agentEngineProvider.overrideWithValue(
+          providerReady ? LlmRemoteEngine(testConfig!) : null,
         ),
       ],
       child: MaterialApp.router(
         routerConfig: GoRouter(
           initialLocation: '/',
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (_, __) => const ChatScreen(),
-            ),
-          ],
+          routes: [GoRoute(path: '/', builder: (_, __) => const ChatScreen())],
         ),
       ),
     );
   }
 
-  group('Device E2E: Model load and chat', () {
-    testWidgets('loadModelAndSend_firstChat', (tester) async {
-      if (!modelReady) return;
+  group('Device E2E: Provider connect and chat', () {
+    testWidgets('sendChat_firstMessage', (tester) async {
+      if (!providerReady) return;
 
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
       expect(find.byType(TextField), findsOneWidget);
-
-      final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
-      expect(loaded, isTrue);
-
-      await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.tap(find.byIcon(Icons.send));
@@ -163,16 +125,12 @@ void main() {
 
       await tester.pumpAndSettle(const Duration(seconds: 30));
 
-      final hasUserMsg =
-          find.text('Hello').evaluate().isNotEmpty;
+      final hasUserMsg = find.text('Hello').evaluate().isNotEmpty;
       expect(hasUserMsg, isTrue);
     });
 
     testWidgets('twoTurnConversation_preservesMessages', (tester) async {
-      if (!modelReady) return;
-
-      final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
-      expect(loaded, isTrue);
+      if (!providerReady) return;
 
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
@@ -194,39 +152,9 @@ void main() {
 
   group('Device E2E: Agent tool execution', () {
     testWidgets('agentExecutes_reachesAnswer', (tester) async {
-      if (!modelReady) return;
+      if (!providerReady) return;
 
-      final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
-      expect(loaded, isTrue);
-
-      final strategy = _getStrategy();
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            llmRepositoryProvider.overrideWithValue(llmRepo),
-            conversationRepositoryProvider.overrideWithValue(conversationRepo),
-            settingsRepositoryProvider.overrideWithValue(settingsRepo),
-            modelRepositoryProvider.overrideWithValue(
-              ModelRepositoryImpl(
-                modelsDir: '/data/local/tmp/models',
-                downloadsDir: '/data/local/tmp/downloads',
-              ),
-            ),
-          ],
-          child: MaterialApp.router(
-            routerConfig: GoRouter(
-              initialLocation: '/',
-              routes: [
-                GoRoute(
-                  path: '/',
-                  builder: (_, __) => const ChatScreen(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'What is 2+2?');
@@ -241,10 +169,7 @@ void main() {
 
   group('Device E2E: Stop generation', () {
     testWidgets('stopDuringGeneration_interruptsAgent', (tester) async {
-      if (!modelReady) return;
-
-      final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
-      expect(loaded, isTrue);
+      if (!providerReady) return;
 
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
@@ -267,10 +192,7 @@ void main() {
 
   group('Device E2E: Chat delete', () {
     testWidgets('deleteChat_restartsFresh', (tester) async {
-      if (!modelReady) return;
-
-      final loaded = await llmRepo.loadModel(modelPath, contextSize: 512);
-      expect(loaded, isTrue);
+      if (!providerReady) return;
 
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
@@ -294,4 +216,21 @@ void main() {
       expect(find.text('Hello').evaluate().isEmpty, isTrue);
     });
   });
+}
+
+class _FakeLlmRepository implements LlmRepository {
+  @override
+  Stream<ServiceState> get state => Stream.value(ServiceState.ready);
+  @override
+  Future<bool> connect(LlmProviderConfig config) async => true;
+  @override
+  Future<void> disconnect() async {}
+  @override
+  bool get isConnected => true;
+  @override
+  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async => [];
+  @override
+  Future<bool> testConnection(LlmProviderConfig config) async => true;
+  @override
+  Future<void> stopGeneration() async {}
 }

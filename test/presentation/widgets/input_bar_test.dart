@@ -20,16 +20,12 @@ void main() {
     testWidgets('render_displaysTextFieldAndSendButton', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: false,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: false),
         ),
       );
 
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.byIcon(Icons.send), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
     });
 
     testWidgets('tapSend_callsOnSubmitted', (tester) async {
@@ -46,7 +42,7 @@ void main() {
       );
 
       await tester.enterText(find.byType(TextField), 'Hello AIOS');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pumpAndSettle();
 
       expect(submittedText, 'Hello AIOS');
@@ -55,26 +51,18 @@ void main() {
     testWidgets('render_generating_showsStopButton', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: true,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: true),
         ),
       );
 
-      expect(find.byIcon(Icons.stop_circle), findsOneWidget);
-      expect(find.byIcon(Icons.send), findsNothing);
+      expect(find.byIcon(Icons.stop), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward), findsNothing);
     });
 
     testWidgets('render_generating_disablesInput', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: true,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: true),
         ),
       );
 
@@ -95,7 +83,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byIcon(Icons.stop_circle));
+      await tester.tap(find.byIcon(Icons.stop));
       await tester.pumpAndSettle();
 
       expect(stopCalled, isTrue);
@@ -115,14 +103,13 @@ void main() {
       );
 
       await tester.enterText(find.byType(TextField), '');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pumpAndSettle();
 
       expect(submitted, isFalse);
     });
 
-    testWidgets('submit_whitespaceOnly_doesNotCallOnSubmitted',
-        (tester) async {
+    testWidgets('submit_whitespaceOnly_doesNotCallOnSubmitted', (tester) async {
       var submitted = false;
 
       await tester.pumpWidget(
@@ -136,7 +123,7 @@ void main() {
       );
 
       await tester.enterText(find.byType(TextField), '   ');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pumpAndSettle();
 
       expect(submitted, isFalse);
@@ -156,7 +143,7 @@ void main() {
       );
 
       await tester.enterText(find.byType(TextField), '  Hello  ');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pumpAndSettle();
 
       expect(submittedText, 'Hello');
@@ -165,16 +152,12 @@ void main() {
     testWidgets('submit_clearsTextField', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: false,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: false),
         ),
       );
 
       await tester.enterText(find.byType(TextField), 'Hello');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pumpAndSettle();
 
       final textField = tester.widget<TextField>(find.byType(TextField));
@@ -184,41 +167,29 @@ void main() {
     testWidgets('render_notGenerating_showsHintText', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: false,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: false),
         ),
       );
 
       final textField = tester.widget<TextField>(find.byType(TextField));
-      expect(textField.decoration?.hintText, 'Type a message...');
+      expect(textField.decoration?.hintText, '메시지를 입력하세요...');
     });
 
     testWidgets('render_generating_showsGeneratingHint', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: true,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: true),
         ),
       );
 
       final textField = tester.widget<TextField>(find.byType(TextField));
-      expect(textField.decoration?.hintText, 'Generating...');
+      expect(textField.decoration?.hintText, '생성 중...');
     });
 
     testWidgets('render_textInputActionIsNewline', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: false,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: false),
         ),
       );
 
@@ -229,27 +200,18 @@ void main() {
     testWidgets('render_multiline_maxLines', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: false,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: false),
         ),
       );
 
       final textField = tester.widget<TextField>(find.byType(TextField));
-      expect(textField.maxLines, 5);
-      expect(textField.minLines, 1);
+      expect(textField.maxLines, isNull);
     });
 
     testWidgets('render_generating_onSubmittedIsNull', (tester) async {
       await tester.pumpWidget(
         _wrapWithMaterial(
-          InputBar(
-            onSubmitted: (_) {},
-            onStop: () {},
-            isGenerating: true,
-          ),
+          InputBar(onSubmitted: (_) {}, onStop: () {}, isGenerating: true),
         ),
       );
 

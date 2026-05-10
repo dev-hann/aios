@@ -24,16 +24,18 @@ class PermissionGate {
       ),
     );
 
-    print('[AIOS-PermissionGate] '
-        'Awaiting permission: ${permission.key} for $toolName');
+    print(
+      '[AIOS-PermissionGate] '
+      'Awaiting permission: ${permission.key} for $toolName',
+    );
 
     try {
-      return await _completer!.future.timeout(
-        const Duration(seconds: 120),
-      );
+      return await _completer!.future.timeout(const Duration(seconds: 120));
     } on TimeoutException {
-      print('[AIOS-PermissionGate] '
-          'Timeout waiting for permission: ${permission.key}');
+      print(
+        '[AIOS-PermissionGate] '
+        'Timeout waiting for permission: ${permission.key}',
+      );
       return false;
     }
   }

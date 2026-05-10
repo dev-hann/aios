@@ -11,11 +11,9 @@ class ConversationTurn {
 }
 
 class ConversationContext {
-  ConversationContext({
-    int maxTurns = 5,
-    int maxResponseLength = 200,
-  })  : _maxTurns = maxTurns,
-        _maxResponseLength = maxResponseLength;
+  ConversationContext({int maxTurns = 5, int maxResponseLength = 200})
+    : _maxTurns = maxTurns,
+      _maxResponseLength = maxResponseLength;
 
   final int _maxTurns;
   final int _maxResponseLength;
@@ -30,11 +28,13 @@ class ConversationContext {
     String assistantResponse, {
     String? toolUsed,
   }) {
-    _turns.add(ConversationTurn(
-      userMessage: userMessage,
-      assistantResponse: assistantResponse,
-      toolUsed: toolUsed,
-    ));
+    _turns.add(
+      ConversationTurn(
+        userMessage: userMessage,
+        assistantResponse: assistantResponse,
+        toolUsed: toolUsed,
+      ),
+    );
     while (_turns.length > _maxTurns) {
       _turns.removeAt(0);
     }
@@ -44,9 +44,7 @@ class ConversationContext {
     if (count == null || count >= _turns.length) {
       return List.unmodifiable(_turns);
     }
-    return List.unmodifiable(
-      _turns.sublist(_turns.length - count),
-    );
+    return List.unmodifiable(_turns.sublist(_turns.length - count));
   }
 
   String toPromptContext() {

@@ -34,7 +34,10 @@ void main() {
 
       expect(info.currentVersion, '2.0.0');
       expect(info.latestVersion, '2.1.0');
-      expect(info.downloadUrl, 'https://github.com/example/aios/releases/v2.1.0');
+      expect(
+        info.downloadUrl,
+        'https://github.com/example/aios/releases/v2.1.0',
+      );
       expect(info.fileSize, 50000000);
       expect(info.releaseNotes, 'Bug fixes and improvements');
       expect(info.publishedAt, fixedDate);
@@ -54,7 +57,10 @@ void main() {
 
       expect(json['currentVersion'], '2.0.0');
       expect(json['latestVersion'], '2.1.0');
-      expect(json['downloadUrl'], 'https://github.com/example/aios/releases/v2.1.0');
+      expect(
+        json['downloadUrl'],
+        'https://github.com/example/aios/releases/v2.1.0',
+      );
       expect(json['fileSize'], 50000000);
       expect(json['releaseNotes'], 'Bug fixes');
     });

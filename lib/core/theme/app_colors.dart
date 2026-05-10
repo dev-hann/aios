@@ -47,17 +47,17 @@ class AppColors {
   static String stateLabel(ServiceState? serviceState) {
     switch (serviceState) {
       case ServiceState.idle:
-        return 'Idle';
+        return '대기 중';
       case ServiceState.loadingModel:
-        return 'Loading Model...';
+        return '연결 중...';
       case ServiceState.ready:
-        return 'Ready';
+        return '준비 완료';
       case ServiceState.generating:
-        return 'Generating...';
+        return '생성 중...';
       case ServiceState.error:
-        return 'Error';
+        return '오류';
       case null:
-        return 'Unknown';
+        return '알 수 없음';
     }
   }
 }

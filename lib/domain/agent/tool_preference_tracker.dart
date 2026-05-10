@@ -4,8 +4,7 @@ class ToolPreferenceTracker {
   final int _topN;
   final Map<String, int> _usage = {};
 
-  int get totalUsage =>
-      _usage.values.fold(0, (sum, count) => sum + count);
+  int get totalUsage => _usage.values.fold(0, (sum, count) => sum + count);
 
   int getCount(String toolName) => _usage[toolName] ?? 0;
 

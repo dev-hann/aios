@@ -21,9 +21,10 @@ cd aios
 flutter pub get
 ```
 
-### llama_cpp_dart AAR 설정
+### llama_cpp_dart AAR 설정 (온디바이스 추론 시)
 
-온디바이스 LLM 추론을 위해 네이티브 라이브러리가 필요합니다:
+> **참고**: 현재 기본 구성은 Remote OpenAI-compatible API를 사용합니다.
+> 온디바이스 LLM 추론을 활성화하려면 아래 AAR이 필요합니다.
 
 1. [GitHub Releases](https://github.com/dev-hann/aios/releases)에서 최신 `llama-cpp-dart.aar` 다운로드
 2. `android/app/libs/llama-cpp-dart.aar` 에 배치
@@ -31,6 +32,17 @@ flutter pub get
 ```bash
 mkdir -p android/app/libs
 # 다운로드한 AAR 파일을 android/app/libs/ 에 복사
+```
+
+### 환경 변수 (통합 테스트)
+
+통합 테스트 실행 시 `.env.test` 파일이 필요합니다:
+
+```bash
+# .env.test (프로젝트 루트)
+TEST_API_KEY=your-api-key
+TEST_MODEL=glm-4.5-air
+TEST_BASE_URL=https://api.z.ai/api/coding/paas/v4
 ```
 
 ### 서명 키
@@ -47,7 +59,7 @@ flutter run                      # Debug 실행 (연결된 디바이스)
 flutter build apk                # Release APK
 flutter build apk --debug        # Debug APK (자율 개발 루프용)
 flutter build appbundle          # Release AAB (Play Store용)
-flutter test                     # 단위 + 위젯 테스트 (687개)
+flutter test                     # 단위 + 위젯 테스트
 flutter test integration_test/   # 통합 테스트 (디바이스 필요)
 dart run build_runner build      # 코드 생성 (freezed, drift, mockito)
 dart format .                    # 코드 포맷팅

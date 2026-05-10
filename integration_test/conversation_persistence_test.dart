@@ -27,15 +27,13 @@ void main() {
         expect(messages, isEmpty);
       });
 
-      testWidgets('load creates default conversation if missing',
-          (tester) async {
+      testWidgets('load creates default conversation if missing', (
+        tester,
+      ) async {
         await repo.load();
 
         final conversations = await db.getAllConversations();
-        expect(
-          conversations.any((c) => c.id == 'default'),
-          isTrue,
-        );
+        expect(conversations.any((c) => c.id == 'default'), isTrue);
       });
     });
 
@@ -198,21 +196,11 @@ void main() {
       testWidgets('clear then save works fresh', (tester) async {
         final now = DateTime.now();
         await repo.save([
-          ChatMessage(
-            id: 'old',
-            role: 'user',
-            content: 'Old',
-            createdAt: now,
-          ),
+          ChatMessage(id: 'old', role: 'user', content: 'Old', createdAt: now),
         ]);
         await repo.clear();
         await repo.save([
-          ChatMessage(
-            id: 'new',
-            role: 'user',
-            content: 'New',
-            createdAt: now,
-          ),
+          ChatMessage(id: 'new', role: 'user', content: 'New', createdAt: now),
         ]);
 
         final loaded = await repo.load();

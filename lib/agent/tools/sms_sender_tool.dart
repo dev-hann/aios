@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class SmsSenderTool extends ExtendedTool {
   static const _tag = 'AIOS-SmsSender';
@@ -32,7 +33,7 @@ class SmsSenderTool extends ExtendedTool {
       '- Respond with user language';
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);
       final action = json['action']?.toString().toLowerCase() ?? '';
@@ -40,38 +41,45 @@ class SmsSenderTool extends ExtendedTool {
       return switch (action) {
         'send' => _sendSms(json, toolContext),
         'read' => _readSms(json, toolContext),
-        _ => "Error: Unknown action '$action'. Use 'send' or 'read'.",
+        _ => ToolResult.err("Unknown action '$action'. Use 'send' or 'read'."),
       };
     } on Object catch (e) {
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 
-  Future<String> _sendSms(
+  Future<ToolResult> _sendSms(
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
     final to = json['to']?.toString().trim() ?? '';
     final body = json['body']?.toString().trim() ?? '';
-    if (to.isEmpty) return "Error: 'to' required";
-    if (body.isEmpty) return "Error: 'body' required";
-    return await toolContext.invokeMethod(
-          'sendSms',
-          {'to': to, 'body': body},
-        ) ??
-        'Error: SMS send failed - no response from platform';
+    if (to.isEmpty) return const ToolResult.err("'to' required");
+    if (body.isEmpty) return const ToolResult.err("'body' required");
+    final result = await toolContext.invokeMethod('sendSms', {
+      'to': to,
+      'body': body,
+    });
+    if (result == null) {
+      return const ToolResult.err(
+        'SMS send failed - no response from platform',
+      );
+    }
+    return ToolResult.ok(result);
   }
 
-  Future<String> _readSms(
+  Future<ToolResult> _readSms(
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
     final limit = _parseInt(json['limit']) ?? 10;
-    return await toolContext.invokeMethod(
-          'readSms',
-          {'limit': limit},
-        ) ??
-        'Error: SMS read failed - no response from platform';
+    final result = await toolContext.invokeMethod('readSms', {'limit': limit});
+    if (result == null) {
+      return const ToolResult.err(
+        'SMS read failed - no response from platform',
+      );
+    }
+    return ToolResult.ok(result);
   }
 
   int? _parseInt(dynamic value) {

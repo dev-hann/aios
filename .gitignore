@@ -21,6 +21,9 @@ android/local.properties
 # Native (removed)
 native/
 
+# Test secrets
+.env.test
+
 # General
 .DS_Store
 *.swp

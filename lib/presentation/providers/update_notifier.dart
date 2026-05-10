@@ -8,7 +8,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
   static const String _tag = 'AIOS-Update';
 
   UpdateNotifier(this._updateRepository, this._currentVersion)
-      : super(const UpdateState());
+    : super(const UpdateState());
 
   final UpdateRepository _updateRepository;
   final String _currentVersion;
@@ -32,10 +32,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       },
       error: (msg) {
         print('[$_tag] ERROR: checkForUpdate failed: $msg');
-        state = state.copyWith(
-          status: UpdateStatus.error,
-          errorMessage: msg,
-        );
+        state = state.copyWith(status: UpdateStatus.error, errorMessage: msg);
       },
     );
   }
@@ -64,7 +61,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       print('[$_tag] ERROR: Download failed');
       state = state.copyWith(
         status: UpdateStatus.error,
-        errorMessage: 'Download failed',
+        errorMessage: '다운로드 실패',
       );
     }
   }
@@ -97,10 +94,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
       state = state.copyWith(status: UpdateStatus.installed);
     } else {
       print('[$_tag] ERROR: Install failed');
-      state = state.copyWith(
-        status: UpdateStatus.error,
-        errorMessage: 'Install failed',
-      );
+      state = state.copyWith(status: UpdateStatus.error, errorMessage: '설치 실패');
     }
   }
 

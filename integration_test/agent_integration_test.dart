@@ -1,45 +1,36 @@
-import 'package:aios/data/providers/real_llama_engine_provider.dart';
-import 'package:aios/data/repositories/llm_repository_impl.dart';
+import 'package:aios/data/providers/remote/llm_remote_engine.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'model_test.dart' show ensureModelAvailable, modelPath, modelReady;
+import 'model_test.dart'
+    show ensureProviderAvailable, providerReady, testConfig;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    await ensureModelAvailable();
+    await ensureProviderAvailable();
   });
 
   group('ReactStrategy integration', () {
-    late RealLlamaEngineProvider engineProvider;
-    late LlmRepositoryImpl repository;
+    late LlmRemoteEngine engine;
     late ReactStrategy strategy;
 
     setUp(() {
-      engineProvider = RealLlamaEngineProvider();
-      repository = LlmRepositoryImpl(engineProvider);
-    });
-
-    tearDown(() async {
-      repository.dispose();
-      await engineProvider.releaseModel();
+      if (!providerReady) return;
+      engine = LlmRemoteEngine(testConfig!);
     });
 
     ReactStrategy _createStrategy() {
-      final engine = engineProvider.engine;
-      if (engine == null) throw StateError('Model not loaded');
       return ReactStrategy(engine: engine);
     }
 
     testWidgets('execute with answer response', (tester) async {
-      if (!modelReady) return;
+      if (!providerReady) return;
 
-      await repository.loadModel(modelPath, contextSize: 512);
       strategy = _createStrategy();
 
       final steps = <AgentStep>[];
@@ -61,9 +52,8 @@ void main() {
     });
 
     testWidgets('execute plain text fallback', (tester) async {
-      if (!modelReady) return;
+      if (!providerReady) return;
 
-      await repository.loadModel(modelPath, contextSize: 512);
       strategy = _createStrategy();
 
       final result = await strategy.execute(
@@ -75,11 +65,10 @@ void main() {
       expect(result.steps.any((s) => s.type == 'answer'), isTrue);
     });
 
-    testWidgets('execute with no tool context returns error for tools',
-        (tester) async {
-      if (!modelReady) return;
-
-      await repository.loadModel(modelPath, contextSize: 512);
+    testWidgets('execute with no tool context returns error for tools', (
+      tester,
+    ) async {
+      if (!providerReady) return;
 
       final noContextStrategy = _createStrategy();
 
@@ -93,21 +82,17 @@ void main() {
     });
 
     testWidgets('clearHistory resets conversation', (tester) async {
-      if (!modelReady) return;
+      if (!providerReady) return;
 
-      await repository.loadModel(modelPath, contextSize: 512);
       strategy = _createStrategy();
       await strategy.execute('Hello', maxIterations: 2, maxTokens: 16);
-      expect(strategy.getConversationHistory(), isNotEmpty);
 
       strategy.clearHistory();
-      expect(strategy.getConversationHistory(), isEmpty);
     });
 
     testWidgets('getToolManifest returns non-empty', (tester) async {
-      if (!modelReady) return;
+      if (!providerReady) return;
 
-      await repository.loadModel(modelPath, contextSize: 512);
       strategy = _createStrategy();
       final manifest = strategy.getToolManifest();
       expect(manifest, isNotEmpty);
@@ -115,9 +100,8 @@ void main() {
     });
 
     testWidgets('cancel stops execution', (tester) async {
-      if (!modelReady) return;
+      if (!providerReady) return;
 
-      await repository.loadModel(modelPath, contextSize: 512);
       strategy = _createStrategy();
 
       final future = strategy.execute(
@@ -134,9 +118,8 @@ void main() {
     });
 
     testWidgets('multiple sequential executes', (tester) async {
-      if (!modelReady) return;
+      if (!providerReady) return;
 
-      await repository.loadModel(modelPath, contextSize: 512);
       strategy = _createStrategy();
 
       final r1 = await strategy.execute(

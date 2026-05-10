@@ -11,96 +11,93 @@ void main() {
   group('execute_basicArithmetic', () {
     test('execute_addition_returnsCorrectResult', () async {
       final result = await tool.execute('{"expression": "2+3"}');
-      expect(result, '5.0000');
+      expect(result.output, '5.0000');
     });
 
     test('execute_subtraction_returnsCorrectResult', () async {
       final result = await tool.execute('{"expression": "10-4"}');
-      expect(result, '6.0000');
+      expect(result.output, '6.0000');
     });
 
     test('execute_multiplication_returnsCorrectResult', () async {
       final result = await tool.execute('{"expression": "3*7"}');
-      expect(result, '21.0000');
+      expect(result.output, '21.0000');
     });
 
     test('execute_division_returnsCorrectResult', () async {
       final result = await tool.execute('{"expression": "10/4"}');
-      expect(result, '2.5000');
+      expect(result.output, '2.5000');
     });
   });
 
   group('execute_operatorPrecedence', () {
-    test('execute_multiplicationBeforeAddition_returnsCorrectResult',
-        () async {
+    test('execute_multiplicationBeforeAddition_returnsCorrectResult', () async {
       final result = await tool.execute('{"expression": "2+3*4"}');
-      expect(result, '14.0000');
+      expect(result.output, '14.0000');
     });
 
-    test('execute_parenthesesOverridePrecedence_returnsCorrectResult',
-        () async {
-      final result = await tool.execute('{"expression": "(2+3)*4"}');
-      expect(result, '20.0000');
-    });
+    test(
+      'execute_parenthesesOverridePrecedence_returnsCorrectResult',
+      () async {
+        final result = await tool.execute('{"expression": "(2+3)*4"}');
+        expect(result.output, '20.0000');
+      },
+    );
   });
 
   group('execute_decimalNumbers', () {
     test('execute_decimalArithmetic_returnsCorrectResult', () async {
       final result = await tool.execute('{"expression": "1.5+2.5"}');
-      expect(result, '4.0000');
+      expect(result.output, '4.0000');
     });
 
     test('execute_decimalDivision_returnsCorrectResult', () async {
       final result = await tool.execute('{"expression": "7/2"}');
-      expect(result, '3.5000');
+      expect(result.output, '3.5000');
     });
   });
 
   group('execute_complexExpressions', () {
     test('execute_nestedParentheses_returnsCorrectResult', () async {
-      final result =
-          await tool.execute('{"expression": "((2+3)*4-5)/3"}');
-      expect(result, '5.0000');
+      final result = await tool.execute('{"expression": "((2+3)*4-5)/3"}');
+      expect(result.output, '5.0000');
     });
 
     test('execute_largeNumbers_returnsCorrectResult', () async {
-      final result =
-          await tool.execute('{"expression": "385*22"}');
-      expect(result, '8470.0000');
+      final result = await tool.execute('{"expression": "385*22"}');
+      expect(result.output, '8470.0000');
     });
 
     test('execute_percentage_returnsCorrectResult', () async {
-      final result =
-          await tool.execute('{"expression": "200*0.15"}');
-      expect(result, '30.0000');
+      final result = await tool.execute('{"expression": "200*0.15"}');
+      expect(result.output, '30.0000');
     });
   });
 
   group('execute_errorHandling', () {
     test('execute_emptyExpression_returnsError', () async {
       final result = await tool.execute('{"expression": ""}');
-      expect(result, "Error: 'expression' required");
+      expect(result.toContent(), "Error: 'expression' required");
     });
 
     test('execute_missingExpressionKey_returnsError', () async {
       final result = await tool.execute('{}');
-      expect(result, "Error: 'expression' required");
+      expect(result.toContent(), "Error: 'expression' required");
     });
 
     test('execute_malformedJson_returnsError', () async {
       final result = await tool.execute('not json');
-      expect(result.startsWith('Error:'), isTrue);
+      expect(result.isError, isTrue);
     });
 
     test('execute_unsafeCharacters_sanitized', () async {
-      final result =
-          await tool.execute('{"expression": "2+3;import os"}');
-      expect(result, '5.0000');
+      final result = await tool.execute('{"expression": "2+3;import os"}');
+      expect(result.output, '5.0000');
     });
 
     test('execute_divisionByZero_returnsInfinity', () async {
       final result = await tool.execute('{"expression": "1/0"}');
-      expect(result, double.infinity.toStringAsFixed(4));
+      expect(result.output, double.infinity.toStringAsFixed(4));
     });
   });
 

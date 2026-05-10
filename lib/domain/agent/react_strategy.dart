@@ -15,6 +15,7 @@ import 'package:aios/domain/agent/risk_classifier.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 
 class ReactStrategy implements AgentStrategy {
@@ -23,10 +24,10 @@ class ReactStrategy implements AgentStrategy {
     ToolContext? toolContext,
     Map<String, AgentTool>? basicTools,
     Map<String, ExtendedTool>? extendedTools,
-  })  : _engine = engine,
-        _toolContext = toolContext,
-        _basicTools = basicTools ?? {},
-        _extendedTools = extendedTools ?? {};
+  }) : _engine = engine,
+       _toolContext = toolContext,
+       _basicTools = basicTools ?? {},
+       _extendedTools = extendedTools ?? {};
 
   final LlmEngine _engine;
   final ToolContext? _toolContext;
@@ -52,8 +53,10 @@ class ReactStrategy implements AgentStrategy {
 
   PermissionChecker? _permissionChecker;
 
-  Set<String> get _allToolNames =>
-      {..._basicTools.keys, ..._extendedTools.keys};
+  Set<String> get _allToolNames => {
+    ..._basicTools.keys,
+    ..._extendedTools.keys,
+  };
 
   @override
   void setPermissionChecker(PermissionChecker? checker) {
@@ -73,33 +76,41 @@ class ReactStrategy implements AgentStrategy {
 
   String get _systemPrompt {
     final base = StringBuffer();
+    base.writeln('You are AIOS, an on-device phone assistant.');
     base.writeln(
-      'You are AIOS, an on-device phone assistant.',
+      'Use tools to help the user. Respond concisely in the user\'s language.',
     );
     base.writeln(
-      'Use tools to help the user. '
-      'Respond concisely in the user\'s language.',
+      'When calling a tool, ALWAYS include ALL required parameters as JSON.',
+    );
+    base.writeln('Example: calculator needs {"expression": "2+3"}');
+    base.writeln('If no tool is needed, answer directly.');
+    base.writeln();
+    base.writeln('CRITICAL RULES FOR screen_action:');
+    base.writeln(
+      '- Each screen_action call does exactly ONE action. '
+      'Do NOT mix parameters from different actions in one call.',
     );
     base.writeln(
-      'When calling a tool, '
-      'ALWAYS include ALL required parameters as JSON.',
+      '- NEVER put "content" and "global_action" in the same call. '
+      'They belong to different actions.',
     );
+    base.writeln('- Search workflow requires 3 SEPARATE calls:');
+    base.writeln('  1) {"action":"tap","text":"검색"} → open search field');
+    base.writeln('  2) {"action":"type","content":"query"} → type text');
+    base.writeln('  3) {"action":"global","global_action":"enter"} → submit');
     base.writeln(
-      'Example: calculator needs {"expression": "2+3"}',
-    );
-    base.writeln(
-      'If no tool is needed, answer directly.',
+      '- Complex tasks always need MULTIPLE sequential tool calls. '
+      'Do not stop until the task is fully done.',
     );
 
-    final contextStr =
-        _conversationContext?.toPromptContext() ?? '';
+    final contextStr = _conversationContext?.toPromptContext() ?? '';
     if (contextStr.isNotEmpty) {
       base.writeln();
       base.write(contextStr);
     }
 
-    final prefStr =
-        _preferenceTracker?.toPromptContext() ?? '';
+    final prefStr = _preferenceTracker?.toPromptContext() ?? '';
     if (prefStr.isNotEmpty) {
       base.writeln();
       base.write(prefStr);
@@ -122,7 +133,7 @@ class ReactStrategy implements AgentStrategy {
   LlmToolSchema _basicToolToSchema(AgentTool tool) {
     return LlmToolSchema(
       name: tool.name,
-      description: tool.description,
+      description: tool.toolPrompt,
       parameters: _parseParams(tool.parameters),
     );
   }
@@ -130,7 +141,7 @@ class ReactStrategy implements AgentStrategy {
   LlmToolSchema _extendedToolToSchema(ExtendedTool tool) {
     return LlmToolSchema(
       name: tool.name,
-      description: tool.description,
+      description: tool.toolPrompt,
       parameters: _parseParams(tool.parameters),
     );
   }
@@ -141,33 +152,62 @@ class ReactStrategy implements AgentStrategy {
       if (decoded is! Map<String, dynamic>) return [];
       return decoded.entries.map((e) {
         final desc = e.value.toString();
+        final type = _detectType(desc);
         if (desc.contains('|')) {
           final values = desc
               .split('|')
-              .map(
-                (v) => v.replaceAll(RegExp(r'[^a-z_]'), ''),
-              )
+              .map((v) => v.replaceAll(RegExp(r'[^a-z_]'), ''))
               .where((v) => v.isNotEmpty)
               .toList();
           if (values.isNotEmpty) {
             return LlmToolParamSchema(
               name: e.key,
               description: desc,
+              type: type,
               required: true,
               isEnum: true,
               enumValues: values,
             );
           }
         }
+        final example = _extractExample(desc);
         return LlmToolParamSchema(
           name: e.key,
           description: desc,
-          required: true,
+          type: type,
+          required: !_isOptional(desc),
+          example: example,
         );
       }).toList();
     } on Object {
       return [];
     }
+  }
+
+  String _detectType(String desc) {
+    final lower = desc.toLowerCase();
+    if (lower.contains('boolean') || lower.contains('(true|false)')) {
+      return 'boolean';
+    }
+    if (lower.contains('integer') || lower.contains('int ')) {
+      return 'integer';
+    }
+    if (lower.contains('number') || lower.contains('float')) {
+      return 'number';
+    }
+    return 'string';
+  }
+
+  bool _isOptional(String desc) {
+    return desc.toLowerCase().contains('optional');
+  }
+
+  String? _extractExample(String desc) {
+    final match = RegExp(
+      r'\(e\.g\.?\s*([^)]+)\)',
+      caseSensitive: false,
+    ).firstMatch(desc);
+    return match?.group(1)?.trim();
   }
 
   @override
@@ -182,9 +222,11 @@ class ReactStrategy implements AgentStrategy {
     _errorRecovery.reset();
     final steps = <AgentStep>[];
 
-    print('[$_tag] Agent run: '
-        'prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", '
-        'maxIter=$maxIterations');
+    print(
+      '[$_tag] Agent run: '
+      'prompt="${prompt.substring(0, prompt.length > 50 ? 50 : prompt.length)}", '
+      'maxIter=$maxIterations',
+    );
 
     final runStartTime = DateTime.now();
     const maxRunDuration = Duration(seconds: 120);
@@ -198,9 +240,7 @@ class ReactStrategy implements AgentStrategy {
       final tools = _cachedToolSchemas!;
       final generationConfig = LlmGenerationConfig(
         temperature: 0.7,
-        topK: 40,
         topP: 0.9,
-        penalty: 1.1,
         maxTokens: maxTokens,
       );
 
@@ -211,23 +251,19 @@ class ReactStrategy implements AgentStrategy {
 
         final elapsed = DateTime.now().difference(runStartTime);
         if (elapsed > maxRunDuration) {
-          steps.add(AgentStep(
-            'thought',
-            'Time limit reached (${elapsed.inSeconds}s).',
-          ));
+          steps.add(
+            AgentStep('thought', 'Time limit reached (${elapsed.inSeconds}s).'),
+          );
           onStep?.call(steps.last);
           break;
         }
 
-        steps.add(
-          AgentStep('thought', 'Thinking (step ${i + 1})...'),
-        );
+        steps.add(AgentStep('thought', 'Thinking (step ${i + 1})...'));
         onStep?.call(steps.last);
         onStep?.call(const AgentStep('thinking_start', ''));
 
         String fullContent = '';
-        final Map<int, _ToolCallAccumulator> toolCallBuilders =
-            {};
+        final Map<int, _ToolCallAccumulator> toolCallBuilders = {};
 
         try {
           await for (final chunk in session.chat(
@@ -259,9 +295,11 @@ class ReactStrategy implements AgentStrategy {
 
         onStep?.call(const AgentStep('thinking_end', ''));
 
-        print('[$_tag] Step $i: '
-            'content="${fullContent.substring(0, fullContent.length > 200 ? 200 : fullContent.length)}", '
-            'toolCalls=${toolCallBuilders.length}');
+        print(
+          '[$_tag] Step $i: '
+          'content="${fullContent.substring(0, fullContent.length > 200 ? 200 : fullContent.length)}", '
+          'toolCalls=${toolCallBuilders.length}',
+        );
 
         if (toolCallBuilders.isEmpty) {
           final answer = fullContent.trim();
@@ -276,10 +314,9 @@ class ReactStrategy implements AgentStrategy {
               .where((s) => s.type == 'phase1_retry')
               .length;
           if (retryCount < 2) {
-            steps.add(AgentStep(
-              'phase1_retry',
-              'Format retry ${retryCount + 1}/2',
-            ));
+            steps.add(
+              AgentStep('phase1_retry', 'Format retry ${retryCount + 1}/2'),
+            );
             onStep?.call(steps.last);
             userParts = [
               LlmContentPart.text(
@@ -289,9 +326,7 @@ class ReactStrategy implements AgentStrategy {
             continue;
           }
 
-          steps.add(
-            AgentStep('answer', '요청을 처리하지 못했습니다.'),
-          );
+          steps.add(AgentStep('answer', '요청을 처리하지 못했습니다.'));
           onStep?.call(steps.last);
           break;
         }
@@ -301,6 +336,7 @@ class ReactStrategy implements AgentStrategy {
 
           final builder = entry.value;
           final toolName = builder.name ?? '';
+          print('[$_tag] Processing tool: $toolName');
           Map<String, dynamic> toolArgs = {};
           try {
             if (builder.arguments.isNotEmpty) {
@@ -308,51 +344,53 @@ class ReactStrategy implements AgentStrategy {
                 jsonDecode(builder.arguments) as Map,
               );
             }
-          } on Object {
-            print('[$_tag] WARN: tool args parse error');
+          } on Object catch (e) {
+            print('[$_tag] WARN: tool args parse error for $toolName: $e');
           }
+          print('[$_tag] Tool args: $toolArgs');
 
           if (toolArgs.isEmpty) {
             final inferred = _inferToolArgs(toolName, prompt);
             if (inferred != null) {
               toolArgs = inferred;
-              print(
-                '[$_tag] Auto-inferred args for $toolName: $toolArgs',
-              );
+              print('[$_tag] Auto-inferred args for $toolName: $toolArgs');
             }
           }
 
           final argsJson = jsonEncode(toolArgs);
 
-          steps.add(AgentStep(
-            'action',
-            'Using tool: $toolName',
-            toolName: toolName,
-            toolArgs: argsJson,
-          ));
+          steps.add(
+            AgentStep(
+              'action',
+              'Using tool: $toolName',
+              toolName: toolName,
+              toolArgs: argsJson,
+            ),
+          );
           onStep?.call(steps.last);
 
-          final requiredPerm = ToolPermissionMapper
-              .getRequiredPermission(toolName, argsJson);
+          final requiredPerm = ToolPermissionMapper.getRequiredPermission(
+            toolName,
+            argsJson,
+          );
           if (requiredPerm != null) {
-            final hasPermission =
-                await _checkPermission(requiredPerm.key);
+            final hasPermission = await _checkPermission(requiredPerm.key);
             if (!hasPermission) {
-              final granted =
-                  await _permissionGate.requestPermission(
+              final granted = await _permissionGate.requestPermission(
                 requiredPerm,
                 toolName,
                 onStep ?? (_) {},
               );
               if (!granted) {
-                final result =
-                    'Error: ${requiredPerm.displayName} 권한이 거부되었습니다';
-                steps.add(AgentStep(
-                  'observation',
-                  result,
-                  toolName: toolName,
-                  toolResult: result,
-                ));
+                final result = 'Error: ${requiredPerm.displayName} 권한이 거부되었습니다';
+                steps.add(
+                  AgentStep(
+                    'observation',
+                    result,
+                    toolName: toolName,
+                    toolResult: result,
+                  ),
+                );
                 onStep?.call(steps.last);
                 session.addToolResult(toolName, result);
                 continue;
@@ -360,88 +398,80 @@ class ReactStrategy implements AgentStrategy {
             }
           }
 
-          final risk = _riskClassifier.classify(
-            toolName,
-            argsJson,
-          );
+          final risk = _riskClassifier.classify(toolName, argsJson);
+          print('[$_tag] Risk: $risk for $toolName');
 
-          final validationError =
-              await _validateTool(toolName, argsJson);
+          final validationError = await _validateTool(toolName, argsJson);
           if (validationError != null) {
-            steps.add(AgentStep(
-              'observation',
-              validationError,
-              toolName: toolName,
-              toolResult: validationError,
-            ));
+            print('[$_tag] Validation error: $validationError');
+            steps.add(
+              AgentStep(
+                'observation',
+                validationError,
+                toolName: toolName,
+                toolResult: validationError,
+              ),
+            );
             onStep?.call(steps.last);
             session.addToolResult(toolName, validationError);
             continue;
           }
 
           if (risk == ToolRisk.high || risk == ToolRisk.critical) {
-            final approved =
-                await _confirmationGate.requestConfirmation(
+            print('[$_tag] ConfirmationGate: requesting for $toolName');
+            final approved = await _confirmationGate.requestConfirmation(
               risk,
               toolName,
               argsJson,
               onStep ?? (_) {},
             );
+            print('[$_tag] ConfirmationGate: approved=$approved');
             if (!approved) {
-              _auditLog.add(
-                toolName,
-                argsJson,
-                risk,
-                false,
-                'Cancelled',
-              );
+              _auditLog.add(toolName, argsJson, risk, false, 'Cancelled');
               const result = 'Action cancelled by user';
-              steps.add(AgentStep(
-                'observation',
-                result,
-                toolName: toolName,
-                toolResult: result,
-              ));
+              steps.add(
+                AgentStep(
+                  'observation',
+                  result,
+                  toolName: toolName,
+                  toolResult: result,
+                ),
+              );
               onStep?.call(steps.last);
               session.addToolResult(toolName, result);
               continue;
             }
           }
 
-          final toolResult = await _executeToolDirect(
-            toolName,
-            toolArgs,
+          print('[$_tag] Executing tool: $toolName');
+          final toolResult = await _executeToolDirect(toolName, toolArgs);
+          final toolContent = toolResult.toContent();
+          print(
+            '[$_tag] Tool result (${toolContent.length} chars): ${toolContent.substring(0, toolContent.length > 200 ? 200 : toolContent.length)}',
           );
 
-          _auditLog.add(
-            toolName,
-            argsJson,
-            risk,
-            true,
-            toolResult,
-          );
+          _auditLog.add(toolName, argsJson, risk, true, toolContent);
           _preferenceTracker?.recordToolUse(toolName);
 
-          steps.add(AgentStep(
-            'observation',
-            toolResult,
-            toolName: toolName,
-            toolResult: toolResult,
-          ));
+          steps.add(
+            AgentStep(
+              'observation',
+              toolContent,
+              toolName: toolName,
+              toolResult: toolContent,
+            ),
+          );
           onStep?.call(steps.last);
 
-          session.addToolResult(toolName, toolResult);
+          session.addToolResult(toolName, toolContent);
 
           final recoveryHint = _errorRecovery.analyze(
             toolName,
             argsJson,
             toolResult,
           );
-          if (recoveryHint != null &&
-              recoveryHint.promptNudge.isNotEmpty) {
-            print(
-              '[$_tag] Recovery: type=${recoveryHint.type}',
-            );
+          if (recoveryHint != null && recoveryHint.promptNudge.isNotEmpty) {
+            print('[$_tag] Recovery: type=${recoveryHint.type}');
             if (recoveryHint.shouldRetry) {
               final toolPrompt = _getToolPrompt(toolName);
               userParts = [
@@ -458,11 +488,8 @@ class ReactStrategy implements AgentStrategy {
             argsJson,
             toolResult,
           );
-
           if (loopResult is LoopForceBreak) {
-            steps.add(
-              AgentStep('answer', '작업이 반복 감지로 중단되었습니다.'),
-            );
+            steps.add(AgentStep('answer', '작업이 반복 감지로 중단되었습니다.'));
             onStep?.call(steps.last);
             _recordTurn(prompt, steps);
             return AgentResult(steps: steps, success: false);
@@ -473,15 +500,13 @@ class ReactStrategy implements AgentStrategy {
       }
 
       if (steps.every((s) => s.type != 'answer')) {
-        steps.add(
-          AgentStep('answer', '작업을 완료하지 못했습니다.'),
-        );
+        steps.add(AgentStep('answer', '작업을 완료하지 못했습니다.'));
         onStep?.call(steps.last);
       }
     } on Object catch (e) {
       print('[$_tag] ERROR: Agent run crashed: $e');
       if (steps.every((s) => s.type != 'answer')) {
-        steps.add(AgentStep('answer', 'An error occurred: $e'));
+        steps.add(AgentStep('answer', '오류가 발생했습니다: $e'));
         onStep?.call(steps.last);
       }
     }
@@ -501,10 +526,7 @@ class ReactStrategy implements AgentStrategy {
     }
   }
 
-  Future<String?> _validateTool(
-    String name,
-    String argsJson,
-  ) async {
+  Future<String?> _validateTool(String name, String argsJson) async {
     final basicTool = _basicTools[name];
     if (basicTool != null) {
       return basicTool.validate(argsJson);
@@ -522,7 +544,7 @@ class ReactStrategy implements AgentStrategy {
     return null;
   }
 
-  Future<String> _executeToolDirect(
+  Future<ToolResult> _executeToolDirect(
     String name,
     Map<String, dynamic> args,
   ) async {
@@ -537,12 +559,12 @@ class ReactStrategy implements AgentStrategy {
     if (extendedTool != null) {
       final ctx = _toolContext;
       if (ctx == null) {
-        return 'Error: ToolContext not initialized';
+        return const ToolResult.err('ToolContext not initialized');
       }
       return extendedTool.execute(argsJson, ctx);
     }
 
-    return "Error: Unknown tool '$name'";
+    return ToolResult.err("Unknown tool '$name'");
   }
 
   String _getToolPrompt(String name) {
@@ -557,10 +579,7 @@ class ReactStrategy implements AgentStrategy {
     return '';
   }
 
-  Map<String, dynamic>? _inferToolArgs(
-    String toolName,
-    String userMessage,
-  ) {
+  Map<String, dynamic>? _inferToolArgs(String toolName, String userMessage) {
     final msg = userMessage.toLowerCase();
     switch (toolName) {
       case 'calculator':
@@ -575,8 +594,7 @@ class ReactStrategy implements AgentStrategy {
         if (writeMatch != null) {
           return {
             'action': 'write',
-            'key':
-                'note_${DateTime.now().millisecondsSinceEpoch}',
+            'key': 'note_${DateTime.now().millisecondsSinceEpoch}',
             'content': writeMatch.group(1)!.trim(),
           };
         }
@@ -587,8 +605,7 @@ class ReactStrategy implements AgentStrategy {
           caseSensitive: false,
         ).firstMatch(msg);
         if (durationMatch != null) {
-          final value =
-              int.tryParse(durationMatch.group(1)!) ?? 0;
+          final value = int.tryParse(durationMatch.group(1)!) ?? 0;
           final unit = msg.contains('min') ? value * 60 : value;
           return {'action': 'set', 'seconds': unit};
         }
@@ -613,24 +630,13 @@ class ReactStrategy implements AgentStrategy {
       'over': '/',
     };
     var expr = msg;
-    expr = expr.replaceAll(
-      RegExp(r'calculate\s*', caseSensitive: false),
-      '',
-    );
-    expr = expr.replaceAll(
-      RegExp(r'what\s+is\s*', caseSensitive: false),
-      '',
-    );
-    expr = expr.replaceAll(
-      RegExp(r'compute\s*', caseSensitive: false),
-      '',
-    );
+    expr = expr.replaceAll(RegExp(r'calculate\s*', caseSensitive: false), '');
+    expr = expr.replaceAll(RegExp(r'what\s+is\s*', caseSensitive: false), '');
+    expr = expr.replaceAll(RegExp(r'compute\s*', caseSensitive: false), '');
     for (final entry in ops.entries) {
       expr = expr.replaceAll(entry.key, entry.value);
     }
-    expr = expr
-        .replaceAll(RegExp(r'[^\d+\-*/.()% ]'), '')
-        .trim();
+    expr = expr.replaceAll(RegExp(r'[^\d+\-*/.()% ]'), '').trim();
     if (expr.isEmpty || !RegExp(r'\d').hasMatch(expr)) {
       return null;
     }
@@ -638,22 +644,14 @@ class ReactStrategy implements AgentStrategy {
     return expr;
   }
 
-  void _recordTurn(
-    String userMessage,
-    List<AgentStep> steps,
-  ) {
+  void _recordTurn(String userMessage, List<AgentStep> steps) {
     if (_conversationContext == null) return;
-    final answerStep =
-        steps.where((s) => s.type == 'answer').lastOrNull;
+    final answerStep = steps.where((s) => s.type == 'answer').lastOrNull;
     if (answerStep == null) return;
     final toolSteps = steps
-        .where(
-          (s) => s.type == 'action' && s.toolName.isNotEmpty,
-        )
+        .where((s) => s.type == 'action' && s.toolName.isNotEmpty)
         .toList();
-    final toolUsed = toolSteps.isNotEmpty
-        ? toolSteps.first.toolName
-        : null;
+    final toolUsed = toolSteps.isNotEmpty ? toolSteps.first.toolName : null;
     _conversationContext!.addTurn(
       userMessage,
       answerStep.content,
@@ -692,8 +690,7 @@ class ReactStrategy implements AgentStrategy {
   }
 
   @override
-  List<({String role, String content})>
-      getConversationHistory() => [];
+  List<({String role, String content})> getConversationHistory() => [];
 
   @override
   void clearHistory() {
@@ -712,9 +709,7 @@ class ReactStrategy implements AgentStrategy {
   }
 
   @override
-  void setToolPreferenceTracker(
-    ToolPreferenceTracker? tracker,
-  ) {
+  void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {
     _preferenceTracker = tracker;
   }
 }

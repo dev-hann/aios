@@ -58,10 +58,7 @@ class _MockConversationRepository implements ConversationRepository {
   void setActiveConversationId(String id) {}
 }
 
-ChatMessage _makeMessage({
-  required String role,
-  required String content,
-}) {
+ChatMessage _makeMessage({required String role, required String content}) {
   return ChatMessage(
     id: '${role}_${content.hashCode}',
     role: role,
@@ -93,9 +90,7 @@ void main() {
     });
 
     test('append_message_addsToExistingMessages', () async {
-      await repository.save([
-        _makeMessage(role: 'user', content: 'First'),
-      ]);
+      await repository.save([_makeMessage(role: 'user', content: 'First')]);
       await repository.appendMessage(
         _makeMessage(role: 'assistant', content: 'Second'),
       );
@@ -108,9 +103,7 @@ void main() {
     });
 
     test('clear_removesAllMessages', () async {
-      await repository.save([
-        _makeMessage(role: 'user', content: 'Hello'),
-      ]);
+      await repository.save([_makeMessage(role: 'user', content: 'Hello')]);
       expect((await repository.load()).length, 1);
 
       await repository.clear();
@@ -125,12 +118,8 @@ void main() {
     });
 
     test('save_overwritesPreviousMessages', () async {
-      await repository.save([
-        _makeMessage(role: 'user', content: 'Old'),
-      ]);
-      await repository.save([
-        _makeMessage(role: 'user', content: 'New'),
-      ]);
+      await repository.save([_makeMessage(role: 'user', content: 'Old')]);
+      await repository.save([_makeMessage(role: 'user', content: 'New')]);
 
       final loaded = await repository.load();
 

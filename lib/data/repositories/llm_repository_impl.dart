@@ -1,198 +1,76 @@
 import 'dart:async';
 
-import 'package:aios/data/providers/llama_engine_provider.dart';
-import 'package:aios/domain/entities/chat_message.dart';
+import 'package:aios/data/providers/remote/openai_client.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
 
 class LlmRepositoryImpl implements LlmRepository {
-  LlmRepositoryImpl(this._provider);
-
-  final LlamaEngineProvider _provider;
-
-  final _stateController =
-      StreamController<ServiceState>.broadcast(sync: true);
-  final _tokenController = StreamController<String>.broadcast(sync: true);
-  final _progressController = StreamController<double>.broadcast(sync: true);
-
-  StreamSubscription<String>? _generationSubscription;
-  Completer<void>? _generationCompleter;
+  final _stateController = StreamController<ServiceState>.broadcast(sync: true);
 
   static const _tag = 'AIOS-LlmRepo';
-
-  void _emitState(ServiceState state) {
-    if (!_stateController.isClosed) {
-      _stateController.add(state);
-    }
-  }
-
-  void _emitToken(String token) {
-    if (!_tokenController.isClosed) {
-      _tokenController.add(token);
-    }
-  }
-
-  void _emitProgress(double progress) {
-    if (!_progressController.isClosed) {
-      _progressController.add(progress);
-    }
-  }
 
   @override
   Stream<ServiceState> get state => _stateController.stream;
 
-  @override
-  Stream<String> get tokenStream => _tokenController.stream;
+  void _emitState(ServiceState s) {
+    if (!_stateController.isClosed) _stateController.add(s);
+  }
 
   @override
-  Stream<double> get loadProgress => _progressController.stream;
-
-  @override
-  Future<bool> loadModel(String path, {int? contextSize}) async {
+  Future<bool> connect(LlmProviderConfig config) async {
     _emitState(ServiceState.loadingModel);
-      _emitProgress(0);
-
     try {
-      final result = await _provider.loadModel(path, contextSize: contextSize);
-
-      if (result) {
-        _emitProgress(1);
+      final client = OpenAiClient(config);
+      final ok = await client.testConnection();
+      if (ok) {
         _emitState(ServiceState.ready);
-        print('[$_tag] Model loaded: $path');
-      } else {
-        _emitState(ServiceState.error);
-        print('[$_tag] ERROR: Model load failed: $path');
+        print('[$_tag] Connected: ${config.model}@${config.effectiveBaseUrl}');
+        return true;
       }
-
-      return result;
+      _emitState(ServiceState.error);
+      print('[$_tag] ERROR: Connection test failed');
+      return false;
     } on Object catch (e) {
       _emitState(ServiceState.error);
-      print('[$_tag] ERROR: loadModel failed - $e');
+      print('[$_tag] ERROR: connect failed - $e');
       return false;
     }
   }
 
   @override
-  Future<void> releaseModel() async {
-    try {
-      await _provider.releaseModel();
-      _emitState(ServiceState.idle);
-      print('[$_tag] Model released');
-    } on Object catch (e) {
-      print('[$_tag] ERROR: releaseModel failed - $e');
-      _emitState(ServiceState.idle);
-    }
+  Future<void> disconnect() async {
+    _emitState(ServiceState.idle);
+    print('[$_tag] Disconnected');
   }
 
   @override
-  bool get isModelLoaded => _provider.isModelLoaded;
+  bool get isConnected =>
+      !_stateController.isClosed && _stateController.hasListener;
 
   @override
-  String getModelInfo() => _provider.getModelInfo();
-
-  @override
-  String getContextUsage() => _provider.getContextUsage();
-
-  @override
-  Future<void> resetContext() async {
-    if (_provider.isModelLoaded) {
-      _emitState(ServiceState.ready);
-    }
+  Future<List<LlmModelInfo>> fetchModels(LlmProviderConfig config) async {
+    final client = OpenAiClient(config);
+    return client.fetchModels();
   }
 
   @override
-  Future<void> sendMessage(
-    List<ChatMessage> history, {
-    required String userMessage,
-    double? temperature,
-    int? maxTokens,
-    int? topK,
-    double? topP,
-    double? repeatPenalty,
-    String? grammar,
-  }) async {
-    if (!_provider.isModelLoaded) {
-      print('[$_tag] WARN: sendMessage called without loaded model');
-      _emitState(ServiceState.error);
-      return;
-    }
-
-    _emitState(ServiceState.generating);
-
-    try {
-      final tokenStream = _provider.generate(
-        history,
-        userMessage,
-        temperature: temperature,
-        maxTokens: maxTokens,
-        topK: topK,
-        topP: topP,
-        repeatPenalty: repeatPenalty,
-        grammar: grammar,
-      );
-
-      _generationCompleter = Completer<void>();
-
-      _generationSubscription = tokenStream.listen(
-        _emitToken,
-        onDone: () {
-          _generationSubscription?.cancel();
-          _generationSubscription = null;
-          if (!_stateController.isClosed) {
-            _emitState(ServiceState.ready);
-          }
-          if (!_generationCompleter!.isCompleted) {
-            _generationCompleter!.complete();
-          }
-        },
-        onError: (Object e) {
-          _generationSubscription?.cancel();
-          _generationSubscription = null;
-          _emitState(ServiceState.error);
-          print('[$_tag] ERROR: Generation error - $e');
-          if (!_generationCompleter!.isCompleted) {
-            _generationCompleter!.completeError(e);
-          }
-        },
-        cancelOnError: true,
-      );
-
-      await _generationCompleter!.future;
-    } on Object catch (e) {
-      _emitState(ServiceState.error);
-      print('[$_tag] ERROR: sendMessage failed - $e');
-      rethrow;
-    }
+  Future<bool> testConnection(LlmProviderConfig config) async {
+    final client = OpenAiClient(config);
+    return client.testConnection();
   }
 
   @override
   Future<void> stopGeneration() async {
-    await _provider.stopGeneration();
-    await _generationSubscription?.cancel();
-    _generationSubscription = null;
-    if (_generationCompleter != null && !_generationCompleter!.isCompleted) {
-      _generationCompleter!.complete();
-    }
-    _emitState(ServiceState.ready);
-    print('[$_tag] Generation stopped');
+    print('[$_tag] Generation stop requested');
   }
 
   @override
-  Future<void> saveSession(String path) async {
-    await _provider.saveState(path);
-    print('[$_tag] Session saved: $path');
-  }
-
-  @override
-  Future<void> loadSession(String path) async {
-    await _provider.loadState(path);
-    print('[$_tag] Session loaded: $path');
+  Future<void> loadModel(String path, {int? contextSize}) async {
+    print('[AIOS-LlmRepo] loadModel: $path (remote, no-op)');
   }
 
   void dispose() {
-    _generationSubscription?.cancel();
     _stateController.close();
-    _tokenController.close();
-    _progressController.close();
   }
 }

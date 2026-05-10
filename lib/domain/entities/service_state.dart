@@ -1,7 +1,1 @@
-enum ServiceState {
-  idle,
-  loadingModel,
-  ready,
-  generating,
-  error,
-}
+enum ServiceState { idle, loadingModel, ready, generating, error }

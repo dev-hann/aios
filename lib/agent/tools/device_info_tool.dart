@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class DeviceInfoTool extends ExtendedTool {
   static const _tag = 'AIOS-DeviceInfoTool';
@@ -15,8 +16,7 @@ class DeviceInfoTool extends ExtendedTool {
       'Args: {action}';
 
   @override
-  String get parameters =>
-      '{"action": "get_info|battery|storage|memory"}';
+  String get parameters => '{"action": "get_info|battery|storage|memory"}';
 
   @override
   String get toolPrompt =>
@@ -31,39 +31,52 @@ class DeviceInfoTool extends ExtendedTool {
       '- "action" defaults to "get_info" if not specified';
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);
-      final action =
-          json['action']?.toString().toLowerCase() ?? 'get_info';
+      final action = json['action']?.toString().toLowerCase() ?? 'get_info';
 
       return await switch (action) {
         'get_info' => _invokeAndFormat(
-            toolContext, 'getDeviceInfo', _formatDeviceInfo),
+          toolContext,
+          'getDeviceInfo',
+          _formatDeviceInfo,
+        ),
         'battery' => _invokeAndFormat(
-            toolContext, 'getBatteryInfo', _formatBatteryInfo),
+          toolContext,
+          'getBatteryInfo',
+          _formatBatteryInfo,
+        ),
         'storage' => _invokeAndFormat(
-            toolContext, 'getStorageInfo', _formatStorageInfo),
+          toolContext,
+          'getStorageInfo',
+          _formatStorageInfo,
+        ),
         'memory' => _invokeAndFormat(
-            toolContext, 'getDeviceInfo', _formatMemoryInfo),
-        _ => "Error: Unknown action '$action'. "
-            "Use get_info, battery, storage, or memory.",
+          toolContext,
+          'getDeviceInfo',
+          _formatMemoryInfo,
+        ),
+        _ => ToolResult.err(
+          "Unknown action '$action'. "
+          "Use get_info, battery, storage, or memory.",
+        ),
       };
     } on Object catch (e) {
       print('[$_tag] ERROR: $e');
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 
-  Future<String> _invokeAndFormat(
+  Future<ToolResult> _invokeAndFormat(
     ToolContext ctx,
     String method,
     String Function(Map<String, dynamic>) formatter,
   ) async {
     final raw = await ctx.invokeMethod(method);
-    if (raw == null) return 'Error: No result';
+    if (raw == null) return const ToolResult.err('No result');
     final data = json.decode(raw) as Map<String, dynamic>;
-    return formatter(data);
+    return ToolResult.ok(formatter(data));
   }
 
   String _formatDeviceInfo(Map<String, dynamic> d) {

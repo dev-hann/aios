@@ -241,9 +241,7 @@ void main() {
       final file = File('${tempDir.path}/test.apk');
       await file.writeAsBytes([1, 2, 3]);
 
-      final repo = _repo(
-        openFile: (path) async => throw Exception('boom'),
-      );
+      final repo = _repo(openFile: (path) async => throw Exception('boom'));
 
       expect(await repo.installApk(file.path), isFalse);
     });

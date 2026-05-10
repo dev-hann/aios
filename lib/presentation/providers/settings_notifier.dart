@@ -1,6 +1,5 @@
-import 'package:aios/domain/entities/model_info.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/repositories/llm_repository.dart';
-import 'package:aios/domain/repositories/model_repository.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
 import 'package:aios/presentation/providers/settings_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,41 +9,40 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   final SettingsRepository _settingsRepository;
   final LlmRepository _llmRepository;
-  final ModelRepository _modelRepository;
-  final void Function(String path)? _onModelLoaded;
+  final void Function(LlmProviderConfig config)? _onProviderConnected;
 
   SettingsNotifier(
     this._settingsRepository,
-    this._llmRepository,
-    this._modelRepository, {
-    void Function(String path)? onModelLoaded,
-  })  : _onModelLoaded = onModelLoaded,
-        super(SettingsState.initial()) {
+    this._llmRepository, {
+    void Function(LlmProviderConfig config)? onProviderConnected,
+  }) : _onProviderConnected = onProviderConnected,
+       super(SettingsState.initial()) {
     _init();
   }
 
   Future<void> _init() async {
     await loadSettings();
-    await _autoLoadLastModel();
+    await _autoConnect();
   }
 
   Future<void> loadSettings() async {
     try {
+      final configJson = _settingsRepository.providerConfig;
+      LlmProviderConfig? config;
+      if (configJson != null) {
+        config = LlmProviderConfig.fromJson(configJson);
+      }
+
       state = SettingsState(
         temperature: _settingsRepository.temperature,
-        contextSize: _settingsRepository.contextSize,
-        maxTokens: _settingsRepository.maxTokens,
-        topK: _settingsRepository.topK,
         topP: _settingsRepository.topP,
-        repeatPenalty: _settingsRepository.repeatPenalty,
+        maxTokens: _settingsRepository.maxTokens,
         agentMaxIterations: _settingsRepository.agentMaxIterations,
-        lastModelPath: _settingsRepository.lastModelPath,
-        availableModels: _modelRepository.scanModels(),
+        providerConfig: config,
         onboardingCompleted: _settingsRepository.onboardingCompleted,
-
       );
       print('[$_tag] Settings loaded');
-    } catch (e) {
+    } on Object catch (e) {
       print('[$_tag] ERROR: loadSettings failed - $e');
     }
   }
@@ -52,20 +50,13 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> completeOnboarding() async {
     await _settingsRepository.setOnboardingCompleted();
     state = state.copyWith(onboardingCompleted: true);
-
   }
 
-  Future<void> _autoLoadLastModel() async {
-    final path = _settingsRepository.lastModelPath;
-    if (path == null) return;
-    final models = state.availableModels;
-    final exists = models.any((m) => m.path == path);
-    if (!exists) {
-      print('[$_tag] WARN: Last model not found: $path');
-      return;
-    }
-    print('[$_tag] Auto-loading last model: $path');
-    await loadModel(path);
+  Future<void> _autoConnect() async {
+    final config = state.providerConfig;
+    if (config == null) return;
+    print('[$_tag] Auto-connecting: ${config.model}');
+    await connect(config);
   }
 
   Future<void> updateTemperature(double value) async {
@@ -73,9 +64,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(temperature: value);
   }
 
-  Future<void> updateContextSize(int value) async {
-    await _settingsRepository.setContextSize(value);
-    state = state.copyWith(contextSize: value);
+  Future<void> updateTopP(double value) async {
+    await _settingsRepository.setTopP(value);
+    state = state.copyWith(topP: value);
   }
 
   Future<void> updateMaxTokens(int value) async {
@@ -83,75 +74,42 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(maxTokens: value);
   }
 
-  Future<void> updateTopK(int value) async {
-    await _settingsRepository.setTopK(value);
-    state = state.copyWith(topK: value);
-  }
-
-  Future<void> updateTopP(double value) async {
-    await _settingsRepository.setTopP(value);
-    state = state.copyWith(topP: value);
-  }
-
-  Future<void> updateRepeatPenalty(double value) async {
-    await _settingsRepository.setRepeatPenalty(value);
-    state = state.copyWith(repeatPenalty: value);
-  }
-
   Future<void> updateAgentMaxIterations(int value) async {
     await _settingsRepository.setAgentMaxIterations(value);
     state = state.copyWith(agentMaxIterations: value);
   }
 
-  List<ModelInfo> scanModels() {
-    final models = _modelRepository.scanModels();
-    state = state.copyWith(availableModels: models);
-    return models;
-  }
+  Future<bool> connect(LlmProviderConfig config) async {
+    state = state.copyWith(isTestingConnection: true);
+    final ok = await _llmRepository.connect(config);
+    if (!mounted) return false;
 
-  List<ModelInfo> scanImportableModels() {
-    return _modelRepository.scanExternalDirs();
-  }
+    state = state.copyWith(isTestingConnection: false);
 
-  Future<bool> importModel(String sourcePath, String fileName) async {
-    try {
-      final success =
-          await _modelRepository.importModelFromUri(sourcePath, fileName);
-      if (success) {
-        scanModels();
-        print('[$_tag] Model imported: $fileName');
-      }
-      return success;
-    } catch (e) {
-      print('[$_tag] ERROR: importModel failed - $e');
-      return false;
+    if (ok) {
+      await _settingsRepository.setProviderConfig(config.toJson());
+      state = state.copyWith(providerConfig: config);
+      _onProviderConnected?.call(config);
+      print('[$_tag] Connected: ${config.model}');
+      await fetchModels(config);
     }
+    return ok;
   }
 
-  Future<bool> loadModel(String path) async {
-    state = state.copyWith(isLoadingModel: true);
-    try {
-      final success = await _llmRepository.loadModel(
-        path,
-        contextSize: state.contextSize,
-      );
-      if (success) {
-        await _settingsRepository.setLastModelPath(path);
-        state = state.copyWith(
-          lastModelPath: path,
-          isLoadingModel: false,
-        );
-        _onModelLoaded?.call(path);
-        print('[$_tag] Model loaded: $path');
-      } else {
-        state = state.copyWith(isLoadingModel: false);
-        print('[$_tag] WARN: Model load failed: $path');
-      }
-      return success;
-    } catch (e) {
-      state = state.copyWith(isLoadingModel: false);
-      print('[$_tag] ERROR: loadModel error - $e');
-      return false;
-    }
+  Future<void> fetchModels(LlmProviderConfig config) async {
+    state = state.copyWith(isLoadingModels: true);
+    final models = await _llmRepository.fetchModels(config);
+    if (!mounted) return;
+    state = state.copyWith(availableModels: models, isLoadingModels: false);
+  }
+
+  Future<bool> testConnection(LlmProviderConfig config) async {
+    return _llmRepository.testConnection(config);
+  }
+
+  Future<void> disconnect() async {
+    await _llmRepository.disconnect();
+    await _settingsRepository.clearProviderConfig();
+    state = state.copyWith(providerConfig: null, availableModels: []);
   }
 }

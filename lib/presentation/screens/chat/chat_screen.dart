@@ -1,11 +1,15 @@
 import 'package:aios/core/theme/app_colors.dart';
+import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/agent/user_message_mapper.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/service_state.dart';
+import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/chat_providers.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
+import 'package:aios/presentation/providers/settings_state.dart';
+import 'package:aios/presentation/widgets/connection_status_badge.dart';
 import 'package:aios/presentation/widgets/input_bar.dart';
 import 'package:aios/presentation/widgets/loading_indicator.dart';
 import 'package:aios/presentation/widgets/message_bubble.dart';
@@ -26,12 +30,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      _initializeSession();
+      ref.read(chatStateProvider.notifier).initializeSession();
     });
-  }
-
-  void _initializeSession() {
-    ref.read(chatStateProvider.notifier).initializeSession();
   }
 
   void _showClearChatDialog(BuildContext context, WidgetRef ref) {
@@ -42,21 +42,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        title: const Text('Clear Chat'),
-        content: const Text('Delete all messages?'),
+        title: Text(Strings.chat.clearChat),
+        content: Text(Strings.chat.clearChatConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: Text(Strings.chat.cancel),
           ),
           TextButton(
             onPressed: () {
               ref.read(chatStateProvider.notifier).clearChat();
               Navigator.of(ctx).pop();
             },
-            child: const Text(
-              'Clear',
-              style: TextStyle(color: AppColors.error),
+            child: Text(
+              Strings.chat.clear,
+              style: const TextStyle(color: AppColors.error),
             ),
           ),
         ],
@@ -64,10 +64,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  void _showConfirmationDialog(
-    BuildContext context,
-    AgentStep step,
-  ) {
+  void _showConfirmationDialog(BuildContext context, AgentStep step) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -79,16 +76,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: Row(
           children: [
             Icon(
-              step.riskLevel == 'critical'
-                  ? Icons.warning
-                  : Icons.shield,
+              step.riskLevel == 'critical' ? Icons.warning : Icons.shield,
               color: step.riskLevel == 'critical'
                   ? AppColors.error
                   : AppColors.warning,
               size: 20,
             ),
             const SizedBox(width: 8),
-            const Text('Confirm Action'),
+            Text(Strings.chat.confirmAction),
           ],
         ),
         content: Column(
@@ -96,7 +91,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Tool: ${step.toolName}',
+              '${Strings.chat.tool}: ${step.toolName}',
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -118,25 +113,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              ref
-                  .read(chatStateProvider.notifier)
-                  .resolveConfirmation(false);
+              ref.read(chatStateProvider.notifier).resolveConfirmation(false);
             },
-            child: const Text(
-              'Deny',
-              style: TextStyle(color: AppColors.error),
+            child: Text(
+              Strings.chat.deny,
+              style: const TextStyle(color: AppColors.error),
             ),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              ref
-                  .read(chatStateProvider.notifier)
-                  .resolveConfirmation(true);
+              ref.read(chatStateProvider.notifier).resolveConfirmation(true);
             },
-            child: const Text(
-              'Approve',
-              style: TextStyle(color: AppColors.primary),
+            child: Text(
+              Strings.chat.approve,
+              style: const TextStyle(color: AppColors.primary),
             ),
           ),
         ],
@@ -147,6 +138,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatStateProvider);
+    final settingsState = ref.watch(settingsProvider);
 
     ref.listen<ChatState>(chatStateProvider, (prev, next) {
       if (next.isConfirming && !(prev?.isConfirming ?? false)) {
@@ -166,21 +158,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         backgroundColor: AppColors.surface,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(
-              Icons.menu,
-              color: AppColors.textPrimary,
-            ),
+            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        title: Text(
-          chatState.currentConversationTitle,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-          overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                chatState.currentConversationTitle ?? Strings.appName,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConnectionStatusBadge(
+              config: settingsState.providerConfig,
+              onTap: () => context.push('/settings/provider'),
+            ),
+          ],
         ),
         actions: [
           IconButton(
@@ -188,22 +188,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Icons.add_comment_outlined,
               color: AppColors.textSecondary,
             ),
-            tooltip: '\uC0C8 \uB300\uD654',
+            tooltip: Strings.chat.newConversation,
             onPressed: () =>
                 ref.read(chatStateProvider.notifier).createNewChat(),
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.delete_outline,
-              color: AppColors.textSecondary,
-            ),
-            tooltip: 'Clear chat',
-            onPressed: () => _showClearChatDialog(context, ref),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, color: AppColors.textPrimary),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -213,35 +200,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               children: [
                 if (chatState.errorMessage != null)
                   _ErrorBar(
-                    message: UserMessageMapper.map(
-                      chatState.errorMessage!,
-                    ),
+                    message: UserMessageMapper.map(chatState.errorMessage!),
                   ),
                 Expanded(
-                  child: chatState.messages.isEmpty &&
-                          !chatState.isGenerating
-                      ? const _WelcomeView()
+                  child: chatState.messages.isEmpty && !chatState.isGenerating
+                      ? _WelcomeView(
+                          hasProvider: settingsState.providerConfig != null,
+                        )
                       : _MessageList(chatState: chatState),
                 ),
                 InputBar(
                   onSubmitted: (text) {
                     if (text.isEmpty) return;
                     final settings = ref.read(settingsProvider);
-                    ref.read(chatStateProvider.notifier).sendMessage(
+                    ref
+                        .read(chatStateProvider.notifier)
+                        .sendMessage(
                           text,
                           temperature: settings.temperature,
                           maxTokens: settings.maxTokens,
-                          topK: settings.topK,
                           topP: settings.topP,
-                          repeatPenalty: settings.repeatPenalty,
-                          agentMaxIterations:
-                              settings.agentMaxIterations,
+                          agentMaxIterations: settings.agentMaxIterations,
                         );
                   },
                   onStop: () {
-                    ref
-                        .read(chatStateProvider.notifier)
-                        .stopGeneration();
+                    ref.read(chatStateProvider.notifier).stopGeneration();
                   },
                   isGenerating: chatState.isGenerating,
                 ),
@@ -263,9 +246,7 @@ class _ErrorBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: const BoxDecoration(
         color: AppColors.surfaceModal,
-        border: Border(
-          left: BorderSide(color: AppColors.error, width: 4),
-        ),
+        border: Border(left: BorderSide(color: AppColors.error, width: 4)),
       ),
       child: Row(
         children: [
@@ -286,51 +267,115 @@ class _ErrorBar extends StatelessWidget {
 }
 
 class _WelcomeView extends StatelessWidget {
-  const _WelcomeView();
+  const _WelcomeView({required this.hasProvider});
+
+  final bool hasProvider;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.primary, AppColors.secondary],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primary, AppColors.secondary],
+                ),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: const Icon(
+                Icons.auto_awesome,
+                size: 36,
+                color: AppColors.textPrimary,
+              ),
             ),
-            child: const Icon(
-              Icons.auto_awesome,
-              size: 40,
-              color: AppColors.textPrimary,
+            const SizedBox(height: 20),
+            Text(
+              Strings.appName,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.02,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'AIOS',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.02,
+            const SizedBox(height: 8),
+            Text(
+              hasProvider ? Strings.chat.whatCanHelp : Strings.appSubtitle,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your on-device AI assistant',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
-          ),
-        ],
+            if (!hasProvider) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/settings/provider'),
+                icon: const Icon(Icons.cloud_outlined, size: 18),
+                label: Text(Strings.chat.setupAi),
+              ),
+            ],
+            if (hasProvider) ...[
+              const SizedBox(height: 28),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  _SuggestionChip(text: Strings.suggestion.weather),
+                  _SuggestionChip(text: Strings.suggestion.calculator),
+                  _SuggestionChip(text: Strings.suggestion.memo),
+                  _SuggestionChip(text: Strings.suggestion.timer),
+                  _SuggestionChip(text: Strings.suggestion.screenshot),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(
+        text,
+        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+      ),
+      backgroundColor: AppColors.surfaceElevated,
+      side: const BorderSide(color: AppColors.divider),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+      ),
+      onPressed: () {
+        final chatNotifier = ProviderScope.containerOf(
+          context,
+        ).read(chatStateProvider.notifier);
+        final settings = ProviderScope.containerOf(
+          context,
+        ).read(settingsProvider);
+        chatNotifier.sendMessage(
+          text,
+          temperature: settings.temperature,
+          maxTokens: settings.maxTokens,
+          topP: settings.topP,
+          agentMaxIterations: settings.agentMaxIterations,
+        );
+      },
     );
   }
 }
@@ -346,23 +391,6 @@ class _MessageList extends StatefulWidget {
 
 class _MessageListState extends State<_MessageList> {
   final _scrollController = ScrollController();
-  bool _showScrollFab = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    final show = !_scrollController.hasClients ||
-        _scrollController.position.maxScrollExtent -
-                _scrollController.offset >
-            200;
-    if (show != _showScrollFab) {
-      setState(() => _showScrollFab = show);
-    }
-  }
 
   @override
   void didUpdateWidget(_MessageList oldWidget) {
@@ -393,49 +421,29 @@ class _MessageListState extends State<_MessageList> {
     final messages = widget.chatState.messages;
     final agentSteps = widget.chatState.agentSteps;
 
-    return Stack(
-      children: [
-        ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: messages.length +
-              agentSteps.length +
-              (widget.chatState.isThinking ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index < messages.length) {
-              return MessageBubble(message: messages[index]);
-            }
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount:
+          messages.length +
+          agentSteps.length +
+          (widget.chatState.isThinking ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index < messages.length) {
+          return MessageBubble(message: messages[index]);
+        }
 
-            final stepIndex = index - messages.length;
-            if (stepIndex < agentSteps.length) {
-              final step = agentSteps[stepIndex];
-              if (step.type == 'permission_required') {
-                return _PermissionCard(step: step);
-              }
-              return _SystemAnnotation(step: step);
-            }
+        final stepIndex = index - messages.length;
+        if (stepIndex < agentSteps.length) {
+          final step = agentSteps[stepIndex];
+          if (step.type == 'permission_required') {
+            return _PermissionCard(step: step);
+          }
+          return _SystemAnnotation(step: step);
+        }
 
-            return const _ThinkingIndicator();
-          },
-        ),
-        if (_showScrollFab && messages.isNotEmpty)
-          Positioned(
-            right: 16,
-            bottom: 16,
-            child: Semantics(
-              label: 'scroll_to_bottom_button',
-              child: FloatingActionButton.small(
-                onPressed: _scrollToBottom,
-                backgroundColor: AppColors.surfaceModal,
-                child: const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: AppColors.textPrimary,
-                  size: 24,
-                ),
-              ),
-            ),
-          ),
-      ],
+        return const _ThinkingIndicator();
+      },
     );
   }
 }
@@ -445,11 +453,7 @@ class _SystemAnnotation extends StatelessWidget {
 
   final AgentStep step;
 
-  static const _hiddenTypes = {
-    'thought',
-    'thinking_start',
-    'thinking_end',
-  };
+  static const _hiddenTypes = {'thought', 'thinking_start', 'thinking_end'};
 
   bool get _isHidden => _hiddenTypes.contains(step.type);
 
@@ -457,83 +461,81 @@ class _SystemAnnotation extends StatelessWidget {
   Widget build(BuildContext context) {
     if (_isHidden) return const SizedBox.shrink();
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 24,
-          vertical: 2,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_icon, size: 12, color: AppColors.textSecondary),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                _annotationText,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+      child: Row(
+        children: [
+          Icon(_icon, size: 12, color: AppColors.textSecondary),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              _annotationText,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   IconData get _icon => switch (step.type) {
-        'phase0_classifying' => Icons.search,
-        'phase0_result' => Icons.check_circle_outline,
-        'phase0_retry' => Icons.refresh,
-        'phase1_retry' => Icons.refresh,
-        'phase_answer' => Icons.chat_bubble_outline,
-        'phase_answer_retry' => Icons.refresh,
-        'action' => Icons.build_outlined,
-        'observation' => Icons.check_circle_outline,
-        'confirmation_required' => Icons.shield_outlined,
-        'permission_required' => Icons.lock_outline,
-        _ => Icons.circle,
-      };
+    'phase0_classifying' => Icons.search,
+    'phase0_result' => Icons.check_circle_outline,
+    'phase0_retry' => Icons.refresh,
+    'phase1_retry' => Icons.refresh,
+    'phase_answer' => Icons.chat_bubble_outline,
+    'phase_answer_retry' => Icons.refresh,
+    'action' => Icons.build_outlined,
+    'observation' => Icons.check_circle_outline,
+    'confirmation_required' => Icons.shield_outlined,
+    'permission_required' => Icons.lock_outline,
+    _ => Icons.circle,
+  };
 
   String get _annotationText {
     switch (step.type) {
       case 'phase0_classifying':
-        return '\uC758\uB3C4 \uBD84\uC11D \uC911...';
+        return Strings.annotation.analyzing;
       case 'phase0_result':
         return step.content;
       case 'phase0_retry':
-        return '\uC758\uB3C4 \uBD84\uC11D \uC7AC\uC2DC\uB3C4... '
-            '(${step.retryAttempt}/${step.maxRetries})';
+        return Strings.annotation.analyzingRetry(
+          step.retryAttempt ?? 0,
+          step.maxRetries ?? 0,
+        );
       case 'phase1_retry':
-        return '\uC791\uC5C5 \uBD84\uC11D \uC7AC\uC2DC\uB3C4... '
-            '(${step.retryAttempt}/${step.maxRetries})';
+        return Strings.annotation.taskRetry(
+          step.retryAttempt ?? 0,
+          step.maxRetries ?? 0,
+        );
       case 'phase_answer':
-        return '\uC751\uB2F5 \uC0DD\uC131 \uC911...';
+        return Strings.annotation.generatingAnswer;
       case 'phase_answer_retry':
-        return '\uC751\uB2F5 \uC7AC\uC2DC\uB3C4... '
-            '(${step.retryAttempt}/${step.maxRetries})';
+        return Strings.annotation.answerRetry(
+          step.retryAttempt ?? 0,
+          step.maxRetries ?? 0,
+        );
       case 'action':
-        final name = step.toolName.isNotEmpty
-            ? step.toolName
-            : 'tool';
-        return '$name \uC2E4\uD589 \uC911...';
+        final name = step.toolName.isNotEmpty ? step.toolName : 'tool';
+        return Strings.annotation.running(name);
       case 'observation':
         final result = step.toolResult;
-        if (result.isEmpty) return '\uACB0\uACFC: (empty)';
+        if (result.isEmpty) return Strings.annotation.emptyResult;
         final summary = result.length > 50
             ? '${result.substring(0, 50)}...'
             : result;
         final isError = summary.trimLeft().startsWith('Error:');
         return isError
-            ? '\uC2E4\uD328: $summary'
-            : '\uACB0\uACFC: $summary';
+            ? Strings.annotation.failed(summary)
+            : Strings.annotation.result(summary);
       case 'confirmation_required':
-        return '\uC0AC\uC6A9\uC790 \uD655\uC778 \uB300\uAE30 \uC911...';
+        return Strings.annotation.waitingConfirmation;
       case 'permission_required':
         return step.content;
       default:
@@ -549,24 +551,18 @@ class _PermissionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final perm =
-        ToolPermissionMapper.getByKey(step.permission);
+    final perm = ToolPermissionMapper.getByKey(step.permission);
     final isService = perm?.isService ?? false;
     final displayName = perm?.displayName ?? step.content;
 
     return Center(
       child: Container(
-        margin: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 6,
-        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.surfaceModal,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-            color: AppColors.warning.withValues(alpha: 0.3),
-          ),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -615,15 +611,11 @@ class _PermissionCard extends StatelessWidget {
                         _resolve(context, true);
                       },
                       style: TextButton.styleFrom(
-                        backgroundColor:
-                            AppColors.primary.withValues(
+                        backgroundColor: AppColors.primary.withValues(
                           alpha: 0.15,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.sm,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                       ),
                       child: Text(
@@ -648,11 +640,8 @@ class _PermissionCard extends StatelessWidget {
   }
 
   void _resolve(BuildContext context, bool granted) {
-    final notifier = context.findAncestorStateOfType<
-        _ChatScreenState>();
-    notifier?.ref
-        .read(chatStateProvider.notifier)
-        .resolvePermission(granted);
+    final notifier = context.findAncestorStateOfType<_ChatScreenState>();
+    notifier?.ref.read(chatStateProvider.notifier).resolvePermission(granted);
   }
 }
 
@@ -674,14 +663,14 @@ class _ThinkingIndicator extends StatelessWidget {
               height: 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: AppColors.primary.withOpacity(0.7),
+                color: AppColors.primary.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(width: 8),
             Text(
-              'Thinking...',
+              Strings.chat.thinking,
               style: TextStyle(
-                color: AppColors.textSecondary.withOpacity(0.7),
+                color: AppColors.textSecondary.withValues(alpha: 0.7),
                 fontSize: 13,
               ),
             ),
@@ -697,6 +686,6 @@ class _ModelLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const LoadingIndicator(phase: LoadingPhase.loadingModel);
+    return LoadingIndicator(phase: LoadingPhase.loadingModel);
   }
 }

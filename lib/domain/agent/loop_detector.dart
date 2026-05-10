@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:aios/domain/agent/tool_result.dart';
+
 sealed class LoopCheckResult {
   const LoopCheckResult();
 }
@@ -35,12 +37,9 @@ class LoopDetector {
     _warningGiven = false;
   }
 
-  LoopCheckResult record(
-    String toolName,
-    String args,
-    String observation,
-  ) {
+  LoopCheckResult record(String toolName, String args, ToolResult result) {
     final canonical = _canonicalizeArgs(args);
+    final observation = result.toContent();
     _actionHistory.add((tool: toolName, argsCanonical: canonical));
     _observationHistory.add(observation);
 
@@ -49,14 +48,15 @@ class LoopDetector {
         : _actionHistory.toList();
 
     final consecutiveDuplicates = recentActions
-        .where((a) =>
-            a.tool == toolName && a.argsCanonical == canonical)
+        .where((a) => a.tool == toolName && a.argsCanonical == canonical)
         .length;
 
-    final isRepeatedAction = consecutiveDuplicates >= 3 &&
+    final isRepeatedAction =
+        consecutiveDuplicates >= 3 &&
         !_isActionAllowedRepeated(toolName, canonical);
 
-    final consecutiveIdenticalObs = _observationHistory.length >= 2 &&
+    final consecutiveIdenticalObs =
+        _observationHistory.length >= 2 &&
         _observationHistory
                 .sublist(_observationHistory.length - 2)
                 .toSet()

@@ -9,10 +9,7 @@ class ToolContextImpl implements ToolContext {
   @override
   Future<String?> invokeMethod(String method, [dynamic arguments]) async {
     try {
-      final result = await _channel.invokeMethod<String>(
-        method,
-        arguments,
-      );
+      final result = await _channel.invokeMethod<String>(method, arguments);
       return result;
     } on PlatformException catch (e) {
       print('[$_tag] ERROR: MethodChannel error: $method - $e');
@@ -30,6 +27,15 @@ class ToolContextImpl implements ToolContext {
     } on PlatformException catch (e) {
       print('[$_tag] ERROR: isAccessibilityEnabled error: $e');
       return false;
+    }
+  }
+
+  @override
+  Future<void> openAccessibilitySettings() async {
+    try {
+      await _channel.invokeMethod<void>('openAccessibilitySettings');
+    } on PlatformException catch (e) {
+      print('[$_tag] ERROR: openAccessibilitySettings error: $e');
     }
   }
 

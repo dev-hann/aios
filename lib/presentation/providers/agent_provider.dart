@@ -18,6 +18,8 @@ import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/agent/tool_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
+import 'package:aios/domain/entities/llm_provider_config.dart';
+import 'package:aios/domain/repositories/note_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -25,28 +27,27 @@ final toolContextProvider = Provider<ToolContext>((ref) {
   throw UnimplementedError('toolContextProvider must be overridden');
 });
 
-final conversationContextProvider =
-    Provider<ConversationContext>((ref) {
+final noteRepositoryProvider = Provider<NoteRepository>((ref) {
+  throw UnimplementedError('noteRepositoryProvider must be overridden');
+});
+
+final conversationContextProvider = Provider<ConversationContext>((ref) {
   return ConversationContext();
 });
 
-final toolPreferenceTrackerProvider =
-    Provider<ToolPreferenceTracker>((ref) {
+final toolPreferenceTrackerProvider = Provider<ToolPreferenceTracker>((ref) {
   return ToolPreferenceTracker();
 });
 
+final providerConfigProvider = StateProvider<LlmProviderConfig?>((ref) => null);
+
 final agentEngineProvider = Provider<LlmEngine?>((ref) {
-  throw UnimplementedError(
-    'agentEngineProvider must be overridden',
-  );
+  throw UnimplementedError('agentEngineProvider must be overridden');
 });
 
-final modelLoadedPathProvider =
-    StateProvider<String?>((ref) => null);
+final modelLoadedPathProvider = StateProvider<String?>((ref) => null);
 
-Future<bool> _defaultPermissionChecker(
-  String permissionKey,
-) async {
+Future<bool> _defaultPermissionChecker(String permissionKey) async {
   switch (permissionKey) {
     case 'contacts':
       return Permission.contacts.status.isGranted;
@@ -60,19 +61,16 @@ Future<bool> _defaultPermissionChecker(
 }
 
 final agentProvider = Provider<AgentStrategy>((ref) {
-  ref.watch(modelLoadedPathProvider);
   final engine = ref.watch(agentEngineProvider);
   final toolContext = ref.watch(toolContextProvider);
-  final conversationContext =
-      ref.watch(conversationContextProvider);
-  final preferenceTracker =
-      ref.watch(toolPreferenceTrackerProvider);
-  final notes = <String, String>{};
+  final conversationContext = ref.watch(conversationContextProvider);
+  final preferenceTracker = ref.watch(toolPreferenceTrackerProvider);
+  final noteRepo = ref.watch(noteRepositoryProvider);
   final timers = <String, TimerEntry>{};
 
   final basicTools = <String, AgentTool>{
     'calculator': CalculatorTool(),
-    'notepad': NotePadTool(notes),
+    'notepad': NotePadTool(noteRepo),
     'timer': TimerTool(timers),
   };
 
@@ -115,7 +113,7 @@ class _PlaceholderStrategy implements AgentStrategy {
     void Function(AgentStep)? onStep,
   }) async {
     return AgentResult(
-      steps: [AgentStep('answer', '모델을 먼저 로드해주세요.')],
+      steps: [const AgentStep('answer', 'API 설정을 먼저 완료해주세요.')],
       success: false,
     );
   }
@@ -141,8 +139,7 @@ class _PlaceholderStrategy implements AgentStrategy {
   String getToolManifest() => '';
 
   @override
-  List<({String role, String content})>
-      getConversationHistory() => [];
+  List<({String role, String content})> getConversationHistory() => [];
 
   @override
   void clearHistory() {}
@@ -151,7 +148,5 @@ class _PlaceholderStrategy implements AgentStrategy {
   void setConversationContext(ConversationContext? context) {}
 
   @override
-  void setToolPreferenceTracker(
-    ToolPreferenceTracker? tracker,
-  ) {}
+  void setToolPreferenceTracker(ToolPreferenceTracker? tracker) {}
 }

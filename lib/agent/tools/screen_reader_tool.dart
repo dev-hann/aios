@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class ScreenReaderTool extends ExtendedTool {
   static const _tag = 'AIOS-ScreenReader';
@@ -10,8 +11,7 @@ class ScreenReaderTool extends ExtendedTool {
   String get name => 'screen_reader';
 
   @override
-  String get description =>
-      'Read all visible text on screen. Args: {}';
+  String get description => 'Read all visible text on screen. Args: {}';
 
   @override
   String get parameters => '{}';
@@ -29,19 +29,19 @@ class ScreenReaderTool extends ExtendedTool {
       '- Use screen_find to locate specific elements';
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       print('[$_tag] Reading screen text');
       final result = await toolContext.invokeMethod('getScreenText');
       if (result == null) {
         print('[$_tag] WARN: No result from getScreenText');
-        return 'Error: No result';
+        return const ToolResult.err('No result');
       }
       print('[$_tag] Screen text length: ${result.length}');
-      return result;
+      return ToolResult.ok(result);
     } on Object catch (e) {
       print('[$_tag] ERROR: $e');
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 }
@@ -53,12 +53,10 @@ class ScreenFindTool extends ExtendedTool {
   String get name => 'screen_find';
 
   @override
-  String get description =>
-      'Find UI elements by text. Args: {text}';
+  String get description => 'Find UI elements by text. Args: {text}';
 
   @override
-  String get parameters =>
-      '{"text": "string, text to search for on screen"}';
+  String get parameters => '{"text": "string, text to search for on screen"}';
 
   @override
   String get toolPrompt =>
@@ -73,24 +71,23 @@ class ScreenFindTool extends ExtendedTool {
       '- Returns text and bounds of matching elements';
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       final text = _parseArg(args, 'text');
-      if (text.isEmpty) return "Error: 'text' required";
+      if (text.isEmpty) return const ToolResult.err("'text' required");
       print('[$_tag] Finding elements with text: "$text"');
-      final result = await toolContext.invokeMethod(
-        'findNodesByText',
-        {'text': text},
-      );
+      final result = await toolContext.invokeMethod('findNodesByText', {
+        'text': text,
+      });
       if (result == null) {
         print('[$_tag] WARN: No elements found for "$text"');
-        return 'No elements found';
+        return const ToolResult.ok('No elements found');
       }
       print('[$_tag] Found elements for "$text": ${result.length} chars');
-      return result;
+      return ToolResult.ok(result);
     } on Object catch (e) {
       print('[$_tag] ERROR: $e');
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 

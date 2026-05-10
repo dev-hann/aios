@@ -11,8 +11,9 @@ final currentVersionProvider = Provider<String>((ref) {
   throw UnimplementedError('currentVersionProvider must be overridden');
 });
 
-final updateProvider =
-    StateNotifierProvider<UpdateNotifier, UpdateState>((ref) {
+final updateProvider = StateNotifierProvider<UpdateNotifier, UpdateState>((
+  ref,
+) {
   final updateRepo = ref.watch(updateRepositoryProvider);
   final currentVersion = ref.watch(currentVersionProvider);
   return UpdateNotifier(updateRepo, currentVersion);

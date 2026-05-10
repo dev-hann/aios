@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:aios/domain/agent/extended_tool.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 
 class ScreenActionTool extends ExtendedTool {
   static const _tag = 'AIOS-ScreenAction';
@@ -21,13 +22,14 @@ class ScreenActionTool extends ExtendedTool {
       '"text": "string (for tap/long_click)", '
       '"content": "string (for type)", '
       '"target": "string (optional field name for type)", '
+      '"submit": "boolean (optional, auto-press enter after typing, e.g. true)", '
       '"x": "float (for tap)", "y": "float (for tap)", '
       '"direction": "up|down|left|right (for scroll/swipe)", '
       '"start_x": "float (for swipe, default 540)", '
       '"start_y": "float (for swipe, default 1500)", '
       '"distance": "float (for swipe, default 500)", '
       '"global_action": '
-      '"back|home|recents|notifications|quick_settings"}';
+      '"back|home|recents|notifications|quick_settings|enter"}';
 
   @override
   String get toolPrompt =>
@@ -38,122 +40,194 @@ class ScreenActionTool extends ExtendedTool {
       '- type: Type text into input field\n'
       '- scroll: Scroll in a direction\n'
       '- swipe: Swipe with direction and distance\n'
-      '- global: System action (back, home, recents)\n\n'
+      '- global: System action (back, home, recents, enter)\n\n'
       'Parameters: $parameters\n\n'
       'Rules:\n'
       '- Prefer tap with "text" over coordinates\n'
       '- Use "target" in type to specify field\n'
       '- Use global for navigation (back, home, recents)\n'
-      '- For scroll/swipe, use direction: up|down|left|right';
+      '- For scroll/swipe, use direction: up|down|left|right\n'
+      '- type with submit=true combines type + enter in one call\n'
+      '- For search: tap search field → type query with submit=true\n'
+      '- If submit is not set, you MUST call global_action "enter" '
+      'separately to submit search';
 
   @override
-  Future<String> execute(String args, ToolContext toolContext) async {
+  Future<ToolResult> execute(String args, ToolContext toolContext) async {
     try {
       final json = _tryParseJson(args);
       final action = json['action']?.toString().toLowerCase() ?? '';
 
-      return switch (action) {
+      final ToolResult result = await switch (action) {
         'tap' => _handleTap(json, toolContext),
         'long_click' => _handleLongClick(json, toolContext),
         'type' => _handleType(json, toolContext),
         'scroll' => _handleScroll(json, toolContext),
         'swipe' => _handleSwipe(json, toolContext),
         'global' => _handleGlobal(json, toolContext),
-        _ => "Error: Unknown action '$action'. "
-            'Use tap, long_click, type, scroll, swipe, or global.',
+        _ => ToolResult.err(
+          "Unknown action '$action'. "
+          'Use tap, long_click, type, scroll, swipe, or global.',
+        ),
       };
+
+      if (result.isError) return result;
+
+      final observation = await _observeScreen(toolContext);
+      return ToolResult(
+        output: result.output,
+        error: null,
+        system: result.system,
+        observation: observation,
+      );
     } on Object catch (e) {
-      return 'Error: $e';
+      return ToolResult.err('$e');
     }
   }
 
-  Future<String> _handleTap(
+  Future<String?> _observeScreen(ToolContext toolContext) async {
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return await toolContext.invokeMethod('getScreenText');
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<ToolResult> _handleTap(
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
     final text = json['text']?.toString() ?? '';
     if (text.isNotEmpty) {
-      return await toolContext.invokeMethod('tapByText', {'text': text}) ??
-          'Error: tap by text failed - no response from platform';
+      final result = await toolContext.invokeMethod('tapByText', {
+        'text': text,
+      });
+      if (result == null) {
+        return const ToolResult.err(
+          'tap by text failed - no response from platform',
+        );
+      }
+      return ToolResult.ok(result);
     }
     final x = _toDouble(json['x'], -1);
     final y = _toDouble(json['y'], -1);
     if (x >= 0 && y >= 0) {
-      return await toolContext.invokeMethod('performTap', {
-            'x': x,
-            'y': y,
-          }) ??
-          'Error: tap by coordinates failed - no response from platform';
+      final result = await toolContext.invokeMethod('performTap', {
+        'x': x,
+        'y': y,
+      });
+      if (result == null) {
+        return const ToolResult.err(
+          'tap by coordinates failed - no response from platform',
+        );
+      }
+      return ToolResult.ok(result);
     }
-    return "Error: 'text' required";
+    return const ToolResult.err("'text' required");
   }
 
-  Future<String> _handleLongClick(
+  Future<ToolResult> _handleLongClick(
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
     final text = json['text']?.toString() ?? '';
-    if (text.isEmpty) return "Error: 'text' required";
-    return await toolContext.invokeMethod(
-          'longClickByText',
-          {'text': text},
-        ) ??
-        'Error: long click failed - no response from platform';
+    if (text.isEmpty) return const ToolResult.err("'text' required");
+    final result = await toolContext.invokeMethod('longClickByText', {
+      'text': text,
+    });
+    if (result == null) {
+      return const ToolResult.err(
+        'long click failed - no response from platform',
+      );
+    }
+    return ToolResult.ok(result);
   }
 
-  Future<String> _handleType(
+  Future<ToolResult> _handleType(
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
     final content = json['content']?.toString() ?? '';
-    if (content.isEmpty) return "Error: 'content' required";
+    if (content.isEmpty) return const ToolResult.err("'content' required");
     final target = json['target']?.toString() ?? '';
-    return await toolContext.invokeMethod('typeText', {
-          'content': content,
-          'target': target,
-        }) ??
-        'Error: type text failed - no response from platform';
+    final result = await toolContext.invokeMethod('typeText', {
+      'content': content,
+      'target': target,
+    });
+    if (result == null) {
+      return const ToolResult.err(
+        'type text failed - no response from platform',
+      );
+    }
+
+    final submit = json['submit']?.toString().toLowerCase() == 'true';
+    if (submit) {
+      await toolContext.invokeMethod('performGlobalAction', {
+        'action': 'enter',
+      });
+      return ToolResult.ok(
+        "Typed '$content' and pressed enter.",
+        system: 'Search submitted.',
+      );
+    }
+
+    return ToolResult.ok(
+      result,
+      system:
+          'If this was a search field, call global_action "enter" '
+          'to submit, or use submit=true next time.',
+    );
   }
 
-  Future<String> _handleScroll(
+  Future<ToolResult> _handleScroll(
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
     final direction = json['direction']?.toString() ?? 'forward';
-    return await toolContext.invokeMethod(
-          'scroll',
-          {'direction': direction},
-        ) ??
-        'Error: scroll failed - no response from platform';
+    final result = await toolContext.invokeMethod('scroll', {
+      'direction': direction,
+    });
+    if (result == null) {
+      return const ToolResult.err('scroll failed - no response from platform');
+    }
+    return ToolResult.ok(result);
   }
 
-  Future<String> _handleSwipe(
+  Future<ToolResult> _handleSwipe(
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
     final direction = json['direction']?.toString() ?? 'up';
-    return await toolContext.invokeMethod('swipe', {
-          'direction': direction,
-          'start_x': _toDouble(json['start_x'], 540),
-          'start_y': _toDouble(json['start_y'], 1500),
-          'distance': _toDouble(json['distance'], 500),
-        }) ??
-        'Error: swipe failed - no response from platform';
+    final result = await toolContext.invokeMethod('swipe', {
+      'direction': direction,
+      'start_x': _toDouble(json['start_x'], 540),
+      'start_y': _toDouble(json['start_y'], 1500),
+      'distance': _toDouble(json['distance'], 500),
+    });
+    if (result == null) {
+      return const ToolResult.err('swipe failed - no response from platform');
+    }
+    return ToolResult.ok(result);
   }
 
-  Future<String> _handleGlobal(
+  Future<ToolResult> _handleGlobal(
     Map<String, dynamic> json,
     ToolContext toolContext,
   ) async {
     final action = json['global_action']?.toString() ?? '';
     if (action.isEmpty) {
-      return "Error: 'global_action' required";
+      return const ToolResult.err("'global_action' required");
     }
-    return await toolContext.invokeMethod(
-          'performGlobalAction',
-          {'action': action},
-        ) ??
-        'Error: global action failed - no response from platform';
+    final result = await toolContext.invokeMethod('performGlobalAction', {
+      'action': action,
+    });
+    if (result == null) {
+      return const ToolResult.err(
+        'global action failed - no response from platform',
+      );
+    }
+    return ToolResult.ok(result);
   }
 
   double _toDouble(dynamic value, double defaultValue) {

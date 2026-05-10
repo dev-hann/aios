@@ -1,8 +1,6 @@
 import 'package:aios/core/theme/app_colors.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 
 class MessageBubble extends StatelessWidget {
   const MessageBubble({
@@ -14,163 +12,79 @@ class MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isStreaming;
 
-  void _copyToClipboard(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: message.content));
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied to clipboard'),
-        duration: Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  String _formatTimestamp(DateTime dt) {
-    final now = DateTime.now();
-    final hour = dt.hour.toString().padLeft(2, '0');
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final timeStr = '$hour:$minute';
-    if (now.year == dt.year &&
-        now.month == dt.month &&
-        now.day == dt.day) {
-      return timeStr;
-    }
-    final diff = now.difference(dt).inDays;
-    if (diff < 7) {
-      return '$diff\uC77C \uC804 $timeStr';
-    }
-    return '${dt.month}/${dt.day} $timeStr';
-  }
-
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
-    final theme = Theme.of(context);
 
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.8,
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isUser ? AppColors.userBubble : AppColors.assistantBubble,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(AppRadius.md),
-            topRight: const Radius.circular(AppRadius.md),
-            bottomLeft:
-                isUser ? const Radius.circular(AppRadius.md) : Radius.zero,
-            bottomRight:
-                isUser ? Radius.zero : const Radius.circular(AppRadius.md),
+    if (isUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
+          ),
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.userBubble,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+            message.content,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              height: 1.4,
+            ),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (message.content.isNotEmpty)
-              GestureDetector(
-                onLongPress: () => _copyToClipboard(context),
-                child: isUser
-                    ? Text(
-                        message.content,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      )
-                    : MarkdownBody(
-                        data: message.content,
-                        styleSheet: MarkdownStyleSheet(
-                          p: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                          code: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.secondary,
-                            fontFamily: 'monospace',
-                            backgroundColor:
-                                AppColors.surfaceModal,
-                          ),
-                          codeblockDecoration: BoxDecoration(
-                            color: AppColors.surfaceModal,
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.sm,
-                            ),
-                          ),
-                          codeblockPadding: const EdgeInsets.all(8),
-                          listBullet: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                          h1: theme.textTheme.titleLarge?.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          h2: theme.textTheme.titleMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          h3: theme.textTheme.titleSmall?.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          blockquote: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                          blockquoteDecoration: const BoxDecoration(
-                            color: AppColors.surfaceModal,
-                            border: Border(
-                              left: BorderSide(
-                                color: AppColors.secondary,
-                                width: 3,
-                              ),
-                            ),
-                          ),
-                        ),
-                        selectable: true,
-                        onTapLink: (text, href, title) {
-                          if (href != null) {
-                            Clipboard.setData(
-                              ClipboardData(text: href),
-                            );
-                            ScaffoldMessenger.of(context)
-                                .clearSnackBars();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Link copied'),
-                                duration: Duration(seconds: 1),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        },
-                      ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (message.content.isNotEmpty)
+            Text(
+              message.content,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                height: 1.5,
               ),
-            if (isStreaming) _StreamingCursor(),
-            if (message.toolName != null) ...[
-              const SizedBox(height: 6),
-              _ToolInfo(message: message),
-            ],
+            ),
+          if (isStreaming) const _StreamingCursor(),
+          if (message.toolName != null) ...[
+            const SizedBox(height: 8),
+            _ToolInfo(message: message),
+          ],
+          if (message.createdAt != null) ...[
             const SizedBox(height: 4),
-            Align(
-              alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-              child: Text(
-                _formatTimestamp(message.createdAt),
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 10,
-                ),
+            Text(
+              _formatTime(message.createdAt!),
+              style: TextStyle(
+                color: AppColors.textSecondary.withValues(alpha: 0.5),
+                fontSize: 11,
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
+  }
+
+  String _formatTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }
 
 class _StreamingCursor extends StatefulWidget {
+  const _StreamingCursor();
+
   @override
   State<_StreamingCursor> createState() => _StreamingCursorState();
 }
@@ -198,10 +112,7 @@ class _StreamingCursorState extends State<_StreamingCursor>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _controller,
-      child: const Text(
-        '\u258E',
-        style: TextStyle(color: AppColors.primaryHover),
-      ),
+      child: const Text('▎', style: TextStyle(color: AppColors.primaryHover)),
     );
   }
 }
@@ -214,10 +125,11 @@ class _ToolInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceModal,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,7 +139,7 @@ class _ToolInfo extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.build, size: 14, color: AppColors.secondary),
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   message.toolName!,
@@ -243,7 +155,7 @@ class _ToolInfo extends StatelessWidget {
           ),
           if (message.toolArgs != null)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: 6),
               child: Text(
                 message.toolArgs!,
                 style: const TextStyle(
@@ -256,15 +168,24 @@ class _ToolInfo extends StatelessWidget {
             ),
           if (message.toolResult != null)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                message.toolResult!,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
+              padding: const EdgeInsets.only(top: 6),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
+                child: Text(
+                  message.toolResult!,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                  ),
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
         ],

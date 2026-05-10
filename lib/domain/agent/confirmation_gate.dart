@@ -24,9 +24,7 @@ class ConfirmationGate {
     );
 
     try {
-      return await _completer!.future.timeout(
-        const Duration(seconds: 60),
-      );
+      return await _completer!.future.timeout(const Duration(seconds: 60));
     } on TimeoutException {
       return false;
     }

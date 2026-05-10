@@ -43,8 +43,9 @@ class _MockUpdateRepository implements UpdateRepository {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const permissionChannel =
-      MethodChannel('flutter.baseflow.com/permissions/methods');
+  const permissionChannel = MethodChannel(
+    'flutter.baseflow.com/permissions/methods',
+  );
 
   group('UpdateNotifier', () {
     late _MockUpdateRepository mockRepo;
@@ -55,18 +56,17 @@ void main() {
       notifier = UpdateNotifier(mockRepo, '1.0.0');
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        permissionChannel,
-        (MethodCall methodCall) async {
-          if (methodCall.method == 'checkPermissionStatus') {
-            return 1;
-          }
-          if (methodCall.method == 'requestPermissions') {
-            return {13: 1};
-          }
-          return null;
-        },
-      );
+          .setMockMethodCallHandler(permissionChannel, (
+            MethodCall methodCall,
+          ) async {
+            if (methodCall.method == 'checkPermissionStatus') {
+              return 1;
+            }
+            if (methodCall.method == 'requestPermissions') {
+              return {13: 1};
+            }
+            return null;
+          });
     });
 
     tearDown(() {
@@ -128,14 +128,18 @@ void main() {
     });
 
     test('downloadApk_reportsProgressAndCompletes', () async {
-      mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
-        currentVersion: '1.0.0',
-        latestVersion: '2.0.0',
-        downloadUrl: 'https://example.com/aios.apk',
-        fileSize: 50000000,
-        releaseNotes: 'Bug fixes',
-        publishedAt: DateTime(2025, 1, 1),
-      )));
+      mockRepo.setCheckResult(
+        UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025, 1, 1),
+          ),
+        ),
+      );
       mockRepo.setDownloadResult('/tmp/test-apk.apk');
 
       await notifier.checkForUpdate();
@@ -147,21 +151,25 @@ void main() {
     });
 
     test('downloadApk_transitionsToErrorWhenDownloadFails', () async {
-      mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
-        currentVersion: '1.0.0',
-        latestVersion: '2.0.0',
-        downloadUrl: 'https://example.com/aios.apk',
-        fileSize: 50000000,
-        releaseNotes: 'Bug fixes',
-        publishedAt: DateTime(2025, 1, 1),
-      )));
+      mockRepo.setCheckResult(
+        UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025, 1, 1),
+          ),
+        ),
+      );
       mockRepo.setDownloadResult(null);
 
       await notifier.checkForUpdate();
       await notifier.downloadApk();
 
       expect(notifier.state.status, UpdateStatus.error);
-      expect(notifier.state.errorMessage, 'Download failed');
+      expect(notifier.state.errorMessage, '다운로드 실패');
     });
 
     test('downloadApk_doesNothingWhenNoUpdateInfo', () async {
@@ -171,14 +179,18 @@ void main() {
     });
 
     test('installApk_transitionsToInstalled', () async {
-      mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
-        currentVersion: '1.0.0',
-        latestVersion: '2.0.0',
-        downloadUrl: 'https://example.com/aios.apk',
-        fileSize: 50000000,
-        releaseNotes: 'Bug fixes',
-        publishedAt: DateTime(2025, 1, 1),
-      )));
+      mockRepo.setCheckResult(
+        UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025, 1, 1),
+          ),
+        ),
+      );
       mockRepo.setDownloadResult('/tmp/test-apk.apk');
 
       await notifier.checkForUpdate();
@@ -189,14 +201,18 @@ void main() {
     });
 
     test('installApk_transitionsToErrorWhenInstallFails', () async {
-      mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
-        currentVersion: '1.0.0',
-        latestVersion: '2.0.0',
-        downloadUrl: 'https://example.com/aios.apk',
-        fileSize: 50000000,
-        releaseNotes: 'Bug fixes',
-        publishedAt: DateTime(2025, 1, 1),
-      )));
+      mockRepo.setCheckResult(
+        UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025, 1, 1),
+          ),
+        ),
+      );
       mockRepo.setDownloadResult('/tmp/test-apk.apk');
       mockRepo.setInstallResult(false);
 
@@ -205,7 +221,7 @@ void main() {
       await notifier.installApk();
 
       expect(notifier.state.status, UpdateStatus.error);
-      expect(notifier.state.errorMessage, 'Install failed');
+      expect(notifier.state.errorMessage, '설치 실패');
     });
 
     test('installApk_doesNothingWhenNoDownloadedFile', () async {
@@ -216,27 +232,30 @@ void main() {
 
     test('installApk_transitionsToErrorWhenPermissionDenied', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        permissionChannel,
-        (MethodCall methodCall) async {
-          if (methodCall.method == 'checkPermissionStatus') {
-            return 0;
-          }
-          if (methodCall.method == 'requestPermissions') {
-            return {13: 0};
-          }
-          return null;
-        },
-      );
+          .setMockMethodCallHandler(permissionChannel, (
+            MethodCall methodCall,
+          ) async {
+            if (methodCall.method == 'checkPermissionStatus') {
+              return 0;
+            }
+            if (methodCall.method == 'requestPermissions') {
+              return {13: 0};
+            }
+            return null;
+          });
 
-      mockRepo.setCheckResult(UpdateResult.success(UpdateInfo(
-        currentVersion: '1.0.0',
-        latestVersion: '2.0.0',
-        downloadUrl: 'https://example.com/aios.apk',
-        fileSize: 50000000,
-        releaseNotes: 'Bug fixes',
-        publishedAt: DateTime(2025, 1, 1),
-      )));
+      mockRepo.setCheckResult(
+        UpdateResult.success(
+          UpdateInfo(
+            currentVersion: '1.0.0',
+            latestVersion: '2.0.0',
+            downloadUrl: 'https://example.com/aios.apk',
+            fileSize: 50000000,
+            releaseNotes: 'Bug fixes',
+            publishedAt: DateTime(2025, 1, 1),
+          ),
+        ),
+      );
       mockRepo.setDownloadResult('/tmp/test-apk.apk');
 
       await notifier.checkForUpdate();

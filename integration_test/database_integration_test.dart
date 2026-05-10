@@ -33,8 +33,9 @@ void main() {
         expect(conversations.first.title, 'Test Chat');
       });
 
-      testWidgets('insert multiple and order by updatedAt desc',
-          (tester) async {
+      testWidgets('insert multiple and order by updatedAt desc', (
+        tester,
+      ) async {
         await db.insertConversation(
           ConversationsCompanion.insert(
             id: 'conv-1',
@@ -68,7 +69,9 @@ void main() {
         expect(conversations.first.id, 'conv-2');
       });
 
-      testWidgets('deleteConversation does not cascade messages', (tester) async {
+      testWidgets('deleteConversation does not cascade messages', (
+        tester,
+      ) async {
         await db.insertConversation(
           ConversationsCompanion.insert(id: 'conv-1'),
         );
@@ -108,9 +111,7 @@ void main() {
       const convId = 'conv-1';
 
       setUp(() async {
-        await db.insertConversation(
-          ConversationsCompanion.insert(id: convId),
-        );
+        await db.insertConversation(ConversationsCompanion.insert(id: convId));
       });
 
       testWidgets('insert and getMessages', (tester) async {
@@ -214,8 +215,9 @@ void main() {
         expect(await db.getMessageCount(convId), 2);
       });
 
-      testWidgets('deleteMessages removes all for conversation',
-          (tester) async {
+      testWidgets('deleteMessages removes all for conversation', (
+        tester,
+      ) async {
         await db.insertMessage(
           MessagesCompanion.insert(
             id: 'msg-1',
