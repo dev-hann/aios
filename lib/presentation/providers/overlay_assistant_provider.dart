@@ -11,7 +11,7 @@ class OverlayAssistantNotifier extends StateNotifier<bool> {
   bool _isProcessing = false;
 
   OverlayAssistantNotifier(this._overlayService, this._agent) : super(false) {
-    _overlayService.setMessageHandler(_handleMessage);
+    _overlayService.onUserMessage = _handleMessage;
   }
 
   Future<bool> startBackgroundMode() async {
@@ -67,7 +67,7 @@ class OverlayAssistantNotifier extends StateNotifier<bool> {
       } else {
         await _overlayService.updateResult('요청을 처리하지 못했습니다.');
       }
-    } catch (e) {
+    } on Object catch (e) {
       print('[$_tag] ERROR: overlay agent execution failed - $e');
       await _overlayService.updateResult('오류가 발생했습니다: $e');
     } finally {
@@ -76,11 +76,11 @@ class OverlayAssistantNotifier extends StateNotifier<bool> {
   }
 
   Future<bool> checkOverlayPermission() async {
-    return await _overlayService.isOverlayPermissionGranted();
+    return _overlayService.isOverlayPermissionGranted();
   }
 
   Future<bool> requestOverlayPermission() async {
-    return await _overlayService.requestOverlayPermission();
+    return _overlayService.requestOverlayPermission();
   }
 
   @override

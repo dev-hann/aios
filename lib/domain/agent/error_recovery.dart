@@ -129,44 +129,47 @@ class ErrorRecovery {
   };
 
   String _retryPromptNudge(String toolName, ErrorType type) {
-    switch (type) {
-      case ErrorType.appNotInstalled:
-        return 'RECOVERY: App not found. '
+    return switch (type) {
+      ErrorType.appNotInstalled =>
+        'RECOVERY: App not found. '
             'Try "list_apps" action to search for the correct '
-            'app, or Answer explaining it is not installed.';
-      case ErrorType.invalidAction:
-        return 'RECOVERY: Invalid action for $toolName. '
-            'Check available actions and retry with correct name.';
-      case ErrorType.missingParameter:
-        return 'RECOVERY: Missing required parameter. '
+            'app, or Answer explaining it is not installed.',
+      ErrorType.invalidAction =>
+        'RECOVERY: Invalid action for $toolName. '
+            'Check available actions and retry with correct name.',
+      ErrorType.missingParameter =>
+        'RECOVERY: Missing required parameter. '
             'You MUST provide all parameters as a JSON object. '
-            'Call the same tool again with the correct parameters.';
-      case ErrorType.generic:
-        return 'RECOVERY: Tool failed. '
-            'Try different approach or Answer with error details.';
-      default:
-        return 'RECOVERY: Try again or Answer the user.';
-    }
+            'Call the same tool again with the correct parameters.',
+      ErrorType.generic =>
+        'RECOVERY: Tool failed. '
+            'Try different approach or Answer with error details.',
+      ErrorType.toolNotFound ||
+      ErrorType.serviceUnavailable ||
+      ErrorType.permissionDenied ||
+      ErrorType.cancelled => 'RECOVERY: Try again or Answer the user.',
+    };
   }
 
   String _fallbackPromptNudge(ErrorType type) {
-    switch (type) {
-      case ErrorType.toolNotFound:
-        return 'RECOVERY: Unknown tool. '
+    return switch (type) {
+      ErrorType.toolNotFound =>
+        'RECOVERY: Unknown tool. '
             'Available: ${_availableTools.join(", ")}. '
-            'Use one of these or Answer the user.';
-      case ErrorType.serviceUnavailable:
-        return 'RECOVERY: Service unavailable. '
+            'Use one of these or Answer the user.',
+      ErrorType.serviceUnavailable =>
+        'RECOVERY: Service unavailable. '
             'Answer the user explaining they need to enable '
-            'the service in Settings.';
-      case ErrorType.permissionDenied:
-        return 'RECOVERY: Permission denied. '
+            'the service in Settings.',
+      ErrorType.permissionDenied =>
+        'RECOVERY: Permission denied. '
             'Answer the user explaining they need to grant '
-            'permission in Settings.';
-      case ErrorType.cancelled:
-        return '';
-      default:
-        return 'RECOVERY: Provide Answer explaining what happened.';
-    }
+            'permission in Settings.',
+      ErrorType.cancelled => '',
+      ErrorType.appNotInstalled ||
+      ErrorType.invalidAction ||
+      ErrorType.missingParameter ||
+      ErrorType.generic => 'RECOVERY: Provide Answer explaining what happened.',
+    };
   }
 }

@@ -1,7 +1,6 @@
+import 'package:aios/data/datasources/local/tables.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-
-import 'package:aios/data/datasources/local/tables.dart';
 
 part 'database.g.dart';
 

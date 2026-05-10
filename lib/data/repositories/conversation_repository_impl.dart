@@ -94,6 +94,7 @@ class ConversationRepositoryImpl implements ConversationRepository {
     );
   }
 
+  @override
   void setActiveConversationId(String id) {
     _activeConversationId = id;
   }

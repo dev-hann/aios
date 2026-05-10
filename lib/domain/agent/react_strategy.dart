@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:aios/domain/agent/truncate.dart';
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/audit_log.dart';
@@ -13,12 +12,13 @@ import 'package:aios/domain/agent/llm_engine.dart';
 import 'package:aios/domain/agent/loop_detector.dart';
 import 'package:aios/domain/agent/permission_gate.dart';
 import 'package:aios/domain/agent/risk_classifier.dart';
+import 'package:aios/domain/agent/tool_arg_inference.dart';
 import 'package:aios/domain/agent/tool_context.dart';
+import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_permission_mapper.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
-import 'package:aios/domain/agent/tool_arg_inference.dart';
-import 'package:aios/domain/agent/tool_json_parser.dart';
 import 'package:aios/domain/agent/tool_result.dart';
+import 'package:aios/domain/agent/truncate.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 
 class ReactStrategy implements AgentStrategy {
@@ -80,7 +80,7 @@ class ReactStrategy implements AgentStrategy {
     final base = StringBuffer();
     base.writeln('You are AIOS, an on-device phone assistant.');
     base.writeln(
-      'Use tools to help the user. Respond concisely in the user\'s language.',
+      "Use tools to help the user. Respond concisely in the user's language.",
     );
     base.writeln(
       'When calling a tool, ALWAYS include ALL required parameters as JSON.',

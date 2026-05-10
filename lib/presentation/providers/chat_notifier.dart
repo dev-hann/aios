@@ -69,11 +69,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
       isAwaitingPermission: false,
     );
 
-    _conversationRepository
-        .appendMessage(userMessage)
-        .catchError(
-          (Object e) => print('[$_tag] WARN: appendMessage fire-forget - $e'),
-        );
+    unawaited(
+      _conversationRepository
+          .appendMessage(userMessage)
+          .catchError(
+            (Object e) => print('[$_tag] WARN: appendMessage fire-forget - $e'),
+          ),
+    );
 
     if (state.currentConversationTitle == '새 대화' &&
         state.messages.where((m) => m.role == 'user').length == 1) {
@@ -83,11 +85,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
       final convId = state.currentConversationId;
       if (convId != null) {
         state = state.copyWith(currentConversationTitle: title);
-        _conversationRepository
-            .updateConversationTitle(convId, title)
-            .catchError(
-              (Object e) => print('[$_tag] WARN: updateTitle fire-forget - $e'),
-            );
+        unawaited(
+          _conversationRepository
+              .updateConversationTitle(convId, title)
+              .catchError(
+                (Object e) =>
+                    print('[$_tag] WARN: updateTitle fire-forget - $e'),
+              ),
+        );
       }
     }
 

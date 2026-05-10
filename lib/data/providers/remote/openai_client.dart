@@ -45,16 +45,18 @@ class OpenAiClient {
         ),
       );
 
-      final Map<int, _ToolCallBuilder> toolCallBuilders = {};
-      String buffer = '';
+      final toolCallBuilders = <int, _ToolCallBuilder>{};
+      final buffer = StringBuffer();
+      String remaining = '';
 
       await for (final chunk in response.data!.stream) {
-        buffer += utf8.decode(chunk, allowMalformed: true);
+        buffer.write(utf8.decode(chunk, allowMalformed: true));
+        remaining = buffer.toString();
 
-        while (buffer.contains('\n')) {
-          final newlineIndex = buffer.indexOf('\n');
-          final line = buffer.substring(0, newlineIndex).trim();
-          buffer = buffer.substring(newlineIndex + 1);
+        while (remaining.contains('\n')) {
+          final newlineIndex = remaining.indexOf('\n');
+          final line = remaining.substring(0, newlineIndex).trim();
+          remaining = remaining.substring(newlineIndex + 1);
 
           if (line.isEmpty) continue;
           if (line == 'data: [DONE]') break;
@@ -66,7 +68,10 @@ class OpenAiClient {
             final choices = data['choices'] as List<dynamic>?;
             if (choices == null || choices.isEmpty) continue;
 
-            final delta = choices[0]['delta'] as Map<String, dynamic>? ?? {};
+            final delta =
+                (choices[0] as Map<String, dynamic>)['delta']
+                    as Map<String, dynamic>? ??
+                {};
             final reasoningContent = delta['reasoning_content'] as String?;
 
             if (delta['content'] != null) {
@@ -114,6 +119,8 @@ class OpenAiClient {
             print('[$_tag] WARN: SSE parse error - $e');
           }
         }
+        buffer.clear();
+        buffer.write(remaining);
       }
     } on DioException catch (e) {
       print('[$_tag] ERROR: HTTP error - ${e.message}');

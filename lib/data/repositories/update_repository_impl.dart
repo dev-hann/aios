@@ -1,13 +1,12 @@
 import 'dart:io';
 
-import 'package:dio/dio.dart';
-import 'package:open_file/open_file.dart';
-import 'package:path_provider/path_provider.dart';
-
 import 'package:aios/data/datasources/remote/github_api.dart';
 import 'package:aios/domain/agent/version_util.dart';
 import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
+import 'package:dio/dio.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 
 class UpdateRepositoryImpl implements UpdateRepository {
   final GitHubApi _api;
@@ -66,7 +65,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
           publishedAt: DateTime.parse(release.publishedAt),
         ),
       );
-    } catch (e) {
+    } on Object catch (e) {
       print('[AIOS-UpdateRepo] ERROR: checkForUpdate failed: $e');
       return UpdateResult.error(e.toString());
     }
@@ -97,7 +96,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
         return savePath;
       }
       return null;
-    } catch (e) {
+    } on Object catch (e) {
       print('[AIOS-UpdateRepo] ERROR: downloadApk failed: $e');
       return null;
     }
@@ -111,7 +110,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
       final result = await _openFile(apkPath);
       print('[AIOS-UpdateRepo] open_file result: ${result.type}');
       return result.type == ResultType.done;
-    } catch (e) {
+    } on Object catch (e) {
       print('[AIOS-UpdateRepo] ERROR: installApk failed: $e');
       return false;
     }

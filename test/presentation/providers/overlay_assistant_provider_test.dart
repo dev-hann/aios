@@ -83,9 +83,9 @@ class _SpyOverlayService extends OverlayService {
   _SpyOverlayService() : super();
 
   @override
-  void setMessageHandler(OverlayMessageHandler handler) {
+  set onUserMessage(OverlayMessageHandler? handler) {
     capturedHandler = handler;
-    super.setMessageHandler(handler);
+    super.onUserMessage = handler;
   }
 
   @override
@@ -149,7 +149,7 @@ void main() {
       expect(notifier!.state, isFalse);
     });
 
-    test('setMessageHandler_calledOnConstruction', () {
+    test('onUserMessage_calledOnConstruction', () {
       expect(overlayService.capturedHandler, isNotNull);
     });
 

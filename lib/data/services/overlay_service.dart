@@ -5,12 +5,14 @@ typedef OverlayMessageHandler = void Function(String message);
 class OverlayService {
   static const _channel = MethodChannel('com.agent.aios/overlay');
 
-  OverlayMessageHandler? _onUserMessage;
+  OverlayMessageHandler? onUserMessage;
 
   OverlayService() {
     try {
       _channel.setMethodCallHandler(_handleMethodCall);
-    } on Object {}
+    } on Object catch (e) {
+      print('[AIOS-Overlay] WARN: setMethodCallHandler failed - $e');
+    }
   }
 
   Future<void> _handleMethodCall(MethodCall call) async {
@@ -18,13 +20,9 @@ class OverlayService {
       case 'onUserMessage':
         final text = call.arguments as String? ?? '';
         if (text.isNotEmpty) {
-          _onUserMessage?.call(text);
+          onUserMessage?.call(text);
         }
     }
-  }
-
-  void setMessageHandler(OverlayMessageHandler handler) {
-    _onUserMessage = handler;
   }
 
   Future<bool> startOverlay() => _invoke('startOverlay');
@@ -53,6 +51,6 @@ class OverlayService {
   }
 
   void dispose() {
-    _onUserMessage = null;
+    onUserMessage = null;
   }
 }

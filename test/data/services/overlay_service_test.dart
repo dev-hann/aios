@@ -106,24 +106,22 @@ void main() {
       expect(result, isTrue);
     });
 
-    test('setMessageHandler_storesCallback', () async {
+    test('onUserMessage_storesCallback', () async {
       String? receivedMessage;
-      service.setMessageHandler((text) {
+      service.onUserMessage = (text) {
         receivedMessage = text;
-      });
+      };
 
       expect(receivedMessage, isNull);
     });
 
     test('dispose_clearsHandler', () async {
-      String? receivedMessage;
-      service.setMessageHandler((text) {
-        receivedMessage = text;
-      });
+      void handler(String text) {}
+      service.onUserMessage = handler;
 
+      expect(service.onUserMessage, isNotNull);
       service.dispose();
-
-      expect(receivedMessage, isNull);
+      expect(service.onUserMessage, isNull);
     });
 
     test('startOverlay_returnsFalseOnPlatformError', () async {
