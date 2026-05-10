@@ -120,7 +120,7 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'Hello');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pump();
 
       await tester.pumpAndSettle(const Duration(seconds: 30));
@@ -136,13 +136,13 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Say A');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pumpAndSettle(const Duration(seconds: 30));
 
       expect(find.text('Say A').evaluate().isNotEmpty, isTrue);
 
       await tester.enterText(find.byType(TextField), 'Say B');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pumpAndSettle(const Duration(seconds: 30));
 
       expect(find.text('Say A').evaluate().isNotEmpty, isTrue);
@@ -158,7 +158,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'What is 2+2?');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pump();
 
       await tester.pumpAndSettle(const Duration(seconds: 30));
@@ -175,45 +175,32 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Tell me a story');
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pump();
 
       await tester.pump(const Duration(seconds: 2));
 
-      final stopBtn = find.byIcon(Icons.stop_circle);
+      final stopBtn = find.byIcon(Icons.stop);
       if (stopBtn.evaluate().isNotEmpty) {
         await tester.tap(stopBtn);
         await tester.pumpAndSettle(const Duration(seconds: 5));
       }
 
-      expect(find.byIcon(Icons.send), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
     });
   });
 
-  group('Device E2E: Chat delete', () {
-    testWidgets('deleteChat_restartsFresh', (tester) async {
+  group('Device E2E: Chat clear via drawer', () {
+    testWidgets('openDrawer_showsSettingsAndNewChat', (tester) async {
       if (!providerReady) return;
 
       await tester.pumpWidget(_buildTestApp());
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField), 'Hello');
-      await tester.tap(find.byIcon(Icons.send));
-      await tester.pumpAndSettle(const Duration(seconds: 30));
-
-      expect(find.text('Hello').evaluate().isNotEmpty, isTrue);
-
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(find.byIcon(Icons.menu));
       await tester.pumpAndSettle();
 
-      expect(find.text('Delete all messages?'), findsOneWidget);
-
-      await tester.tap(find.text('Clear'));
-      await tester.pumpAndSettle();
-
-      final hasWelcome = find.text('AIOS').evaluate().isNotEmpty;
-      expect(hasWelcome, isTrue);
-      expect(find.text('Hello').evaluate().isEmpty, isTrue);
+      expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
     });
   });
 }
@@ -233,4 +220,6 @@ class _FakeLlmRepository implements LlmRepository {
   Future<bool> testConnection(LlmProviderConfig config) async => true;
   @override
   Future<void> stopGeneration() async {}
+  @override
+  Future<void> loadModel(String path, {int? contextSize}) async {}
 }

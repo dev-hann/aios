@@ -52,50 +52,54 @@ class _InputBarState extends State<InputBar> {
             Expanded(
               child: Container(
                 constraints: const BoxConstraints(maxHeight: 120),
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  enabled: !widget.isGenerating,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                  ),
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                  decoration: InputDecoration(
-                    hintText: widget.isGenerating
-                        ? Strings.chat.generating
-                        : Strings.chat.inputHint,
-                    hintStyle: const TextStyle(
-                      color: AppColors.textSecondary,
+                child: Semantics(
+                  label: 'chat_input_textfield',
+                  textField: true,
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    enabled: !widget.isGenerating,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
                       fontSize: 14,
                     ),
-                    filled: true,
-                    fillColor: AppColors.surfaceElevated,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: const BorderSide(
-                        color: AppColors.primary,
-                        width: 1.5,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    decoration: InputDecoration(
+                      hintText: widget.isGenerating
+                          ? Strings.chat.generating
+                          : Strings.chat.inputHint,
+                      hintStyle: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                      filled: true,
+                      fillColor: AppColors.surfaceElevated,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 1.5,
+                        ),
                       ),
                     ),
+                    onSubmitted: widget.isGenerating
+                        ? null
+                        : (_) => _handleSubmit(),
                   ),
-                  onSubmitted: widget.isGenerating
-                      ? null
-                      : (_) => _handleSubmit(),
                 ),
               ),
             ),
@@ -118,21 +122,25 @@ class _SendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      width: 40,
-      child: IconButton(
-        onPressed: onSend,
-        icon: const Icon(Icons.arrow_upward, size: 20),
-        color: Colors.white,
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+    return Semantics(
+      label: 'chat_send_button',
+      button: true,
+      child: SizedBox(
+        height: 40,
+        width: 40,
+        child: IconButton(
+          onPressed: onSend,
+          icon: const Icon(Icons.arrow_upward, size: 20),
+          color: Colors.white,
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
+          tooltip: Strings.chat.send,
+          padding: EdgeInsets.zero,
         ),
-        tooltip: Strings.chat.send,
-        padding: EdgeInsets.zero,
       ),
     );
   }

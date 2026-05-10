@@ -279,18 +279,22 @@ class _DrawerFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      leading: const Icon(
-        Icons.settings_outlined,
-        size: 20,
-        color: AppColors.textSecondary,
+    return Semantics(
+      label: 'drawer_settings_tile',
+      button: true,
+      child: ListTile(
+        dense: true,
+        leading: const Icon(
+          Icons.settings_outlined,
+          size: 20,
+          color: AppColors.textSecondary,
+        ),
+        title: Text(
+          Strings.drawer.settings,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
+        onTap: onSettings,
       ),
-      title: Text(
-        Strings.drawer.settings,
-        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-      ),
-      onTap: onSettings,
     );
   }
 }

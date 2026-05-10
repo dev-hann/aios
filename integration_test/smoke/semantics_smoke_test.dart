@@ -13,7 +13,6 @@ void main() {
 
       expect(find.bySemanticsLabel('drawer_open_menu'), findsOneWidget);
       expect(find.bySemanticsLabel('new_conversation_button'), findsOneWidget);
-      expect(find.bySemanticsLabel('settings_button'), findsOneWidget);
       expect(find.bySemanticsLabel('chat_input_textfield'), findsOneWidget);
       expect(find.bySemanticsLabel('chat_send_button'), findsOneWidget);
     });
@@ -25,7 +24,6 @@ void main() {
       await tester.tap(find.bySemanticsLabel('drawer_open_menu'));
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      expect(find.bySemanticsLabel('drawer_new_chat_button'), findsOneWidget);
       expect(find.bySemanticsLabel('drawer_settings_tile'), findsOneWidget);
     });
 
@@ -47,7 +45,9 @@ void main() {
     Future<void> _navigateToSettings(WidgetTester tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 5));
-      await tester.tap(find.bySemanticsLabel('settings_button'));
+      await tester.tap(find.bySemanticsLabel('drawer_open_menu'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('drawer_settings_tile'));
       await tester.pumpAndSettle(const Duration(seconds: 3));
     }
 

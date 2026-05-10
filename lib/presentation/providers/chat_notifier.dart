@@ -184,11 +184,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   String? _screenActionStatus(String argsJson) {
     try {
-      final args = argsJson.isNotEmpty
-          ? Map<String, dynamic>.from(
-              // ignore: avoid_dynamic_calls
-              (const JsonDecoder().convert(argsJson) as Map<dynamic, dynamic>),
-            )
+      final decoded = argsJson.isNotEmpty ? jsonDecode(argsJson) : null;
+      final args = decoded is Map<String, dynamic>
+          ? decoded
           : <String, dynamic>{};
       final action = args['action']?.toString() ?? '';
       return switch (action) {

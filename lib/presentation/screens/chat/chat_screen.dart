@@ -34,36 +34,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  void _showClearChatDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceModal,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        title: Text(Strings.chat.clearChat),
-        content: Text(Strings.chat.clearChatConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(Strings.chat.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(chatStateProvider.notifier).clearChat();
-              Navigator.of(ctx).pop();
-            },
-            child: Text(
-              Strings.chat.clear,
-              style: const TextStyle(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showConfirmationDialog(BuildContext context, AgentStep step) {
     showDialog<void>(
       context: context,
@@ -157,9 +127,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+          builder: (context) => Semantics(
+            label: 'drawer_open_menu',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
           ),
         ),
         title: Row(
@@ -183,14 +157,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.add_comment_outlined,
-              color: AppColors.textSecondary,
+          Semantics(
+            label: 'new_conversation_button',
+            button: true,
+            child: IconButton(
+              icon: const Icon(
+                Icons.add_comment_outlined,
+                color: AppColors.textSecondary,
+              ),
+              tooltip: Strings.chat.newConversation,
+              onPressed: () =>
+                  ref.read(chatStateProvider.notifier).createNewChat(),
             ),
-            tooltip: Strings.chat.newConversation,
-            onPressed: () =>
-                ref.read(chatStateProvider.notifier).createNewChat(),
           ),
         ],
       ),

@@ -15,17 +15,20 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 5));
 
       expect(find.text('AIOS'), findsOneWidget);
-      expect(find.text('Your on-device AI assistant'), findsOneWidget);
+      expect(find.text('AI 어시스턴트'), findsOneWidget);
       expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.byIcon(Icons.send), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
     });
 
-    testWidgets('shows settings button in app bar', (tester) async {
+    testWidgets('shows settings in drawer', (tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 5));
 
-      expect(find.byIcon(Icons.settings), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
     });
 
     testWidgets('can type text in input field', (tester) async {
@@ -43,7 +46,9 @@ void main() {
     Future<void> _navigateToSettings(WidgetTester tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 5));
-      await tester.tap(find.byIcon(Icons.settings));
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.settings_outlined));
       await tester.pumpAndSettle(const Duration(seconds: 3));
     }
 
@@ -58,38 +63,38 @@ void main() {
 
     testWidgets('shows settings header and model section', (tester) async {
       await _navigateToSettings(tester);
-      expect(find.text('Settings'), findsOneWidget);
-      expect(find.text('Provider'), findsOneWidget);
-      expect(find.text('No provider configured'), findsOneWidget);
-      expect(find.text('Setup Provider'), findsOneWidget);
+      expect(find.text('설정'), findsOneWidget);
+      expect(find.text('AI 제공자'), findsOneWidget);
+      expect(find.text('AI 제공자가 설정되지 않았습니다'), findsOneWidget);
+      expect(find.text('AI 설정하기'), findsOneWidget);
     });
 
     testWidgets('shows inference and permissions nav tiles', (tester) async {
       await _navigateToSettings(tester);
-      expect(find.text('Inference'), findsOneWidget);
-      expect(find.text('Permissions'), findsOneWidget);
+      expect(find.text('추론 설정'), findsOneWidget);
+      expect(find.text('권한 관리'), findsOneWidget);
     });
 
     testWidgets('shows app info section after scroll', (tester) async {
       await _navigateToSettings(tester);
 
-      await _scrollTo(tester, find.text('App Info'));
-      expect(find.text('App Info'), findsOneWidget);
-      expect(find.text('Version'), findsOneWidget);
+      await _scrollTo(tester, find.text('앱 정보'));
+      expect(find.text('앱 정보'), findsOneWidget);
+      expect(find.text('버전'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
     });
 
     testWidgets('shows update check after scroll', (tester) async {
       await _navigateToSettings(tester);
 
-      await _scrollTo(tester, find.text('Check for Updates'));
-      expect(find.text('Check for Updates'), findsOneWidget);
+      await _scrollTo(tester, find.text('업데이트 확인'));
+      expect(find.text('업데이트 확인'), findsOneWidget);
     });
 
     testWidgets('add model button works without crash', (tester) async {
       await _navigateToSettings(tester);
 
-      await tester.tap(find.text('Setup Provider'));
+      await tester.tap(find.text('AI 설정하기'));
       await tester.pumpAndSettle(const Duration(seconds: 2));
     });
   });
@@ -99,10 +104,12 @@ void main() {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 5));
 
-      await tester.tap(find.byIcon(Icons.settings));
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.settings_outlined));
       await tester.pumpAndSettle(const Duration(seconds: 3));
 
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('설정'), findsOneWidget);
       expect(find.byType(BackButton), findsOneWidget);
 
       await tester.tap(find.byType(BackButton));
