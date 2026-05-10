@@ -97,9 +97,10 @@ final agentProvider = Provider<AgentStrategy>((ref) {
     extendedTools: extendedTools,
   );
 
-  strategy.setPermissionChecker(_defaultPermissionChecker);
-  strategy.setConversationContext(conversationContext);
-  strategy.setToolPreferenceTracker(preferenceTracker);
+  strategy
+    ..setPermissionChecker(_defaultPermissionChecker)
+    ..setConversationContext(conversationContext)
+    ..setToolPreferenceTracker(preferenceTracker);
 
   return strategy;
 });

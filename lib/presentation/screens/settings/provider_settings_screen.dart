@@ -222,35 +222,40 @@ class _ProviderTypeSection extends StatelessWidget {
     return SectionCard(
       title: Strings.provider.selectProvider,
       icon: Icons.cloud,
-      child: Column(
-        children: LlmProviderType.values
-            .map(
-              (type) => RadioListTile<LlmProviderType>(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  Strings.provider.nameForType(type),
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
+      child: RadioGroup<LlmProviderType>(
+        groupValue: selectedType,
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+        child: Column(
+          children: LlmProviderType.values
+              .map(
+                (type) => RadioListTile<LlmProviderType>(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    Strings.provider.nameForType(type),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
                   ),
+                  subtitle: _isDisabled(type)
+                      ? Text(
+                          Strings.provider.comingSoon,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
+                        )
+                      : null,
+                  value: type,
+                  enabled: !_isDisabled(type),
+                  activeColor: AppColors.primary,
                 ),
-                subtitle: _isDisabled(type)
-                    ? Text(
-                        Strings.provider.comingSoon,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
-                        ),
-                      )
-                    : null,
-                value: type,
-                groupValue: selectedType,
-                onChanged: _isDisabled(type) ? null : (v) => onChanged(v!),
-                activeColor: AppColors.primary,
-              ),
-            )
-            .toList(),
+              )
+              .toList(),
+        ),
       ),
     );
   }
@@ -417,90 +422,94 @@ class _ModelSelectionSection extends StatelessWidget {
     return SectionCard(
       title: Strings.provider.model,
       icon: Icons.model_training,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(child: SizedBox()),
-              IconButton(
-                onPressed: isLoading ? null : onRefresh,
-                icon: isLoading
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.refresh,
-                        size: 18,
-                        color: AppColors.textSecondary,
-                      ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (models.isEmpty && !isLoading)
-            Text(
-              Strings.provider.enterApiKeyToLoad,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            )
-          else
-            ...models.map(
-              (model) => ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: Radio<String>(
-                  value: model.id,
-                  groupValue: selectedModel,
-                  onChanged: (v) => onModelSelected(v!),
-                  activeColor: AppColors.primary,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                title: Text(
-                  model.displayName,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: selectedModel == model.id
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                    fontSize: 14,
-                  ),
-                ),
-                subtitle: Row(
-                  children: [
-                    Text(
-                      model.id,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ...model.capabilities.map(
-                      (cap) => Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Icon(
-                          _capabilityIcon(cap),
-                          size: 12,
+      child: RadioGroup<String>(
+        groupValue: selectedModel,
+        onChanged: (v) {
+          if (v != null) onModelSelected(v);
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: SizedBox()),
+                IconButton(
+                  onPressed: isLoading ? null : onRefresh,
+                  icon: isLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.refresh,
+                          size: 18,
                           color: AppColors.textSecondary,
                         ),
-                      ),
-                    ),
-                  ],
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
-                onTap: () => onModelSelected(model.id),
-              ),
+              ],
             ),
-        ],
+            const SizedBox(height: 8),
+            if (models.isEmpty && !isLoading)
+              Text(
+                Strings.provider.enterApiKeyToLoad,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
+              )
+            else
+              ...models.map(
+                (model) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Radio<String>(
+                    value: model.id,
+                    activeColor: AppColors.primary,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  title: Text(
+                    model.displayName,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: selectedModel == model.id
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Row(
+                    children: [
+                      Text(
+                        model.id,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ...model.capabilities.map(
+                        (cap) => Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Icon(
+                            _capabilityIcon(cap),
+                            size: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  onTap: () => onModelSelected(model.id),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

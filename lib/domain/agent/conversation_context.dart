@@ -49,14 +49,14 @@ class ConversationContext {
 
   String toPromptContext() {
     if (_turns.isEmpty) return '';
-    final buffer = StringBuffer();
-    buffer.writeln('CONVERSATION HISTORY:');
+    final buffer = StringBuffer()..writeln('CONVERSATION HISTORY:');
     for (final turn in _turns) {
-      buffer.writeln('User: ${turn.userMessage}');
       final response = turn.assistantResponse.length > _maxResponseLength
           ? '${turn.assistantResponse.substring(0, _maxResponseLength)}...'
           : turn.assistantResponse;
-      buffer.writeln('Assistant: $response');
+      buffer
+        ..writeln('User: ${turn.userMessage}')
+        ..writeln('Assistant: $response');
     }
     return buffer.toString();
   }

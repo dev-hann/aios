@@ -85,9 +85,7 @@ void main() {
       final content = step.content.length > 50
           ? '${step.content.substring(0, 50)}...'
           : step.content;
-      print(
-        '[TEST]   ${step.type}: ${step.toolName ?? ""}$argsDisplay | $content',
-      );
+      print('[TEST]   ${step.type}: ${step.toolName}$argsDisplay | $content');
     }
 
     final actions = result.steps

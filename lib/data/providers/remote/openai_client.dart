@@ -119,8 +119,9 @@ class OpenAiClient {
             print('[$_tag] WARN: SSE parse error - $e');
           }
         }
-        buffer.clear();
-        buffer.write(remaining);
+        buffer
+          ..clear()
+          ..write(remaining);
       }
     } on DioException catch (e) {
       print('[$_tag] ERROR: HTTP error - ${e.message}');

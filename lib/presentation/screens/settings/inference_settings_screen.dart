@@ -122,12 +122,11 @@ class InferenceSettingsScreen extends ConsumerWidget {
 
   void _resetDefaults(WidgetRef ref) {
     final notifier = ref.read(settingsProvider.notifier);
-    notifier.updateTemperature(SettingsRepository.defaultTemperature);
-    notifier.updateTopP(SettingsRepository.defaultTopP);
-    notifier.updateMaxTokens(SettingsRepository.defaultMaxTokens);
-    notifier.updateAgentMaxIterations(
-      SettingsRepository.defaultAgentMaxIterations,
-    );
+    notifier
+      ..updateTemperature(SettingsRepository.defaultTemperature)
+      ..updateTopP(SettingsRepository.defaultTopP)
+      ..updateMaxTokens(SettingsRepository.defaultMaxTokens)
+      ..updateAgentMaxIterations(SettingsRepository.defaultAgentMaxIterations);
   }
 }
 

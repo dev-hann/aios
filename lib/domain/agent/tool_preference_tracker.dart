@@ -22,8 +22,7 @@ class ToolPreferenceTracker {
   String toPromptContext() {
     final top = getMostUsed(_topN);
     if (top.isEmpty) return '';
-    final buffer = StringBuffer();
-    buffer.writeln('FREQUENTLY USED TOOLS:');
+    final buffer = StringBuffer()..writeln('FREQUENTLY USED TOOLS:');
     for (final tool in top) {
       buffer.writeln('- $tool (${_usage[tool]} uses)');
     }

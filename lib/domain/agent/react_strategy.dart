@@ -77,45 +77,47 @@ class ReactStrategy implements AgentStrategy {
   static const _tag = 'AIOS-React';
 
   String get _systemPrompt {
-    final base = StringBuffer();
-    base.writeln('You are AIOS, an on-device phone assistant.');
-    base.writeln(
-      "Use tools to help the user. Respond concisely in the user's language.",
-    );
-    base.writeln(
-      'When calling a tool, ALWAYS include ALL required parameters as JSON.',
-    );
-    base.writeln('Example: calculator needs {"expression": "2+3"}');
-    base.writeln('If no tool is needed, answer directly.');
-    base.writeln();
-    base.writeln('CRITICAL RULES FOR screen_action:');
-    base.writeln(
-      '- Each screen_action call does exactly ONE action. '
-      'Do NOT mix parameters from different actions in one call.',
-    );
-    base.writeln(
-      '- NEVER put "content" and "global_action" in the same call. '
-      'They belong to different actions.',
-    );
-    base.writeln('- Search workflow requires 3 SEPARATE calls:');
-    base.writeln('  1) {"action":"tap","text":"검색"} → open search field');
-    base.writeln('  2) {"action":"type","content":"query"} → type text');
-    base.writeln('  3) {"action":"global","global_action":"enter"} → submit');
-    base.writeln(
-      '- Complex tasks always need MULTIPLE sequential tool calls. '
-      'Do not stop until the task is fully done.',
-    );
+    final base = StringBuffer()
+      ..writeln('You are AIOS, an on-device phone assistant.')
+      ..writeln(
+        "Use tools to help the user. Respond concisely in the user's language.",
+      )
+      ..writeln(
+        'When calling a tool, ALWAYS include ALL required parameters as JSON.',
+      )
+      ..writeln('Example: calculator needs {"expression": "2+3"}')
+      ..writeln('If no tool is needed, answer directly.')
+      ..writeln()
+      ..writeln('CRITICAL RULES FOR screen_action:')
+      ..writeln(
+        '- Each screen_action call does exactly ONE action. '
+        'Do NOT mix parameters from different actions in one call.',
+      )
+      ..writeln(
+        '- NEVER put "content" and "global_action" in the same call. '
+        'They belong to different actions.',
+      )
+      ..writeln('- Search workflow requires 3 SEPARATE calls:')
+      ..writeln('  1) {"action":"tap","text":"검색"} → open search field')
+      ..writeln('  2) {"action":"type","content":"query"} → type text')
+      ..writeln('  3) {"action":"global","global_action":"enter"} → submit')
+      ..writeln(
+        '- Complex tasks always need MULTIPLE sequential tool calls. '
+        'Do not stop until the task is fully done.',
+      );
 
     final contextStr = _conversationContext?.toPromptContext() ?? '';
     if (contextStr.isNotEmpty) {
-      base.writeln();
-      base.write(contextStr);
+      base
+        ..writeln()
+        ..write(contextStr);
     }
 
     final prefStr = _preferenceTracker?.toPromptContext() ?? '';
     if (prefStr.isNotEmpty) {
-      base.writeln();
-      base.write(prefStr);
+      base
+        ..writeln()
+        ..write(prefStr);
     }
 
     return base.toString();
