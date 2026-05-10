@@ -14,7 +14,7 @@ ChatMessage _makeMessage({
     id: '${role}_${content.hashCode}',
     role: role,
     content: content,
-    createdAt: DateTime(2026, 1, 1),
+    createdAt: DateTime(2026),
     toolName: toolName,
     toolArgs: toolArgs,
     toolResult: toolResult,
@@ -24,9 +24,9 @@ ChatMessage _makeMessage({
 Widget _wrapWithMaterial(Widget child) {
   return MaterialApp(
     theme: ThemeData(
-      colorScheme: ColorScheme.dark(
-        primary: const Color(0xFF9146FF),
-        surface: const Color(0xFF18181B),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF9146FF),
+        surface: Color(0xFF18181B),
       ),
       scaffoldBackgroundColor: const Color(0xFF0E0E10),
     ),
@@ -80,7 +80,7 @@ void main() {
       expect(find.byType(Text), findsWidgets);
       final textWidgets = tester.widgetList<Text>(find.byType(Text));
       final hasMarkdownBody = textWidgets.any(
-        (t) => t.data?.contains('MarkdownBody') == true,
+        (t) => t.data?.contains('MarkdownBody') ?? false,
       );
       expect(hasMarkdownBody, isFalse);
     });

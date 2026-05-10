@@ -39,7 +39,7 @@ void main() {
     });
 
     test('connect_withInvalidConfig_returnsFalse', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.custom,
         apiKey: 'invalid-key',
         model: 'test-model',
@@ -55,7 +55,7 @@ void main() {
       final states = <ServiceState>[];
       repo.state.listen(states.add);
 
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.custom,
         apiKey: 'bad',
         model: 'test',

@@ -28,8 +28,8 @@ class LlmRemoteSession implements LlmChatSession {
       ..._messages,
     ];
 
-    String fullContent = '';
-    final Map<int, _AccEntry> toolCallAcc = {};
+    var fullContent = '';
+    final toolCallAcc = <int, _AccEntry>{};
 
     await for (final chunk in _client.streamChat(
       messages: apiMessages,

@@ -91,7 +91,7 @@ void main() {
     conversationRepo = _InMemoryConversationRepository();
   });
 
-  Widget _buildTestApp() {
+  Widget buildTestApp() {
     return ProviderScope(
       overrides: [
         llmRepositoryProvider.overrideWithValue(_FakeLlmRepository()),
@@ -114,7 +114,7 @@ void main() {
     testWidgets('sendChat_firstMessage', (tester) async {
       if (!providerReady) return;
 
-      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpWidget(buildTestApp());
       await tester.pumpAndSettle();
 
       expect(find.byType(TextField), findsOneWidget);
@@ -132,7 +132,7 @@ void main() {
     testWidgets('twoTurnConversation_preservesMessages', (tester) async {
       if (!providerReady) return;
 
-      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpWidget(buildTestApp());
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Say A');
@@ -154,7 +154,7 @@ void main() {
     testWidgets('agentExecutes_reachesAnswer', (tester) async {
       if (!providerReady) return;
 
-      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpWidget(buildTestApp());
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'What is 2+2?');
@@ -171,7 +171,7 @@ void main() {
     testWidgets('stopDuringGeneration_interruptsAgent', (tester) async {
       if (!providerReady) return;
 
-      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpWidget(buildTestApp());
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Tell me a story');
@@ -194,7 +194,7 @@ void main() {
     testWidgets('openDrawer_showsSettingsAndNewChat', (tester) async {
       if (!providerReady) return;
 
-      await tester.pumpWidget(_buildTestApp());
+      await tester.pumpWidget(buildTestApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.menu));

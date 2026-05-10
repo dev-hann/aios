@@ -21,7 +21,7 @@ class ScreenActionTool extends ExtendedTool {
       '"text": "string (for tap/long_click)", '
       '"content": "string (for type)", '
       '"target": "string (optional field name for type)", '
-      '"submit": "boolean (optional, auto-press enter after typing, e.g. true)", '
+      '"submit": "boolean (optional, auto enter after typing, e.g. true)", '
       '"x": "float (for tap)", "y": "float (for tap)", '
       '"direction": "up|down|left|right (for scroll/swipe)", '
       '"start_x": "float (for swipe, default 540)", '

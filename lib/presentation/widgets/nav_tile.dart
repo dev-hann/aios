@@ -5,8 +5,8 @@ class NavTile extends StatelessWidget {
   const NavTile({
     required this.icon,
     required this.title,
-    this.subtitle,
     required this.onTap,
+    this.subtitle,
     this.trailing,
     this.semanticsLabel,
     super.key,

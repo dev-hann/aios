@@ -1,16 +1,14 @@
 import 'dart:convert';
 
+import 'package:aios/data/datasources/remote/github_api.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:aios/data/datasources/remote/github_api.dart';
-
 class _FakeAdapter implements HttpClientAdapter {
+  _FakeAdapter({required this.body, this.statusCode = 200, this.error});
   final int statusCode;
   final Map<String, dynamic> body;
   Object? error;
-
-  _FakeAdapter({this.statusCode = 200, required this.body, this.error});
 
   @override
   Future<ResponseBody> fetch(

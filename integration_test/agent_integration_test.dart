@@ -24,14 +24,14 @@ void main() {
       engine = LlmRemoteEngine(testConfig!);
     });
 
-    ReactStrategy _createStrategy() {
+    ReactStrategy createStrategy() {
       return ReactStrategy(engine: engine);
     }
 
     testWidgets('execute with answer response', (tester) async {
       if (!providerReady) return;
 
-      strategy = _createStrategy();
+      strategy = createStrategy();
 
       final steps = <AgentStep>[];
       final result = await strategy.execute(
@@ -54,7 +54,7 @@ void main() {
     testWidgets('execute plain text fallback', (tester) async {
       if (!providerReady) return;
 
-      strategy = _createStrategy();
+      strategy = createStrategy();
 
       final result = await strategy.execute(
         'Hi',
@@ -70,7 +70,7 @@ void main() {
     ) async {
       if (!providerReady) return;
 
-      final noContextStrategy = _createStrategy();
+      final noContextStrategy = createStrategy();
 
       final result = await noContextStrategy.execute(
         'List apps on this phone',
@@ -84,7 +84,7 @@ void main() {
     testWidgets('clearHistory resets conversation', (tester) async {
       if (!providerReady) return;
 
-      strategy = _createStrategy();
+      strategy = createStrategy();
       await strategy.execute('Hello', maxIterations: 2, maxTokens: 16);
 
       strategy.clearHistory();
@@ -93,7 +93,7 @@ void main() {
     testWidgets('getToolManifest returns non-empty', (tester) async {
       if (!providerReady) return;
 
-      strategy = _createStrategy();
+      strategy = createStrategy();
       final manifest = strategy.getToolManifest();
       expect(manifest, isNotEmpty);
       expect(manifest, contains('app_launcher'));
@@ -102,13 +102,9 @@ void main() {
     testWidgets('cancel stops execution', (tester) async {
       if (!providerReady) return;
 
-      strategy = _createStrategy();
+      strategy = createStrategy();
 
-      final future = strategy.execute(
-        'Tell me a long story',
-        maxIterations: 8,
-        maxTokens: 256,
-      );
+      final future = strategy.execute('Tell me a long story', maxTokens: 256);
 
       await Future<void>.delayed(const Duration(milliseconds: 200));
       strategy.cancel();
@@ -120,7 +116,7 @@ void main() {
     testWidgets('multiple sequential executes', (tester) async {
       if (!providerReady) return;
 
-      strategy = _createStrategy();
+      strategy = createStrategy();
 
       final r1 = await strategy.execute(
         'Say A',

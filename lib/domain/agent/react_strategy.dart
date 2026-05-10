@@ -262,8 +262,8 @@ class ReactStrategy implements AgentStrategy {
         onStep?.call(steps.last);
         onStep?.call(const AgentStep('thinking_start', ''));
 
-        String fullContent = '';
-        final Map<int, _ToolCallAccumulator> toolCallBuilders = {};
+        var fullContent = '';
+        final toolCallBuilders = <int, _ToolCallAccumulator>{};
 
         try {
           await for (final chunk in session.chat(
@@ -337,7 +337,7 @@ class ReactStrategy implements AgentStrategy {
           final builder = entry.value;
           final toolName = builder.name ?? '';
           print('[$_tag] Processing tool: $toolName');
-          Map<String, dynamic> toolArgs = {};
+          var toolArgs = <String, dynamic>{};
           if (builder.arguments.isNotEmpty) {
             toolArgs = tryParseToolJson(builder.arguments, _tag);
           }
@@ -440,8 +440,9 @@ class ReactStrategy implements AgentStrategy {
           print('[$_tag] Executing tool: $toolName');
           final toolResult = await _executeToolDirect(toolName, toolArgs);
           final toolContent = toolResult.toContent();
+          final truncated = truncate(toolContent, 200);
           print(
-            '[$_tag] Tool result (${toolContent.length} chars): ${truncate(toolContent, 200)}',
+            '[$_tag] Tool result (${toolContent.length} chars): $truncated',
           );
 
           _auditLog.add(toolName, argsJson, risk, true, toolContent);

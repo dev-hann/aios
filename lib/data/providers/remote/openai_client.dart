@@ -47,7 +47,7 @@ class OpenAiClient {
 
       final toolCallBuilders = <int, _ToolCallBuilder>{};
       final buffer = StringBuffer();
-      String remaining = '';
+      var remaining = '';
 
       await for (final chunk in response.data!.stream) {
         buffer.write(utf8.decode(chunk, allowMalformed: true));

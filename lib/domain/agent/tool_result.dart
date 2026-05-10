@@ -1,9 +1,4 @@
 class ToolResult {
-  final String? output;
-  final String? error;
-  final String? system;
-  final String? observation;
-
   const ToolResult({this.output, this.error, this.system, this.observation});
 
   const ToolResult.ok(this.output, {this.system, this.observation})
@@ -12,6 +7,10 @@ class ToolResult {
   const ToolResult.err(this.error, {this.system})
     : output = null,
       observation = null;
+  final String? output;
+  final String? error;
+  final String? system;
+  final String? observation;
 
   bool get isError => error != null;
 

@@ -19,7 +19,7 @@ class _MockUpdateRepository implements UpdateRepository {
     void Function(double progress)? onProgress,
   }) async {
     onProgress?.call(0.5);
-    onProgress?.call(1.0);
+    onProgress?.call(1);
     return _downloadedFile;
   }
 
@@ -49,7 +49,7 @@ void main() {
           downloadUrl: 'https://example.com/app.apk',
           fileSize: 50000000,
           releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2026, 5, 1),
+          publishedAt: DateTime(2026, 5),
         ),
       );
 

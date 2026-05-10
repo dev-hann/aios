@@ -50,7 +50,7 @@ void main() {
       engine = LlmRemoteEngine(testConfig!);
     });
 
-    ReactStrategy _createStrategy({
+    ReactStrategy createStrategy({
       Map<String, AgentTool>? basicTools,
       Map<String, ExtendedTool>? extendedTools,
       ToolContext? toolContext,
@@ -67,9 +67,7 @@ void main() {
       testWidgets('agent_selectsCalculator_forMath', (tester) async {
         if (!providerReady) return;
 
-        strategy = _createStrategy(
-          basicTools: {'calculator': CalculatorTool()},
-        );
+        strategy = createStrategy(basicTools: {'calculator': CalculatorTool()});
 
         final result = await strategy.execute(
           'What is 2 + 3?',
@@ -95,7 +93,7 @@ void main() {
         if (!providerReady) return;
 
         final noteRepo = _InMemoryNoteRepository();
-        strategy = _createStrategy(
+        strategy = createStrategy(
           basicTools: {'notepad': NotePadTool(noteRepo)},
         );
 
@@ -121,7 +119,7 @@ void main() {
 
         final noteRepo = _InMemoryNoteRepository();
         await noteRepo.save('test', 'hello world');
-        strategy = _createStrategy(
+        strategy = createStrategy(
           basicTools: {'notepad': NotePadTool(noteRepo)},
         );
 
@@ -146,7 +144,7 @@ void main() {
         if (!providerReady) return;
 
         final timers = <String, TimerEntry>{};
-        strategy = _createStrategy(basicTools: {'timer': TimerTool(timers)});
+        strategy = createStrategy(basicTools: {'timer': TimerTool(timers)});
 
         final result = await strategy.execute(
           'Set a timer for 60 seconds',
@@ -170,7 +168,7 @@ void main() {
         if (!providerReady) return;
 
         final toolContext = ToolContextImpl();
-        strategy = _createStrategy(
+        strategy = createStrategy(
           toolContext: toolContext,
           extendedTools: {'device_info': DeviceInfoTool()},
         );
@@ -200,7 +198,7 @@ void main() {
 
         final noteRepo = _InMemoryNoteRepository();
         final timers = <String, TimerEntry>{};
-        strategy = _createStrategy(
+        strategy = createStrategy(
           basicTools: {
             'calculator': CalculatorTool(),
             'notepad': NotePadTool(noteRepo),
@@ -229,7 +227,7 @@ void main() {
         if (!providerReady) return;
 
         final noteRepo = _InMemoryNoteRepository();
-        strategy = _createStrategy(
+        strategy = createStrategy(
           basicTools: {
             'calculator': CalculatorTool(),
             'notepad': NotePadTool(noteRepo),
@@ -238,7 +236,6 @@ void main() {
 
         final result = await strategy.execute(
           'Calculate 10 * 5 and save the result as a note',
-          maxIterations: 8,
           maxTokens: 128,
         );
 

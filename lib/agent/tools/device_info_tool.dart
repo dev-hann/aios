@@ -60,7 +60,7 @@ class DeviceInfoTool extends ExtendedTool {
         ),
         _ => ToolResult.err(
           "Unknown action '$action'. "
-          "Use get_info, battery, storage, or memory.",
+          'Use get_info, battery, storage, or memory.',
         ),
       };
     } on Object catch (e) {

@@ -43,7 +43,7 @@ void main() {
   });
 
   group('SettingsScreen', () {
-    Future<void> _navigateToSettings(WidgetTester tester) async {
+    Future<void> navigateToSettings(WidgetTester tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 5));
       await tester.tap(find.byIcon(Icons.menu));
@@ -52,7 +52,7 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 3));
     }
 
-    Future<void> _scrollTo(WidgetTester tester, Finder target) async {
+    Future<void> scrollTo(WidgetTester tester, Finder target) async {
       await tester.scrollUntilVisible(
         target,
         200,
@@ -62,7 +62,7 @@ void main() {
     }
 
     testWidgets('shows settings header and model section', (tester) async {
-      await _navigateToSettings(tester);
+      await navigateToSettings(tester);
       expect(find.text('설정'), findsOneWidget);
       expect(find.text('AI 제공자'), findsOneWidget);
       expect(find.text('AI 제공자가 설정되지 않았습니다'), findsOneWidget);
@@ -70,29 +70,29 @@ void main() {
     });
 
     testWidgets('shows inference and permissions nav tiles', (tester) async {
-      await _navigateToSettings(tester);
+      await navigateToSettings(tester);
       expect(find.text('추론 설정'), findsOneWidget);
       expect(find.text('권한 관리'), findsOneWidget);
     });
 
     testWidgets('shows app info section after scroll', (tester) async {
-      await _navigateToSettings(tester);
+      await navigateToSettings(tester);
 
-      await _scrollTo(tester, find.text('앱 정보'));
+      await scrollTo(tester, find.text('앱 정보'));
       expect(find.text('앱 정보'), findsOneWidget);
       expect(find.text('버전'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
     });
 
     testWidgets('shows update check after scroll', (tester) async {
-      await _navigateToSettings(tester);
+      await navigateToSettings(tester);
 
-      await _scrollTo(tester, find.text('업데이트 확인'));
+      await scrollTo(tester, find.text('업데이트 확인'));
       expect(find.text('업데이트 확인'), findsOneWidget);
     });
 
     testWidgets('add model button works without crash', (tester) async {
-      await _navigateToSettings(tester);
+      await navigateToSettings(tester);
 
       await tester.tap(find.text('AI 설정하기'));
       await tester.pumpAndSettle(const Duration(seconds: 2));

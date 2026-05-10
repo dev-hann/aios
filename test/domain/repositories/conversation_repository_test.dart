@@ -63,7 +63,7 @@ ChatMessage _makeMessage({required String role, required String content}) {
     id: '${role}_${content.hashCode}',
     role: role,
     content: content,
-    createdAt: DateTime(2026, 1, 1),
+    createdAt: DateTime(2026),
   );
 }
 

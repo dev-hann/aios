@@ -93,7 +93,7 @@ void main() {
 
         final chunks = <LlmResponseChunk>[];
         await for (final chunk in session.chat(
-          [LlmContentPart.text('Hi')],
+          [const LlmContentPart.text('Hi')],
           config: const LlmGenerationConfig(
             temperature: 0.7,
             topP: 0.9,
@@ -114,7 +114,7 @@ void main() {
 
         await session
             .chat(
-              [LlmContentPart.text('test input')],
+              [const LlmContentPart.text('test input')],
               config: const LlmGenerationConfig(
                 temperature: 0.7,
                 topP: 0.9,
@@ -140,7 +140,7 @@ void main() {
 
         final chunks = <LlmResponseChunk>[];
         await for (final chunk in session.chat(
-          [LlmContentPart.text('calc 2+2')],
+          [const LlmContentPart.text('calc 2+2')],
           config: const LlmGenerationConfig(
             temperature: 0.7,
             topP: 0.9,
@@ -172,7 +172,7 @@ void main() {
 
         final chunks = <LlmResponseChunk>[];
         await for (final chunk in session.chat(
-          [LlmContentPart.text('multi')],
+          [const LlmContentPart.text('multi')],
           config: const LlmGenerationConfig(
             temperature: 0.7,
             topP: 0.9,
@@ -218,7 +218,7 @@ void main() {
 
         await session
             .chat(
-              [LlmContentPart.text('test')],
+              [const LlmContentPart.text('test')],
               config: const LlmGenerationConfig(
                 temperature: 0.7,
                 topP: 0.9,
@@ -243,7 +243,7 @@ void main() {
 
         await session
             .chat(
-              [LlmContentPart.text('test')],
+              [const LlmContentPart.text('test')],
               config: const LlmGenerationConfig(
                 temperature: 0.7,
                 topP: 0.9,
@@ -263,7 +263,7 @@ void main() {
 
         await session
             .chat(
-              [LlmContentPart.text('test')],
+              [const LlmContentPart.text('test')],
               config: const LlmGenerationConfig(
                 temperature: 0.7,
                 topP: 0.9,
@@ -294,7 +294,7 @@ void main() {
 
         await session
             .chat(
-              [LlmContentPart.text('test')],
+              [const LlmContentPart.text('test')],
               config: const LlmGenerationConfig(
                 temperature: 0.7,
                 topP: 0.9,
@@ -317,7 +317,7 @@ void main() {
 
         await session
             .chat(
-              [LlmContentPart.text('hi')],
+              [const LlmContentPart.text('hi')],
               config: const LlmGenerationConfig(
                 temperature: 0.7,
                 topP: 0.9,
@@ -331,7 +331,7 @@ void main() {
 
         await session
             .chat(
-              [LlmContentPart.text('hello again')],
+              [const LlmContentPart.text('hello again')],
               config: const LlmGenerationConfig(
                 temperature: 0.7,
                 topP: 0.9,

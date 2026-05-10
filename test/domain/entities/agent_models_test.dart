@@ -182,11 +182,8 @@ void main() {
 
   group('AgentResult', () {
     test('create_withStepsAndSuccess', () {
-      final result = AgentResult(
-        steps: const [
-          AgentStep('thought', 'Thinking'),
-          AgentStep('answer', '42'),
-        ],
+      const result = AgentResult(
+        steps: [AgentStep('thought', 'Thinking'), AgentStep('answer', '42')],
         success: true,
       );
 
@@ -195,15 +192,15 @@ void main() {
     });
 
     test('create_emptySteps_unsuccessful', () {
-      final result = AgentResult(steps: const [], success: false);
+      const result = AgentResult(steps: [], success: false);
 
       expect(result.steps, isEmpty);
       expect(result.success, isFalse);
     });
 
     test('copyWith_modifiesFields', () {
-      final original = AgentResult(
-        steps: const [AgentStep('answer', 'yes')],
+      const original = AgentResult(
+        steps: [AgentStep('answer', 'yes')],
         success: true,
       );
       final copied = original.copyWith(success: false);
@@ -214,24 +211,15 @@ void main() {
     });
 
     test('equality', () {
-      final a = AgentResult(
-        steps: const [AgentStep('answer', '42')],
-        success: true,
-      );
-      final b = AgentResult(
-        steps: const [AgentStep('answer', '42')],
-        success: true,
-      );
+      const a = AgentResult(steps: [AgentStep('answer', '42')], success: true);
+      const b = AgentResult(steps: [AgentStep('answer', '42')], success: true);
 
       expect(a, equals(b));
     });
 
     test('toJson_serializesCorrectly', () {
-      final result = AgentResult(
-        steps: const [
-          AgentStep('thought', 'think'),
-          AgentStep('answer', 'done'),
-        ],
+      const result = AgentResult(
+        steps: [AgentStep('thought', 'think'), AgentStep('answer', 'done')],
         success: true,
       );
 
@@ -275,7 +263,7 @@ void main() {
 
   group('ToolAuditEntry', () {
     test('create_withAllFields', () {
-      final entry = ToolAuditEntry(
+      const entry = ToolAuditEntry(
         timestamp: 1700000000000,
         tool: 'calculator',
         args: '{"expression": "2+2"}',
@@ -293,7 +281,7 @@ void main() {
     });
 
     test('create_rejectedEntry', () {
-      final entry = ToolAuditEntry(
+      const entry = ToolAuditEntry(
         timestamp: 0,
         tool: 'sms_sender',
         args: '{"action": "send"}',
@@ -307,7 +295,7 @@ void main() {
     });
 
     test('copyWith_modifiesFields', () {
-      final original = ToolAuditEntry(
+      const original = ToolAuditEntry(
         timestamp: 1000,
         tool: 'test',
         args: '{}',
@@ -324,7 +312,7 @@ void main() {
     });
 
     test('equality', () {
-      final a = ToolAuditEntry(
+      const a = ToolAuditEntry(
         timestamp: 1000,
         tool: 'calc',
         args: '{}',
@@ -332,7 +320,7 @@ void main() {
         approved: true,
         result: 'ok',
       );
-      final b = ToolAuditEntry(
+      const b = ToolAuditEntry(
         timestamp: 1000,
         tool: 'calc',
         args: '{}',
@@ -346,7 +334,7 @@ void main() {
     });
 
     test('equality_differentFields_notEqual', () {
-      final a = ToolAuditEntry(
+      const a = ToolAuditEntry(
         timestamp: 1000,
         tool: 'calc',
         args: '{}',
@@ -354,7 +342,7 @@ void main() {
         approved: true,
         result: 'ok',
       );
-      final b = ToolAuditEntry(
+      const b = ToolAuditEntry(
         timestamp: 1000,
         tool: 'calc',
         args: '{}',
@@ -367,7 +355,7 @@ void main() {
     });
 
     test('toJson_serializesAllFields', () {
-      final entry = ToolAuditEntry(
+      const entry = ToolAuditEntry(
         timestamp: 1700000000000,
         tool: 'screen_action',
         args: '{"action": "tap"}',
@@ -404,7 +392,7 @@ void main() {
     });
 
     test('json_roundTrip_preservesData', () {
-      final entry = ToolAuditEntry(
+      const entry = ToolAuditEntry(
         timestamp: 1700000000000,
         tool: 'notepad',
         args: '{"action": "save"}',

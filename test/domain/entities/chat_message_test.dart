@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ChatMessage', () {
-    final fixedDate = DateTime(2026, 1, 15, 10, 30, 0);
+    final fixedDate = DateTime(2026, 1, 15, 10, 30);
 
     test('constructor_withRequiredFields_createsSuccessfully', () {
       final message = ChatMessage(

@@ -8,8 +8,6 @@ part 'chat_state.g.dart';
 
 @freezed
 class ChatState with _$ChatState {
-  const ChatState._();
-
   const factory ChatState({
     @Default([]) List<ChatMessage> messages,
     @Default('') String currentResponse,
@@ -21,6 +19,10 @@ class ChatState with _$ChatState {
     String? currentConversationId,
     @Default('새 대화') String currentConversationTitle,
   }) = _ChatState;
+
+  factory ChatState.fromJson(Map<String, dynamic> json) =>
+      _$ChatStateFromJson(json);
+  const ChatState._();
 
   bool get isGenerating => agentSteps.isNotEmpty;
 
@@ -34,7 +36,4 @@ class ChatState with _$ChatState {
     'thinking_end',
     'permission_required',
   };
-
-  factory ChatState.fromJson(Map<String, dynamic> json) =>
-      _$ChatStateFromJson(json);
 }

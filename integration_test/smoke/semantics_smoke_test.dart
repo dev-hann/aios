@@ -42,7 +42,7 @@ void main() {
   });
 
   group('SettingsScreen semantics smoke', () {
-    Future<void> _navigateToSettings(WidgetTester tester) async {
+    Future<void> navigateToSettings(WidgetTester tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 5));
       await tester.tap(find.bySemanticsLabel('drawer_open_menu'));
@@ -52,7 +52,7 @@ void main() {
     }
 
     testWidgets('render_hasSettingsSemanticsLabels', (tester) async {
-      await _navigateToSettings(tester);
+      await navigateToSettings(tester);
 
       expect(
         find.byWidgetPredicate(

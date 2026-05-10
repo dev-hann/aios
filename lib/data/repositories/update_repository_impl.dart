@@ -9,12 +9,6 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 
 class UpdateRepositoryImpl implements UpdateRepository {
-  final GitHubApi _api;
-  final String _currentVersion;
-  final Dio _dio;
-  final Future<String> Function() _getCachePath;
-  final Future<OpenResult> Function(String path) _openFile;
-
   UpdateRepositoryImpl({
     required GitHubApi api,
     required String currentVersion,
@@ -26,6 +20,11 @@ class UpdateRepositoryImpl implements UpdateRepository {
        _dio = dio,
        _getCachePath = getCachePath ?? _defaultCachePath,
        _openFile = openFile ?? _defaultOpenFile;
+  final GitHubApi _api;
+  final String _currentVersion;
+  final Dio _dio;
+  final Future<String> Function() _getCachePath;
+  final Future<OpenResult> Function(String path) _openFile;
 
   static Future<String> _defaultCachePath() async {
     final dir = await getTemporaryDirectory();

@@ -5,10 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class UpdateNotifier extends StateNotifier<UpdateState> {
-  static const String _tag = 'AIOS-Update';
-
   UpdateNotifier(this._updateRepository, this._currentVersion)
     : super(const UpdateState());
+  static const String _tag = 'AIOS-Update';
 
   final UpdateRepository _updateRepository;
   final String _currentVersion;

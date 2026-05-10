@@ -10,6 +10,19 @@ class LlmProviderConfig {
     this.baseUrl,
   });
 
+  factory LlmProviderConfig.fromJson(String json) {
+    final map = jsonDecode(json) as Map<String, dynamic>;
+    return LlmProviderConfig(
+      type: LlmProviderType.values.firstWhere(
+        (t) => t.name == map['type'],
+        orElse: () => LlmProviderType.zai,
+      ),
+      apiKey: map['apiKey'] as String? ?? '',
+      model: map['model'] as String? ?? '',
+      baseUrl: map['baseUrl'] as String?,
+    );
+  }
+
   final LlmProviderType type;
   final String apiKey;
   final String model;
@@ -38,19 +51,6 @@ class LlmProviderConfig {
     'baseUrl': baseUrl,
   });
 
-  factory LlmProviderConfig.fromJson(String json) {
-    final map = jsonDecode(json) as Map<String, dynamic>;
-    return LlmProviderConfig(
-      type: LlmProviderType.values.firstWhere(
-        (t) => t.name == map['type'],
-        orElse: () => LlmProviderType.zai,
-      ),
-      apiKey: map['apiKey'] as String? ?? '',
-      model: map['model'] as String? ?? '',
-      baseUrl: map['baseUrl'] as String?,
-    );
-  }
-
   LlmProviderConfig copyWith({
     LlmProviderType? type,
     String? apiKey,
@@ -75,12 +75,6 @@ class LlmModelInfo {
     this.maxOutputTokens = 4096,
   });
 
-  final String id;
-  final String displayName;
-  final Set<ModelCapability> capabilities;
-  final int maxContextTokens;
-  final int maxOutputTokens;
-
   factory LlmModelInfo.fromApi(String id) {
     return LlmModelInfo(
       id: id,
@@ -88,6 +82,12 @@ class LlmModelInfo {
       capabilities: _inferCapabilities(id),
     );
   }
+
+  final String id;
+  final String displayName;
+  final Set<ModelCapability> capabilities;
+  final int maxContextTokens;
+  final int maxOutputTokens;
 
   static String _formatDisplayName(String id) {
     return id

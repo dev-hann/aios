@@ -14,18 +14,18 @@ void main() {
       final result = detector.record(
         'calculator',
         '{}',
-        ToolResult.ok('result'),
+        const ToolResult.ok('result'),
       );
       expect(result, isA<LoopOk>());
     });
 
     test('record_differentActions_returnsOk', () {
-      detector.record('calculator', '{}', ToolResult.ok('5'));
-      detector.record('timer', '{"seconds": 5}', ToolResult.ok('done'));
+      detector.record('calculator', '{}', const ToolResult.ok('5'));
+      detector.record('timer', '{"seconds": 5}', const ToolResult.ok('done'));
       final result = detector.record(
         'notepad',
         '{"action": "list"}',
-        ToolResult.ok('none'),
+        const ToolResult.ok('none'),
       );
       expect(result, isA<LoopOk>());
     });
@@ -34,17 +34,17 @@ void main() {
       detector.record(
         'calculator',
         '{"expression": "1+1"}',
-        ToolResult.ok('result 1'),
+        const ToolResult.ok('result 1'),
       );
       detector.record(
         'calculator',
         '{"expression": "1+1"}',
-        ToolResult.ok('result 2'),
+        const ToolResult.ok('result 2'),
       );
       final result = detector.record(
         'calculator',
         '{"expression": "1+1"}',
-        ToolResult.ok('result 3'),
+        const ToolResult.ok('result 3'),
       );
       expect(result, isA<LoopWarning>());
       final warning = result as LoopWarning;
@@ -56,24 +56,24 @@ void main() {
       detector.record(
         'calculator',
         '{"expression": "1+1"}',
-        ToolResult.ok('a'),
+        const ToolResult.ok('a'),
       );
       detector.record(
         'calculator',
         '{"expression": "1+1"}',
-        ToolResult.ok('b'),
+        const ToolResult.ok('b'),
       );
       final warning = detector.record(
         'calculator',
         '{"expression": "1+1"}',
-        ToolResult.ok('c'),
+        const ToolResult.ok('c'),
       );
       expect(warning, isA<LoopWarning>());
 
       final force = detector.record(
         'calculator',
         '{"expression": "1+1"}',
-        ToolResult.ok('d'),
+        const ToolResult.ok('d'),
       );
       expect(force, isA<LoopForceBreak>());
     });
@@ -82,12 +82,12 @@ void main() {
       detector.record(
         'screen_action',
         '{"action": "tap", "x": 1}',
-        ToolResult.ok('same'),
+        const ToolResult.ok('same'),
       );
       final warning = detector.record(
         'screen_action',
         '{"action": "tap", "x": 2}',
-        ToolResult.ok('same'),
+        const ToolResult.ok('same'),
       );
       expect(warning, isA<LoopWarning>());
     });
@@ -96,17 +96,17 @@ void main() {
       detector.record(
         'screen_action',
         '{"action": "scroll"}',
-        ToolResult.ok('scrolled 1'),
+        const ToolResult.ok('scrolled 1'),
       );
       detector.record(
         'screen_action',
         '{"action": "scroll"}',
-        ToolResult.ok('scrolled 2'),
+        const ToolResult.ok('scrolled 2'),
       );
       final result = detector.record(
         'screen_action',
         '{"action": "scroll"}',
-        ToolResult.ok('scrolled 3'),
+        const ToolResult.ok('scrolled 3'),
       );
       expect(result, isA<LoopOk>());
     });
@@ -115,17 +115,17 @@ void main() {
       detector.record(
         'screen_action',
         '{"action": "swipe"}',
-        ToolResult.ok('swiped 1'),
+        const ToolResult.ok('swiped 1'),
       );
       detector.record(
         'screen_action',
         '{"action": "swipe"}',
-        ToolResult.ok('swiped 2'),
+        const ToolResult.ok('swiped 2'),
       );
       final result = detector.record(
         'screen_action',
         '{"action": "swipe"}',
-        ToolResult.ok('swiped 3'),
+        const ToolResult.ok('swiped 3'),
       );
       expect(result, isA<LoopOk>());
     });
@@ -145,43 +145,55 @@ void main() {
     });
 
     test('shouldNudge_afterWarningGiven_returnsFalse', () {
-      detector.record('calc', '{}', ToolResult.ok('a'));
-      detector.record('calc', '{}', ToolResult.ok('b'));
-      detector.record('calc', '{}', ToolResult.ok('c'));
+      detector.record('calc', '{}', const ToolResult.ok('a'));
+      detector.record('calc', '{}', const ToolResult.ok('b'));
+      detector.record('calc', '{}', const ToolResult.ok('c'));
       expect(detector.shouldNudge(4, false), false);
     });
   });
 
   group('reset', () {
     test('reset_clearsHistoryAndWarningState', () {
-      detector.record('calc', '{"a": 1}', ToolResult.ok('x'));
-      detector.record('calc', '{"a": 1}', ToolResult.ok('y'));
+      detector.record('calc', '{"a": 1}', const ToolResult.ok('x'));
+      detector.record('calc', '{"a": 1}', const ToolResult.ok('y'));
       expect(
-        detector.record('calc', '{"a": 1}', ToolResult.ok('z')),
+        detector.record('calc', '{"a": 1}', const ToolResult.ok('z')),
         isA<LoopWarning>(),
       );
 
       detector.reset();
 
-      final result = detector.record('calc', '{"a": 1}', ToolResult.ok('v'));
+      final result = detector.record(
+        'calc',
+        '{"a": 1}',
+        const ToolResult.ok('v'),
+      );
       expect(result, isA<LoopOk>());
     });
   });
 
   group('edge cases', () {
     test('record_exactlyTwoCalls_returnsOk', () {
-      detector.record('calc', '{}', ToolResult.ok('a'));
-      final result = detector.record('calc', '{}', ToolResult.ok('b'));
+      detector.record('calc', '{}', const ToolResult.ok('a'));
+      final result = detector.record('calc', '{}', const ToolResult.ok('b'));
       expect(result, isA<LoopOk>());
     });
 
     test('record_sameToolDifferentArgs_returnsOk', () {
-      detector.record('calc', '{"expression": "1+1"}', ToolResult.ok('2'));
-      detector.record('calc', '{"expression": "3+4"}', ToolResult.ok('7'));
+      detector.record(
+        'calc',
+        '{"expression": "1+1"}',
+        const ToolResult.ok('2'),
+      );
+      detector.record(
+        'calc',
+        '{"expression": "3+4"}',
+        const ToolResult.ok('7'),
+      );
       final result = detector.record(
         'calc',
         '{"expression": "5+5"}',
-        ToolResult.ok('10'),
+        const ToolResult.ok('10'),
       );
       expect(result, isA<LoopOk>());
     });
@@ -190,26 +202,26 @@ void main() {
       detector.record(
         'screen_action',
         '{"action": "global"}',
-        ToolResult.ok('done 1'),
+        const ToolResult.ok('done 1'),
       );
       detector.record(
         'screen_action',
         '{"action": "global"}',
-        ToolResult.ok('done 2'),
+        const ToolResult.ok('done 2'),
       );
       final result = detector.record(
         'screen_action',
         '{"action": "global"}',
-        ToolResult.ok('done 3'),
+        const ToolResult.ok('done 3'),
       );
       expect(result, isA<LoopOk>());
     });
 
     test('record_interleavedDifferentTools_returnsOk', () {
-      detector.record('calc', '{}', ToolResult.ok('a'));
-      detector.record('timer', '{}', ToolResult.ok('b'));
-      detector.record('calc', '{}', ToolResult.ok('c'));
-      final result = detector.record('calc', '{}', ToolResult.ok('d'));
+      detector.record('calc', '{}', const ToolResult.ok('a'));
+      detector.record('timer', '{}', const ToolResult.ok('b'));
+      detector.record('calc', '{}', const ToolResult.ok('c'));
+      final result = detector.record('calc', '{}', const ToolResult.ok('d'));
       expect(result, isA<LoopOk>());
     });
 
@@ -222,9 +234,9 @@ void main() {
     });
 
     test('reset_preservesNoSideEffects', () {
-      detector.record('a', '{}', ToolResult.ok('x'));
-      detector.record('a', '{}', ToolResult.ok('y'));
-      detector.record('a', '{}', ToolResult.ok('z'));
+      detector.record('a', '{}', const ToolResult.ok('x'));
+      detector.record('a', '{}', const ToolResult.ok('y'));
+      detector.record('a', '{}', const ToolResult.ok('z'));
 
       detector.reset();
 

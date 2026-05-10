@@ -275,7 +275,7 @@ class _WelcomeView extends StatelessWidget {
             const SizedBox(height: 20),
             const Text(
               Strings.appName,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -550,7 +550,7 @@ class _PermissionCard extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '$displayName \uAD8C\uD55C\uC774 \uD544\uC694\uD569\uB2C8\uB2E4',
+                    '$displayName 권한이 필요합니다',
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 13,

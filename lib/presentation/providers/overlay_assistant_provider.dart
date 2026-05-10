@@ -4,15 +4,14 @@ import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class OverlayAssistantNotifier extends StateNotifier<bool> {
+  OverlayAssistantNotifier(this._overlayService, this._agent) : super(false) {
+    _overlayService.onUserMessage = _handleMessage;
+  }
   static const _tag = 'AIOS-OverlayAssistant';
 
   final OverlayService _overlayService;
   final AgentStrategy _agent;
   bool _isProcessing = false;
-
-  OverlayAssistantNotifier(this._overlayService, this._agent) : super(false) {
-    _overlayService.onUserMessage = _handleMessage;
-  }
 
   Future<bool> startBackgroundMode() async {
     final fgStarted = await ForegroundService.start();

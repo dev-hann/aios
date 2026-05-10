@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/entities/service_state.dart';
-import '../../helpers/mock_llm_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../helpers/mock_llm_repository.dart';
 
 class _MockLlmRepository extends MockLlmRepository {
   @override
@@ -25,7 +24,7 @@ void main() {
     });
 
     test('connect_returnsTrue_and_setsConnected', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',
@@ -41,7 +40,7 @@ void main() {
       final states = <ServiceState>[];
       repository.state.listen(states.add);
 
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',
@@ -52,7 +51,7 @@ void main() {
     });
 
     test('disconnect_setsNotConnected', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',
@@ -75,7 +74,7 @@ void main() {
     });
 
     test('testConnection_returnsTrue', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',
@@ -87,7 +86,7 @@ void main() {
     });
 
     test('fetchModels_returnsList', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',

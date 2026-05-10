@@ -18,12 +18,11 @@ import '../../../helpers/mock_llm_repository.dart';
 import '../../../helpers/mock_settings_repository.dart';
 
 class _StepCapturingAgent implements AgentStrategy {
+  _StepCapturingAgent({required this.stepsToEmit});
   final List<AgentStep> stepsToEmit;
   final Completer<void> _completer = Completer<void>();
   bool? lastConfirmation;
   bool cancelCalled = false;
-
-  _StepCapturingAgent({required this.stepsToEmit});
 
   @override
   Future<AgentResult> execute(
@@ -81,14 +80,13 @@ class _StepCapturingAgent implements AgentStrategy {
 }
 
 class _DelayedEmitAgent implements AgentStrategy {
-  final Duration delayBeforeSteps;
-  final List<AgentStep> stepsToEmit;
-  final Completer<void> _completer = Completer<void>();
-
   _DelayedEmitAgent({
     required this.delayBeforeSteps,
     required this.stepsToEmit,
   });
+  final Duration delayBeforeSteps;
+  final List<AgentStep> stepsToEmit;
+  final Completer<void> _completer = Completer<void>();
 
   @override
   Future<AgentResult> execute(
@@ -149,7 +147,7 @@ void main() {
   late MockLlmRepository llmRepo;
   late MockConversationRepository conversationRepo;
 
-  Widget _buildChatScreen(AgentStrategy agent) {
+  Widget buildChatScreen(AgentStrategy agent) {
     return ProviderScope(
       overrides: [
         llmRepositoryProvider.overrideWithValue(llmRepo),
@@ -173,7 +171,7 @@ void main() {
 
   testWidgets('render_noMessages_showsWelcome', (tester) async {
     final agent = _StepCapturingAgent(stepsToEmit: []);
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     expect(find.text('AIOS'), findsOneWidget);
@@ -184,7 +182,7 @@ void main() {
     final agent = _StepCapturingAgent(
       stepsToEmit: [const AgentStep('answer', 'Response')],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Hello');
@@ -198,7 +196,7 @@ void main() {
 
   testWidgets('render_displaysInputBar', (tester) async {
     final agent = _StepCapturingAgent(stepsToEmit: []);
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     expect(find.byType(TextField), findsOneWidget);
@@ -211,7 +209,7 @@ void main() {
     final agent = _StepCapturingAgent(
       stepsToEmit: [const AgentStep('answer', 'R')],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Hello');
@@ -228,7 +226,7 @@ void main() {
     final agent = _StepCapturingAgent(
       stepsToEmit: [const AgentStep('answer', 'R')],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Test message');
@@ -242,7 +240,7 @@ void main() {
 
   testWidgets('render_displaysNewConversationIcon', (tester) async {
     final agent = _StepCapturingAgent(stepsToEmit: []);
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     expect(find.byIcon(Icons.add_comment_outlined), findsOneWidget);
@@ -264,7 +262,7 @@ void main() {
         const AgentStep('answer', 'The result is 4'),
       ],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), '2+2?');
@@ -295,7 +293,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'open youtube');
@@ -322,7 +320,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'open youtube');
@@ -350,7 +348,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'open youtube');
@@ -378,7 +376,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'send SMS');
@@ -406,7 +404,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'send SMS');
@@ -434,7 +432,7 @@ void main() {
         const AgentStep('answer', 'The result is 4'),
       ],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), '2+2?');
@@ -459,7 +457,7 @@ void main() {
       delayBeforeSteps: const Duration(seconds: 5),
       stepsToEmit: [const AgentStep('answer', 'R')],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Hello');
@@ -476,7 +474,7 @@ void main() {
     final agent = _StepCapturingAgent(
       stepsToEmit: [const AgentStep('answer', 'Hi')],
     );
-    await tester.pumpWidget(_buildChatScreen(agent));
+    await tester.pumpWidget(buildChatScreen(agent));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Hello');

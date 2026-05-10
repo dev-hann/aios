@@ -21,7 +21,7 @@ ChatMessage _makeMessage({
     id: id,
     role: role,
     content: content,
-    createdAt: createdAt ?? DateTime(2026, 1, 1),
+    createdAt: createdAt ?? DateTime(2026),
   );
 }
 

@@ -263,7 +263,9 @@ class _ConversationItem extends StatelessWidget {
     final now = DateTime.now();
     final diff = now.difference(date);
     if (diff.inDays == 0) {
-      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      final h = date.hour.toString().padLeft(2, '0');
+      final m = date.minute.toString().padLeft(2, '0');
+      return '$h:$m';
     } else if (diff.inDays < 7) {
       return Strings.daysAgo(diff.inDays);
     } else {

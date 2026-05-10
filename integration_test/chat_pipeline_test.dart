@@ -119,7 +119,7 @@ void main() {
 
       final tokens = <String>[];
       await for (final chunk in session.chat(
-        [LlmContentPart.text('Hello')],
+        [const LlmContentPart.text('Hello')],
         config: const LlmGenerationConfig(
           temperature: 0.1,
           topP: 0.9,

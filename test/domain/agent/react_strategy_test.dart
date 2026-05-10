@@ -4,20 +4,19 @@ import 'package:aios/agent/tools/screen_action_tool.dart';
 import 'package:aios/domain/agent/agent_tool.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/extended_tool.dart';
+import 'package:aios/domain/agent/llm_engine.dart';
 import 'package:aios/domain/agent/react_strategy.dart';
 import 'package:aios/domain/agent/tool_context.dart';
-import 'package:aios/domain/agent/tool_result.dart';
-import 'package:aios/domain/agent/llm_engine.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
+import 'package:aios/domain/agent/tool_result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeBasicTool extends AgentTool {
+  _FakeBasicTool(this._name, this._desc, this._params, this._handler);
   final String _name;
   final String _desc;
   final String _params;
   final Future<ToolResult> Function(String) _handler;
-
-  _FakeBasicTool(this._name, this._desc, this._params, this._handler);
 
   @override
   String get name => _name;
@@ -33,12 +32,11 @@ class _FakeBasicTool extends AgentTool {
 }
 
 class _FakeExtendedTool extends ExtendedTool {
+  _FakeExtendedTool(this._name, this._desc, this._params, this._handler);
   final String _name;
   final String _desc;
   final String _params;
   final Future<ToolResult> Function(String, ToolContext) _handler;
-
-  _FakeExtendedTool(this._name, this._desc, this._params, this._handler);
 
   @override
   String get name => _name;
@@ -96,9 +94,8 @@ class _PromptCapturingEngine implements LlmEngine {
 }
 
 class _ToolCapturingSession implements LlmChatSession {
-  final List<LlmToolSchema> capturedTools = [];
-
   _ToolCapturingSession();
+  final List<LlmToolSchema> capturedTools = [];
 
   @override
   Stream<LlmResponseChunk> chat(
@@ -140,7 +137,7 @@ void main() {
             'calculator',
             'Math',
             '{}',
-            (_) async => ToolResult.ok('0'),
+            (_) async => const ToolResult.ok('0'),
           ),
         },
         extendedTools: {
@@ -148,7 +145,7 @@ void main() {
             'app_launcher',
             'Open',
             '{}',
-            (_, __) async => ToolResult.ok('ok'),
+            (_, __) async => const ToolResult.ok('ok'),
           ),
         },
       );
@@ -170,7 +167,7 @@ void main() {
             'calculator',
             'Calculate',
             '{}',
-            (_) async => ToolResult.ok('0'),
+            (_) async => const ToolResult.ok('0'),
           ),
         },
         extendedTools: {
@@ -178,7 +175,7 @@ void main() {
             'screen_action',
             'Screen',
             '{}',
-            (_, __) async => ToolResult.ok('ok'),
+            (_, __) async => const ToolResult.ok('ok'),
           ),
         },
       );
@@ -202,13 +199,13 @@ void main() {
             'calculator',
             'Calc',
             '{}',
-            (_) async => ToolResult.ok('0'),
+            (_) async => const ToolResult.ok('0'),
           ),
           'notepad': _FakeBasicTool(
             'notepad',
             'Note',
             '{}',
-            (_) async => ToolResult.ok('ok'),
+            (_) async => const ToolResult.ok('ok'),
           ),
         },
         extendedTools: {
@@ -216,7 +213,7 @@ void main() {
             'app_launcher',
             'Launch',
             '{}',
-            (_, __) async => ToolResult.ok('ok'),
+            (_, __) async => const ToolResult.ok('ok'),
           ),
         },
       );
@@ -353,7 +350,7 @@ void main() {
     test('systemPrompt_withBothContexts_containsBoth', () async {
       final engine = _PromptCapturingEngine();
       final context = ConversationContext();
-      context.addTurn('hello', 'hi there', toolUsed: null);
+      context.addTurn('hello', 'hi there');
       final tracker = ToolPreferenceTracker();
       tracker.recordToolUse('app_launcher');
       tracker.recordToolUse('app_launcher');
@@ -452,7 +449,7 @@ void main() {
         'calculator',
         'Math tool',
         '{"expression": "string"}',
-        (_) async => ToolResult.ok('0'),
+        (_) async => const ToolResult.ok('0'),
       );
       final strategy = ReactStrategy(
         engine: engine,

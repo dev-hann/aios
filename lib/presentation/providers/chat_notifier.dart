@@ -256,7 +256,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       return;
     }
 
-    bool granted = false;
+    var granted = false;
 
     if (perm.isService) {
       if (permKey == 'accessibility') {

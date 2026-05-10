@@ -1,5 +1,3 @@
-import '../../../helpers/mock_llm_repository.dart';
-import '../../../helpers/mock_settings_repository.dart';
 import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/settings_notifier.dart';
@@ -8,6 +6,9 @@ import 'package:aios/presentation/screens/settings/inference_settings_screen.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../helpers/mock_llm_repository.dart';
+import '../../../helpers/mock_settings_repository.dart';
 
 Widget _createTestWidget() {
   final settingsRepo = MockSettingsRepository();

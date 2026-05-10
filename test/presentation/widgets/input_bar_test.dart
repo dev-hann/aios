@@ -5,9 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 Widget _wrapWithMaterial(Widget child) {
   return MaterialApp(
     theme: ThemeData(
-      colorScheme: ColorScheme.dark(
-        primary: const Color(0xFF6C63FF),
-        surface: const Color(0xFF1A1A2E),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF6C63FF),
+        surface: Color(0xFF1A1A2E),
       ),
       scaffoldBackgroundColor: const Color(0xFF0D0D1A),
     ),

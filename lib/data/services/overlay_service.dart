@@ -3,10 +3,6 @@ import 'package:flutter/services.dart';
 typedef OverlayMessageHandler = void Function(String message);
 
 class OverlayService {
-  static const _channel = MethodChannel('com.agent.aios/overlay');
-
-  OverlayMessageHandler? onUserMessage;
-
   OverlayService() {
     try {
       _channel.setMethodCallHandler(_handleMethodCall);
@@ -14,6 +10,9 @@ class OverlayService {
       print('[AIOS-Overlay] WARN: setMethodCallHandler failed - $e');
     }
   }
+  static const _channel = MethodChannel('com.agent.aios/overlay');
+
+  OverlayMessageHandler? onUserMessage;
 
   Future<void> _handleMethodCall(MethodCall call) async {
     switch (call.method) {

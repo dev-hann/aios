@@ -1,5 +1,3 @@
-import '../../../helpers/mock_llm_repository.dart';
-import '../../../helpers/mock_settings_repository.dart';
 import 'package:aios/core/theme/app_strings.dart';
 import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
@@ -9,6 +7,9 @@ import 'package:aios/presentation/screens/settings/provider_settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../helpers/mock_llm_repository.dart';
+import '../../../helpers/mock_settings_repository.dart';
 
 Widget _createTestWidget({
   MockSettingsRepository? settingsRepo,

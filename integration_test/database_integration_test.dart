@@ -23,7 +23,7 @@ void main() {
         await db.insertConversation(
           ConversationsCompanion.insert(
             id: 'conv-1',
-            title: Value('Test Chat'),
+            title: const Value('Test Chat'),
           ),
         );
 
@@ -39,13 +39,13 @@ void main() {
         await db.insertConversation(
           ConversationsCompanion.insert(
             id: 'conv-1',
-            updatedAt: Value(DateTime(2026, 1, 1)),
+            updatedAt: Value(DateTime(2026)),
           ),
         );
         await db.insertConversation(
           ConversationsCompanion.insert(
             id: 'conv-2',
-            updatedAt: Value(DateTime(2026, 6, 1)),
+            updatedAt: Value(DateTime(2026, 6)),
           ),
         );
 
@@ -163,9 +163,9 @@ void main() {
             conversationId: convId,
             role: 'assistant',
             content: 'Using calculator',
-            toolName: Value('calculator'),
-            toolArgs: Value('{"expression": "2+2"}'),
-            toolResult: Value('4.0000'),
+            toolName: const Value('calculator'),
+            toolArgs: const Value('{"expression": "2+2"}'),
+            toolResult: const Value('4.0000'),
           ),
         );
 

@@ -8,16 +8,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-const _testApiKey = String.fromEnvironment('TEST_API_KEY', defaultValue: '');
+const _testApiKey = String.fromEnvironment('TEST_API_KEY');
 const _testModel = String.fromEnvironment(
   'TEST_MODEL',
   defaultValue: 'gpt-4o-mini',
 );
-const _testBaseUrl = String.fromEnvironment('TEST_BASE_URL', defaultValue: '');
-const _testProviderType = String.fromEnvironment(
-  'TEST_PROVIDER_TYPE',
-  defaultValue: '',
-);
+const _testBaseUrl = String.fromEnvironment('TEST_BASE_URL');
+const _testProviderType = String.fromEnvironment('TEST_PROVIDER_TYPE');
 
 LlmProviderConfig? testConfig;
 bool providerReady = false;
@@ -98,7 +95,7 @@ void main() {
       final session = engine.createSession('You are a helpful assistant.');
       final tokens = <String>[];
       await for (final chunk in session.chat(
-        [LlmContentPart.text('Hello')],
+        [const LlmContentPart.text('Hello')],
         config: const LlmGenerationConfig(
           temperature: 0.1,
           topP: 0.9,
@@ -125,7 +122,7 @@ void main() {
       final session = engine.createSession('You are a helpful assistant.');
       final tokens1 = <String>[];
       await for (final chunk in session.chat(
-        [LlmContentPart.text('My favorite number is 42.')],
+        [const LlmContentPart.text('My favorite number is 42.')],
         config: const LlmGenerationConfig(
           temperature: 0.1,
           topP: 0.9,
@@ -139,7 +136,7 @@ void main() {
 
       final tokens2 = <String>[];
       await for (final chunk in session.chat(
-        [LlmContentPart.text('What was my favorite number?')],
+        [const LlmContentPart.text('What was my favorite number?')],
         config: const LlmGenerationConfig(
           temperature: 0.1,
           topP: 0.9,
@@ -189,7 +186,7 @@ void main() {
     });
 
     testWidgets('connect with invalid config returns false', (tester) async {
-      final badConfig = LlmProviderConfig(
+      const badConfig = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'invalid-key',
         model: 'nonexistent-model',
@@ -215,7 +212,7 @@ void main() {
     });
 
     testWidgets('testConnection with bad key returns false', (tester) async {
-      final badConfig = LlmProviderConfig(
+      const badConfig = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'bad-key',
         model: 'gpt-4o-mini',

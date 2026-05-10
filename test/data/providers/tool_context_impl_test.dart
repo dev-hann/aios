@@ -111,7 +111,7 @@ void main() {
               .setMockMethodCallHandler(
                 const MethodChannel('com.agent.aios/tools'),
                 (call) async {
-                  throw PlatformException(code: 'CRASH', message: null);
+                  throw PlatformException(code: 'CRASH');
                 },
               );
 

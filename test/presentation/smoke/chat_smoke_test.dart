@@ -1,13 +1,7 @@
-import 'dart:async';
-
 import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
-import '../../helpers/mock_conversation_repository.dart';
-import '../../helpers/mock_llm_repository.dart';
-import '../../helpers/mock_settings_repository.dart';
-import '../../helpers/mock_update_repository.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
@@ -20,6 +14,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../helpers/mock_conversation_repository.dart';
+import '../../helpers/mock_llm_repository.dart';
+import '../../helpers/mock_settings_repository.dart';
+import '../../helpers/mock_update_repository.dart';
+
 class _NoOpAgent implements AgentStrategy {
   @override
   Future<AgentResult> execute(
@@ -28,7 +27,7 @@ class _NoOpAgent implements AgentStrategy {
     int maxTokens = 512,
     void Function(AgentStep)? onStep,
   }) async {
-    return AgentResult(steps: [const AgentStep('answer', 'ok')], success: true);
+    return const AgentResult(steps: [AgentStep('answer', 'ok')], success: true);
   }
 
   @override
@@ -59,7 +58,7 @@ void main() {
   late MockLlmRepository llmRepo;
   late MockConversationRepository conversationRepo;
 
-  Widget _buildApp() {
+  Widget buildApp() {
     return ProviderScope(
       overrides: [
         llmRepositoryProvider.overrideWithValue(llmRepo),
@@ -71,7 +70,7 @@ void main() {
     );
   }
 
-  Widget _buildAppWithRouter() {
+  Widget buildAppWithRouter() {
     return ProviderScope(
       overrides: [
         llmRepositoryProvider.overrideWithValue(llmRepo),
@@ -108,7 +107,7 @@ void main() {
 
   group('ChatScreen smoke', () {
     testWidgets('render_hasAllKeyWidgets', (tester) async {
-      await tester.pumpWidget(_buildApp());
+      await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.menu), findsOneWidget);
@@ -118,7 +117,7 @@ void main() {
     });
 
     testWidgets('tap_drawerMenu_opensDrawerWithSettings', (tester) async {
-      await tester.pumpWidget(_buildAppWithRouter());
+      await tester.pumpWidget(buildAppWithRouter());
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.menu));
@@ -130,7 +129,7 @@ void main() {
     });
 
     testWidgets('tap_settingsInDrawer_navigatesToSettings', (tester) async {
-      await tester.pumpWidget(_buildAppWithRouter());
+      await tester.pumpWidget(buildAppWithRouter());
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.menu));
@@ -143,7 +142,7 @@ void main() {
     });
 
     testWidgets('enterText_sendButton_tapsSuccessfully', (tester) async {
-      await tester.pumpWidget(_buildApp());
+      await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'hello');
@@ -153,7 +152,7 @@ void main() {
     });
 
     testWidgets('tap_newConversationButton_works', (tester) async {
-      await tester.pumpWidget(_buildApp());
+      await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.add_comment_outlined));

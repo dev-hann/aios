@@ -3,18 +3,18 @@ import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
-import '../../helpers/mock_conversation_repository.dart';
-import '../../helpers/mock_llm_repository.dart';
-import '../../helpers/mock_settings_repository.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/widgets/session_drawer.dart';
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../helpers/mock_conversation_repository.dart';
+import '../../helpers/mock_llm_repository.dart';
+import '../../helpers/mock_settings_repository.dart';
 
 class _StubAgent implements AgentStrategy {
   @override
@@ -24,7 +24,7 @@ class _StubAgent implements AgentStrategy {
     int maxTokens = 512,
     void Function(AgentStep)? onStep,
   }) async {
-    return AgentResult(steps: [], success: true);
+    return const AgentResult(steps: [], success: true);
   }
 
   @override
@@ -80,8 +80,8 @@ void main() {
           ),
           agentProvider.overrideWithValue(_StubAgent()),
         ],
-        child: MaterialApp(
-          home: Scaffold(body: const SizedBox(), drawer: const SessionDrawer()),
+        child: const MaterialApp(
+          home: Scaffold(body: SizedBox(), drawer: SessionDrawer()),
         ),
       );
     }

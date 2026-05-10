@@ -26,14 +26,13 @@ void main() {
 
     test('convertTools_singleTool_returnsValidSchema', () {
       final tools = [
-        LlmToolSchema(
+        const LlmToolSchema(
           name: 'calculator',
           description: 'Evaluate math',
           parameters: [
             LlmToolParamSchema(
               name: 'expression',
               description: 'math expression',
-              type: 'string',
               required: true,
             ),
           ],
@@ -58,14 +57,13 @@ void main() {
 
     test('convertTools_enumParam_includesEnumValues', () {
       final tools = [
-        LlmToolSchema(
+        const LlmToolSchema(
           name: 'screen_action',
           description: 'Screen actions',
           parameters: [
             LlmToolParamSchema(
               name: 'action',
               description: 'tap|type|scroll',
-              type: 'string',
               required: true,
               isEnum: true,
               enumValues: ['tap', 'type', 'scroll'],
@@ -85,20 +83,18 @@ void main() {
 
     test('convertTools_optionalParam_notInRequired', () {
       final tools = [
-        LlmToolSchema(
+        const LlmToolSchema(
           name: 'test',
           description: 'test tool',
           parameters: [
             LlmToolParamSchema(
               name: 'required_param',
               description: 'required',
-              type: 'string',
               required: true,
             ),
             LlmToolParamSchema(
               name: 'optional_param',
               description: 'optional field',
-              type: 'string',
               required: false,
             ),
           ],
@@ -113,7 +109,7 @@ void main() {
 
     test('convertTools_noRequiredParams_omitsRequired', () {
       final tools = [
-        LlmToolSchema(
+        const LlmToolSchema(
           name: 'screen_reader',
           description: 'Read screen',
           parameters: [],
@@ -128,7 +124,7 @@ void main() {
 
     test('convertTools_exampleParam_includesExample', () {
       final tools = [
-        LlmToolSchema(
+        const LlmToolSchema(
           name: 'tool',
           description: 'test tool',
           parameters: [
@@ -154,8 +150,16 @@ void main() {
 
     test('convertTools_multipleTools_returnsAll', () {
       final tools = [
-        LlmToolSchema(name: 'tool_a', description: 'Tool A', parameters: []),
-        LlmToolSchema(name: 'tool_b', description: 'Tool B', parameters: []),
+        const LlmToolSchema(
+          name: 'tool_a',
+          description: 'Tool A',
+          parameters: [],
+        ),
+        const LlmToolSchema(
+          name: 'tool_b',
+          description: 'Tool B',
+          parameters: [],
+        ),
       ];
 
       final result = client.convertTools(tools);
@@ -169,7 +173,7 @@ void main() {
 
     test('convertTools_functionType_isFunction', () {
       final tools = [
-        LlmToolSchema(name: 'test', description: 'test', parameters: []),
+        const LlmToolSchema(name: 'test', description: 'test', parameters: []),
       ];
 
       final result = client.convertTools(tools);

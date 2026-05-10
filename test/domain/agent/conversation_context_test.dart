@@ -11,14 +11,14 @@ void main() {
 
     group('addTurn', () {
       test('adds_singleTurn_stored', () {
-        context.addTurn('Hello', 'Hi there!', toolUsed: null);
+        context.addTurn('Hello', 'Hi there!');
 
         expect(context.length, 1);
       });
 
       test('adds_multipleTurns_storedInOrder', () {
         context.addTurn('Q1', 'A1', toolUsed: 'calculator');
-        context.addTurn('Q2', 'A2', toolUsed: null);
+        context.addTurn('Q2', 'A2');
         context.addTurn('Q3', 'A3', toolUsed: 'app_launcher');
 
         expect(context.length, 3);
@@ -31,11 +31,11 @@ void main() {
       test('respects_maxTurns_dropsOldest', () {
         context = ConversationContext(maxTurns: 3);
 
-        context.addTurn('Q1', 'A1', toolUsed: null);
-        context.addTurn('Q2', 'A2', toolUsed: null);
-        context.addTurn('Q3', 'A3', toolUsed: null);
-        context.addTurn('Q4', 'A4', toolUsed: null);
-        context.addTurn('Q5', 'A5', toolUsed: null);
+        context.addTurn('Q1', 'A1');
+        context.addTurn('Q2', 'A2');
+        context.addTurn('Q3', 'A3');
+        context.addTurn('Q4', 'A4');
+        context.addTurn('Q5', 'A5');
 
         expect(context.length, 3);
         final turns = context.getRecentTurns();
@@ -51,8 +51,8 @@ void main() {
       });
 
       test('returns_all_whenCountExceedsLength', () {
-        context.addTurn('Q1', 'A1', toolUsed: null);
-        context.addTurn('Q2', 'A2', toolUsed: null);
+        context.addTurn('Q1', 'A1');
+        context.addTurn('Q2', 'A2');
 
         final turns = context.getRecentTurns(10);
 
@@ -60,10 +60,10 @@ void main() {
       });
 
       test('returns_lastN_whenCountSpecified', () {
-        context.addTurn('Q1', 'A1', toolUsed: null);
-        context.addTurn('Q2', 'A2', toolUsed: null);
-        context.addTurn('Q3', 'A3', toolUsed: null);
-        context.addTurn('Q4', 'A4', toolUsed: null);
+        context.addTurn('Q1', 'A1');
+        context.addTurn('Q2', 'A2');
+        context.addTurn('Q3', 'A3');
+        context.addTurn('Q4', 'A4');
 
         final turns = context.getRecentTurns(2);
 
@@ -88,7 +88,7 @@ void main() {
       });
 
       test('formats_multipleTurns', () {
-        context.addTurn('Q1', 'A1', toolUsed: null);
+        context.addTurn('Q1', 'A1');
         context.addTurn('Q2', 'A2', toolUsed: 'timer');
 
         final prompt = context.toPromptContext();
@@ -102,7 +102,7 @@ void main() {
       test('truncates_longResponse', () {
         final longResponse = 'A' * 500;
         context = ConversationContext(maxResponseLength: 100);
-        context.addTurn('Q', longResponse, toolUsed: null);
+        context.addTurn('Q', longResponse);
 
         final prompt = context.toPromptContext();
 
@@ -117,7 +117,7 @@ void main() {
       });
 
       test('false_afterAddTurn', () {
-        context.addTurn('Q', 'A', toolUsed: null);
+        context.addTurn('Q', 'A');
 
         expect(context.isEmpty, isFalse);
       });
@@ -125,8 +125,8 @@ void main() {
 
     group('clear', () {
       test('removes_allTurns', () {
-        context.addTurn('Q1', 'A1', toolUsed: null);
-        context.addTurn('Q2', 'A2', toolUsed: null);
+        context.addTurn('Q1', 'A1');
+        context.addTurn('Q2', 'A2');
 
         context.clear();
 
@@ -135,9 +135,9 @@ void main() {
       });
 
       test('allows_new_turns_after_clear', () {
-        context.addTurn('Old', 'Old response', toolUsed: null);
+        context.addTurn('Old', 'Old response');
         context.clear();
-        context.addTurn('New', 'New response', toolUsed: null);
+        context.addTurn('New', 'New response');
 
         expect(context.length, 1);
         expect(context.getRecentTurns().first.userMessage, 'New');
@@ -148,7 +148,7 @@ void main() {
       test('defaults_to_5', () {
         context = ConversationContext();
         for (var i = 0; i < 10; i++) {
-          context.addTurn('Q$i', 'A$i', toolUsed: null);
+          context.addTurn('Q$i', 'A$i');
         }
 
         expect(context.length, 5);
@@ -157,7 +157,7 @@ void main() {
 
     group('ConversationTurn', () {
       test('stores_all_fields', () {
-        final turn = ConversationTurn(
+        const turn = ConversationTurn(
           userMessage: 'Hello',
           assistantResponse: 'Hi',
           toolUsed: 'app_launcher',
@@ -169,7 +169,7 @@ void main() {
       });
 
       test('toolUsed_canBeNull', () {
-        final turn = ConversationTurn(
+        const turn = ConversationTurn(
           userMessage: 'Hello',
           assistantResponse: 'Hi',
           toolUsed: null,

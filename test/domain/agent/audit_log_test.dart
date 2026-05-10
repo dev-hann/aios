@@ -130,7 +130,7 @@ void main() {
       });
 
       test('add_exactlyAtMaxSize_noEviction', () {
-        log = AuditLog(maxSize: 100);
+        log = AuditLog();
 
         for (var i = 0; i < 100; i++) {
           log.add('tool$i', '{}', ToolRisk.safe, true, 'r$i');
@@ -164,7 +164,7 @@ void main() {
 
         final entries = log.getAll();
 
-        expect(() => entries.clear(), throwsA(isA<UnsupportedError>()));
+        expect(entries.clear, throwsA(isA<UnsupportedError>()));
       });
 
       test('getAll_returnsSnapshot_notLiveView', () {

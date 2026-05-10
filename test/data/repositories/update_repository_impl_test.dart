@@ -1,19 +1,17 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:aios/data/datasources/remote/github_api.dart';
+import 'package:aios/data/repositories/update_repository_impl.dart';
+import 'package:aios/domain/entities/update_info.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:open_file/open_file.dart';
 
-import 'package:aios/data/datasources/remote/github_api.dart';
-import 'package:aios/data/repositories/update_repository_impl.dart';
-import 'package:aios/domain/entities/update_info.dart';
-
 class _FakeGitHubApi extends GitHubApi {
+  _FakeGitHubApi() : super(repo: 'test/test');
   GitHubRelease? _releaseToReturn;
   Object? _errorToThrow;
-
-  _FakeGitHubApi() : super(repo: 'test/test');
 
   @override
   Future<GitHubRelease> getLatestRelease() async {
@@ -28,9 +26,8 @@ class _FakeGitHubApi extends GitHubApi {
 }
 
 class _FakeDownloadAdapter implements HttpClientAdapter {
-  final Uint8List _bytes;
-
   _FakeDownloadAdapter(List<int> bytes) : _bytes = Uint8List.fromList(bytes);
+  final Uint8List _bytes;
 
   @override
   Future<ResponseBody> fetch(
@@ -105,7 +102,7 @@ void main() {
       }
     });
 
-    UpdateRepositoryImpl _repo({
+    UpdateRepositoryImpl repo0({
       Future<OpenResult> Function(String)? openFile,
     }) {
       return UpdateRepositoryImpl(
@@ -118,8 +115,8 @@ void main() {
     }
 
     test('checkForUpdate_returnsSuccess_whenNewerVersion', () async {
-      api._releaseToReturn = _release(tag: 'v2.1.0');
-      final repo = _repo();
+      api._releaseToReturn = _release();
+      final repo = repo0();
 
       final result = await repo.checkForUpdate();
 
@@ -139,7 +136,7 @@ void main() {
 
     test('checkForUpdate_returnsNotAvailable_whenSameVersion', () async {
       api._releaseToReturn = _release(tag: 'v2.0.0');
-      final repo = _repo();
+      final repo = repo0();
 
       final result = await repo.checkForUpdate();
 
@@ -151,7 +148,7 @@ void main() {
         requestOptions: RequestOptions(),
         type: DioExceptionType.connectionError,
       );
-      final repo = _repo();
+      final repo = repo0();
 
       final result = await repo.checkForUpdate();
 
@@ -211,16 +208,14 @@ void main() {
       final file = File('${tempDir.path}/test.apk');
       await file.writeAsBytes([1, 2, 3]);
 
-      final repo = _repo(
-        openFile: (path) async => OpenResult(type: ResultType.done),
-      );
+      final repo = repo0(openFile: (path) async => OpenResult());
 
       expect(await repo.installApk(file.path), isTrue);
     });
 
     test('installApk_nonExistentFile_returnsFalse', () async {
       final file = File('${tempDir.path}/nonexistent.apk');
-      final repo = _repo();
+      final repo = repo0();
 
       expect(await repo.installApk(file.path), isFalse);
     });
@@ -229,7 +224,7 @@ void main() {
       final file = File('${tempDir.path}/test.apk');
       await file.writeAsBytes([1, 2, 3]);
 
-      final repo = _repo(
+      final repo = repo0(
         openFile: (path) async =>
             OpenResult(type: ResultType.error, message: 'denied'),
       );
@@ -241,7 +236,7 @@ void main() {
       final file = File('${tempDir.path}/test.apk');
       await file.writeAsBytes([1, 2, 3]);
 
-      final repo = _repo(openFile: (path) async => throw Exception('boom'));
+      final repo = repo0(openFile: (path) async => throw Exception('boom'));
 
       expect(await repo.installApk(file.path), isFalse);
     });
@@ -260,7 +255,7 @@ void main() {
         ],
         publishedAt: '2026-05-01T00:00:00Z',
       );
-      final repo = _repo();
+      final repo = repo0();
 
       final result = await repo.checkForUpdate();
 

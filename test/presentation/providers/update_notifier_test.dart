@@ -1,9 +1,9 @@
 import 'package:aios/domain/entities/update_info.dart';
-import '../../helpers/mock_update_repository.dart';
 import 'package:aios/presentation/providers/update_notifier.dart';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../helpers/mock_update_repository.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -54,7 +54,7 @@ void main() {
         downloadUrl: 'https://example.com/aios.apk',
         fileSize: 50000000,
         releaseNotes: 'Bug fixes',
-        publishedAt: DateTime(2025, 1, 1),
+        publishedAt: DateTime(2025),
       );
       mockRepo.checkResult = UpdateResult.success(info);
 
@@ -100,7 +100,7 @@ void main() {
           downloadUrl: 'https://example.com/aios.apk',
           fileSize: 50000000,
           releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025, 1, 1),
+          publishedAt: DateTime(2025),
         ),
       );
       mockRepo.downloadPath = '/tmp/test-apk.apk';
@@ -121,7 +121,7 @@ void main() {
           downloadUrl: 'https://example.com/aios.apk',
           fileSize: 50000000,
           releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025, 1, 1),
+          publishedAt: DateTime(2025),
         ),
       );
       mockRepo.downloadPath = null;
@@ -147,7 +147,7 @@ void main() {
           downloadUrl: 'https://example.com/aios.apk',
           fileSize: 50000000,
           releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025, 1, 1),
+          publishedAt: DateTime(2025),
         ),
       );
       mockRepo.downloadPath = '/tmp/test-apk.apk';
@@ -167,7 +167,7 @@ void main() {
           downloadUrl: 'https://example.com/aios.apk',
           fileSize: 50000000,
           releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025, 1, 1),
+          publishedAt: DateTime(2025),
         ),
       );
       mockRepo.downloadPath = '/tmp/test-apk.apk';
@@ -208,7 +208,7 @@ void main() {
           downloadUrl: 'https://example.com/aios.apk',
           fileSize: 50000000,
           releaseNotes: 'Bug fixes',
-          publishedAt: DateTime(2025, 1, 1),
+          publishedAt: DateTime(2025),
         ),
       );
       mockRepo.downloadPath = '/tmp/test-apk.apk';

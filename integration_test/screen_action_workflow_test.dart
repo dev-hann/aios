@@ -15,19 +15,16 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('youtube_search_e2e', (tester) async {
-    const apiKey = String.fromEnvironment('TEST_API_KEY', defaultValue: '');
+    const apiKey = String.fromEnvironment('TEST_API_KEY');
     if (apiKey.isEmpty) {
       debugPrint('[TEST] SKIPPED: no API key');
       return;
     }
 
-    final config = LlmProviderConfig(
+    const config = LlmProviderConfig(
       type: LlmProviderType.zaiCoding,
       apiKey: apiKey,
-      model: const String.fromEnvironment(
-        'TEST_MODEL',
-        defaultValue: 'glm-4.5-air',
-      ),
+      model: String.fromEnvironment('TEST_MODEL', defaultValue: 'glm-4.5-air'),
     );
 
     print('[TEST] Starting with ${config.model}');
@@ -35,8 +32,8 @@ void main() {
     final toolContext = ToolContextImpl();
 
     print('[TEST] Waiting for accessibility service...');
-    bool accessibilityReady = false;
-    for (int i = 0; i < 30; i++) {
+    var accessibilityReady = false;
+    for (var i = 0; i < 30; i++) {
       final ready = await toolContext.isAccessibilityEnabled();
       if (ready) {
         print('[TEST] Accessibility service ready after ${i + 1}s');
@@ -72,7 +69,7 @@ void main() {
 
     print('[TEST] === Steps (${result.steps.length}) ===');
     for (final step in result.steps) {
-      String argsDisplay = '';
+      var argsDisplay = '';
       if (step.toolArgs.isNotEmpty) {
         try {
           final d = jsonDecode(step.toolArgs) as Map<String, dynamic>;

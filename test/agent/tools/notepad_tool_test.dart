@@ -1,6 +1,7 @@
 import 'package:aios/agent/tools/notepad_tool.dart';
-import 'mock_note_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'mock_note_repository.dart';
 
 void main() {
   late NotePadTool tool;

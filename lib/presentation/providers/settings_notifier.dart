@@ -5,12 +5,6 @@ import 'package:aios/presentation/providers/settings_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
-  static const String _tag = 'AIOS-Settings';
-
-  final SettingsRepository _settingsRepository;
-  final LlmRepository _llmRepository;
-  final void Function(LlmProviderConfig config)? _onProviderConnected;
-
   SettingsNotifier(
     this._settingsRepository,
     this._llmRepository, {
@@ -19,6 +13,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
        super(SettingsState.initial()) {
     _init();
   }
+  static const String _tag = 'AIOS-Settings';
+
+  final SettingsRepository _settingsRepository;
+  final LlmRepository _llmRepository;
+  final void Function(LlmProviderConfig config)? _onProviderConnected;
 
   Future<void> _init() async {
     await loadSettings();

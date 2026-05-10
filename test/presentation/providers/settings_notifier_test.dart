@@ -1,11 +1,10 @@
-import 'dart:async';
-
 import 'package:aios/domain/entities/llm_provider_config.dart';
 import 'package:aios/domain/repositories/settings_repository.dart';
-import '../../helpers/mock_llm_repository.dart';
-import '../../helpers/mock_settings_repository.dart';
 import 'package:aios/presentation/providers/settings_notifier.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../helpers/mock_llm_repository.dart';
+import '../../helpers/mock_settings_repository.dart';
 
 class _MockLlmRepository extends MockLlmRepository {
   @override
@@ -76,7 +75,7 @@ void main() {
     });
 
     test('connect_delegatesToLlmRepository', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',
@@ -90,7 +89,7 @@ void main() {
     });
 
     test('connect_fetchesModels', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',
@@ -105,7 +104,7 @@ void main() {
       final failingLlmRepo = _FailingLlmRepository();
       final failingNotifier = SettingsNotifier(settingsRepo, failingLlmRepo);
 
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'bad-key',
         model: 'nonexistent',
@@ -129,7 +128,7 @@ void main() {
     });
 
     test('disconnect_clearsProviderConfig', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',
@@ -143,7 +142,7 @@ void main() {
     });
 
     test('testConnection_delegatesToRepository', () async {
-      final config = LlmProviderConfig(
+      const config = LlmProviderConfig(
         type: LlmProviderType.openai,
         apiKey: 'test-key',
         model: 'gpt-4o',

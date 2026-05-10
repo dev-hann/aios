@@ -185,11 +185,7 @@ class AppLauncherTool extends ExtendedTool {
       return _appsCache;
     }
     try {
-      _appsCache = await InstalledApps.getInstalledApps(
-        excludeSystemApps: true,
-        excludeNonLaunchableApps: true,
-        withIcon: false,
-      );
+      _appsCache = await InstalledApps.getInstalledApps();
       _cacheTime = DateTime.now();
       return _appsCache;
     } on Object catch (e) {

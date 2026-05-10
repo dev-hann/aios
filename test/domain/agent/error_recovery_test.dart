@@ -18,25 +18,32 @@ void main() {
 
   group('isError', () {
     test('isError_errorResult_returnsTrue', () {
-      expect(recovery.isError(ToolResult.err('something failed')), isTrue);
+      expect(
+        recovery.isError(const ToolResult.err('something failed')),
+        isTrue,
+      );
     });
 
     test('isError_okResult_returnsFalse', () {
-      expect(recovery.isError(ToolResult.ok('Success: done')), isFalse);
+      expect(recovery.isError(const ToolResult.ok('Success: done')), isFalse);
     });
 
     test('isError_emptyOkResult_returnsFalse', () {
-      expect(recovery.isError(ToolResult.ok('')), isFalse);
+      expect(recovery.isError(const ToolResult.ok('')), isFalse);
     });
 
     test('isError_regularResult_returnsFalse', () {
-      expect(recovery.isError(ToolResult.ok('Opened youtube')), isFalse);
+      expect(recovery.isError(const ToolResult.ok('Opened youtube')), isFalse);
     });
   });
 
   group('analyze', () {
     test('analyze_nonError_returnsNull', () {
-      final hint = recovery.analyze('calculator', '{}', ToolResult.ok('42'));
+      final hint = recovery.analyze(
+        'calculator',
+        '{}',
+        const ToolResult.ok('42'),
+      );
       expect(hint, isNull);
     });
 
@@ -44,7 +51,7 @@ void main() {
       final hint = recovery.analyze(
         'unknown',
         '{}',
-        ToolResult.err("Unknown tool 'unknown'. Available: calculator"),
+        const ToolResult.err("Unknown tool 'unknown'. Available: calculator"),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.toolNotFound);
@@ -56,7 +63,7 @@ void main() {
       final hint = recovery.analyze(
         'app_launcher',
         '{"action": "open_app"}',
-        ToolResult.err('Package "com.foo.bar" is not installed.'),
+        const ToolResult.err('Package "com.foo.bar" is not installed.'),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.appNotInstalled);
@@ -68,7 +75,7 @@ void main() {
       final hint = recovery.analyze(
         'app_launcher',
         '{"query": "xyz"}',
-        ToolResult.ok("No apps found matching 'xyz'"),
+        const ToolResult.ok("No apps found matching 'xyz'"),
       );
       expect(hint, isNull);
     });
@@ -77,7 +84,7 @@ void main() {
       final hint = recovery.analyze(
         'screen_action',
         '{}',
-        ToolResult.err('ToolContext not initialized'),
+        const ToolResult.err('ToolContext not initialized'),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.serviceUnavailable);
@@ -89,7 +96,7 @@ void main() {
       final hint = recovery.analyze(
         'screen_action',
         '{}',
-        ToolResult.err('Accessibility is not enabled'),
+        const ToolResult.err('Accessibility is not enabled'),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.serviceUnavailable);
@@ -99,7 +106,7 @@ void main() {
       final hint = recovery.analyze(
         'notification_reader',
         '{}',
-        ToolResult.err('Notification listener is not enabled'),
+        const ToolResult.err('Notification listener is not enabled'),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.serviceUnavailable);
@@ -109,7 +116,7 @@ void main() {
       final hint = recovery.analyze(
         'phone_caller',
         '{}',
-        ToolResult.err('Permission denied for phone calls'),
+        const ToolResult.err('Permission denied for phone calls'),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.permissionDenied);
@@ -120,7 +127,7 @@ void main() {
       final hint = recovery.analyze(
         'screen_action',
         '{}',
-        ToolResult.err("Unknown action 'jump'. Use tap, scroll."),
+        const ToolResult.err("Unknown action 'jump'. Use tap, scroll."),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.invalidAction);
@@ -132,7 +139,7 @@ void main() {
       final hint = recovery.analyze(
         'screen_action',
         '{}',
-        ToolResult.err("'text' required"),
+        const ToolResult.err("'text' required"),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.missingParameter);
@@ -144,7 +151,7 @@ void main() {
       final hint = recovery.analyze(
         'phone_caller',
         '{}',
-        ToolResult.ok('Action cancelled by user'),
+        const ToolResult.ok('Action cancelled by user'),
       );
       expect(hint, isNull);
     });
@@ -153,7 +160,7 @@ void main() {
       final hint = recovery.analyze(
         'calculator',
         '{}',
-        ToolResult.err('Cannot evaluate expression'),
+        const ToolResult.err('Cannot evaluate expression'),
       );
       expect(hint, isNotNull);
       expect(hint!.type, ErrorType.generic);
@@ -164,7 +171,7 @@ void main() {
       final hint = recovery.analyze(
         'app_launcher',
         '{}',
-        ToolResult.err('Package "com.test" is not installed.'),
+        const ToolResult.err('Package "com.test" is not installed.'),
       );
       expect(hint, isNotNull);
       expect(hint!.userMessage, contains('\uC124\uCE58'));
@@ -174,7 +181,7 @@ void main() {
       final hint = recovery.analyze(
         'screen_action',
         '{}',
-        ToolResult.err('Accessibility is not enabled'),
+        const ToolResult.err('Accessibility is not enabled'),
       );
       expect(hint, isNotNull);
       expect(hint!.userMessage, contains('\uC11C\uBE44\uC2A4'));
@@ -187,15 +194,15 @@ void main() {
     });
 
     test('canRetry_afterMaxRetries_returnsFalse', () {
-      recovery.analyze('calculator', '{}', ToolResult.err('fail 1'));
-      recovery.analyze('calculator', '{}', ToolResult.err('fail 2'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail 1'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail 2'));
 
       expect(recovery.canRetry('calculator'), isFalse);
     });
 
     test('canRetry_differentTools_trackedSeparately', () {
-      recovery.analyze('calculator', '{}', ToolResult.err('fail'));
-      recovery.analyze('calculator', '{}', ToolResult.err('fail'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
 
       expect(recovery.canRetry('calculator'), isFalse);
       expect(recovery.canRetry('timer'), isTrue);
@@ -205,7 +212,7 @@ void main() {
       recovery.analyze(
         'unknown',
         '{}',
-        ToolResult.err("Unknown tool 'unknown'"),
+        const ToolResult.err("Unknown tool 'unknown'"),
       );
 
       expect(recovery.canRetry('unknown'), isTrue);
@@ -214,8 +221,8 @@ void main() {
 
   group('reset', () {
     test('reset_clearsRetryCount', () {
-      recovery.analyze('calculator', '{}', ToolResult.err('fail'));
-      recovery.analyze('calculator', '{}', ToolResult.err('fail'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
 
       expect(recovery.canRetry('calculator'), isFalse);
 
@@ -225,7 +232,7 @@ void main() {
     });
 
     test('reset_clearsTotalErrors', () {
-      recovery.analyze('calculator', '{}', ToolResult.err('fail'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail'));
       expect(recovery.totalErrors, 1);
 
       recovery.reset();
@@ -240,16 +247,16 @@ void main() {
     });
 
     test('totalErrors_tracksErrors', () {
-      recovery.analyze('calculator', '{}', ToolResult.err('fail 1'));
-      recovery.analyze('timer', '{}', ToolResult.err('fail 2'));
-      recovery.analyze('screen_action', '{}', ToolResult.err('fail 3'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail 1'));
+      recovery.analyze('timer', '{}', const ToolResult.err('fail 2'));
+      recovery.analyze('screen_action', '{}', const ToolResult.err('fail 3'));
 
       expect(recovery.totalErrors, 3);
     });
 
     test('totalErrors_ignoresNonErrors', () {
-      recovery.analyze('calculator', '{}', ToolResult.ok('42'));
-      recovery.analyze('timer', '{}', ToolResult.ok('done'));
+      recovery.analyze('calculator', '{}', const ToolResult.ok('42'));
+      recovery.analyze('timer', '{}', const ToolResult.ok('done'));
 
       expect(recovery.totalErrors, 0);
     });
@@ -260,17 +267,17 @@ void main() {
       final hint = recovery.analyze(
         'calculator',
         '{}',
-        ToolResult.err('Cannot compute'),
+        const ToolResult.err('Cannot compute'),
       );
       expect(hint!.shouldRetry, isTrue);
     });
 
     test('retryableError_secondAttempt_hasNoRetry', () {
-      recovery.analyze('calculator', '{}', ToolResult.err('fail 1'));
+      recovery.analyze('calculator', '{}', const ToolResult.err('fail 1'));
       final hint = recovery.analyze(
         'calculator',
         '{}',
-        ToolResult.err('fail 2'),
+        const ToolResult.err('fail 2'),
       );
       expect(hint!.shouldRetry, isFalse);
     });
@@ -279,7 +286,7 @@ void main() {
       final hint = recovery.analyze(
         'app_launcher',
         '{"action":"open_app","package_name":"com.test"}',
-        ToolResult.err('Package "com.test" is not installed.'),
+        const ToolResult.err('Package "com.test" is not installed.'),
       );
       expect(hint!.shouldRetry, isTrue);
       expect(hint.promptNudge, contains('list_apps'));
@@ -289,7 +296,7 @@ void main() {
       final hint = recovery.analyze(
         'phone_caller',
         '{}',
-        ToolResult.ok('Action cancelled by user'),
+        const ToolResult.ok('Action cancelled by user'),
       );
       expect(hint, isNull);
     });
@@ -300,7 +307,7 @@ void main() {
       final hint = recovery.analyze(
         'fake_tool',
         '{}',
-        ToolResult.err("Unknown tool 'fake_tool'"),
+        const ToolResult.err("Unknown tool 'fake_tool'"),
       );
       expect(hint!.promptNudge, contains('calculator'));
       expect(hint.promptNudge, contains('app_launcher'));
@@ -310,7 +317,7 @@ void main() {
       final hint = recovery.analyze(
         'screen_action',
         '{}',
-        ToolResult.err('ToolContext not initialized'),
+        const ToolResult.err('ToolContext not initialized'),
       );
       expect(hint!.promptNudge, contains('enable the service'));
     });
@@ -319,7 +326,7 @@ void main() {
       final hint = recovery.analyze(
         'sms_sender',
         '{}',
-        ToolResult.err('Permission denied for SMS'),
+        const ToolResult.err('Permission denied for SMS'),
       );
       expect(hint!.promptNudge, contains('grant permission'));
     });
@@ -328,7 +335,7 @@ void main() {
       final hint = recovery.analyze(
         'phone_caller',
         '{}',
-        ToolResult.ok('Action cancelled by user'),
+        const ToolResult.ok('Action cancelled by user'),
       );
       expect(hint, isNull);
     });
@@ -337,7 +344,11 @@ void main() {
   group('edgeCases', () {
     test('emptyAvailableTools_noThrow', () {
       final empty = ErrorRecovery();
-      final hint = empty.analyze('x', '{}', ToolResult.err("Unknown tool 'x'"));
+      final hint = empty.analyze(
+        'x',
+        '{}',
+        const ToolResult.err("Unknown tool 'x'"),
+      );
       expect(hint, isNotNull);
     });
 
@@ -352,19 +363,19 @@ void main() {
       final hint = recovery.analyze(
         'calc',
         '{}',
-        ToolResult.err('{"key": "value with \\"quotes\\""}'),
+        const ToolResult.err(r'{"key": "value with \"quotes\""}'),
       );
       expect(hint, isNotNull);
     });
 
     test('resetThenAnalyze_worksCorrectly', () {
-      recovery.analyze('calc', '{}', ToolResult.err('fail'));
-      recovery.analyze('calc', '{}', ToolResult.err('fail'));
+      recovery.analyze('calc', '{}', const ToolResult.err('fail'));
+      recovery.analyze('calc', '{}', const ToolResult.err('fail'));
       expect(recovery.canRetry('calc'), isFalse);
 
       recovery.reset();
 
-      final hint = recovery.analyze('calc', '{}', ToolResult.err('fail'));
+      final hint = recovery.analyze('calc', '{}', const ToolResult.err('fail'));
       expect(hint!.shouldRetry, isTrue);
     });
   });

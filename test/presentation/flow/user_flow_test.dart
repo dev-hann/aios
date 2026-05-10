@@ -4,27 +4,26 @@ import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
-import '../../helpers/mock_conversation_repository.dart';
-import '../../helpers/mock_llm_repository.dart';
-import '../../helpers/mock_settings_repository.dart';
 import 'package:aios/presentation/providers/agent_provider.dart';
 import 'package:aios/presentation/providers/conversation_provider.dart';
 import 'package:aios/presentation/providers/llm_provider.dart';
 import 'package:aios/presentation/providers/settings_provider.dart';
 import 'package:aios/presentation/screens/chat/chat_screen.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../helpers/mock_conversation_repository.dart';
+import '../../helpers/mock_llm_repository.dart';
+import '../../helpers/mock_settings_repository.dart';
+
 class _CompletableAgent implements AgentStrategy {
+  _CompletableAgent({required this.stepsToEmit});
   final List<AgentStep> stepsToEmit;
   final Completer<void> _completer = Completer<void>();
   bool? lastConfirmation;
   bool cancelCalled = false;
-
-  _CompletableAgent({required this.stepsToEmit});
 
   @override
   Future<AgentResult> execute(
@@ -82,9 +81,8 @@ class _CompletableAgent implements AgentStrategy {
 }
 
 class _ErrorAgent implements AgentStrategy {
-  final Object error;
-
   _ErrorAgent(this.error);
+  final Exception error;
 
   @override
   Future<AgentResult> execute(
@@ -130,11 +128,10 @@ class _ErrorAgent implements AgentStrategy {
 }
 
 class _DelayedAgent implements AgentStrategy {
+  _DelayedAgent({required this.stepsToEmit});
   final List<AgentStep> stepsToEmit;
   final Completer<void> _completer = Completer<void>();
   bool cancelCalled = false;
-
-  _DelayedAgent({required this.stepsToEmit});
 
   @override
   Future<AgentResult> execute(
@@ -196,7 +193,7 @@ void main() {
   late MockLlmRepository llmRepo;
   late MockConversationRepository conversationRepo;
 
-  Widget _buildAppWithRouter({required AgentStrategy agent}) {
+  Widget buildAppWithRouter({required AgentStrategy agent}) {
     final settingsRepo = MockSettingsRepository();
 
     return ProviderScope(
@@ -215,7 +212,7 @@ void main() {
     );
   }
 
-  Widget _buildChatScreen({required AgentStrategy agent}) {
+  Widget buildChatScreen({required AgentStrategy agent}) {
     return ProviderScope(
       overrides: [
         llmRepositoryProvider.overrideWithValue(llmRepo),
@@ -239,7 +236,7 @@ void main() {
   group('E2E: Chat screen shows on launch', () {
     testWidgets('showsChatScreen', (tester) async {
       final agent = _CompletableAgent(stepsToEmit: []);
-      await tester.pumpWidget(_buildAppWithRouter(agent: agent));
+      await tester.pumpWidget(buildAppWithRouter(agent: agent));
       await tester.pumpAndSettle();
 
       expect(find.text('AIOS'), findsOneWidget);
@@ -249,8 +246,8 @@ void main() {
 
   group('E2E: Send message without model', () {
     testWidgets('sendMessage_error_showsErrorBar', (tester) async {
-      final agent = _ErrorAgent('Model not loaded');
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
+      final agent = _ErrorAgent(Exception('Model not loaded'));
+      await tester.pumpWidget(buildChatScreen(agent: agent));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Hello');
@@ -261,8 +258,8 @@ void main() {
     });
 
     testWidgets('sendMessage_networkError_showsNetworkMessage', (tester) async {
-      final agent = _ErrorAgent('Network connection failed');
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
+      final agent = _ErrorAgent(Exception('Network connection failed'));
+      await tester.pumpWidget(buildChatScreen(agent: agent));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Hi');
@@ -278,7 +275,7 @@ void main() {
       final agent = _CompletableAgent(
         stepsToEmit: [const AgentStep('answer', 'Hello!')],
       );
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
+      await tester.pumpWidget(buildChatScreen(agent: agent));
       await tester.pumpAndSettle();
 
       expect(find.text('AIOS'), findsOneWidget);
@@ -318,7 +315,7 @@ void main() {
           const AgentStep('answer', 'It is 3:00 PM'),
         ],
       );
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
+      await tester.pumpWidget(buildChatScreen(agent: agent));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'What time is it?');
@@ -350,7 +347,7 @@ void main() {
           ),
         ],
       );
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
+      await tester.pumpWidget(buildChatScreen(agent: agent));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'open youtube');
@@ -380,7 +377,7 @@ void main() {
           ),
         ],
       );
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
+      await tester.pumpWidget(buildChatScreen(agent: agent));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'send SMS');
@@ -402,7 +399,7 @@ void main() {
       final agent = _DelayedAgent(
         stepsToEmit: [const AgentStep('answer', 'Done')],
       );
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
+      await tester.pumpWidget(buildChatScreen(agent: agent));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Hello');
@@ -423,7 +420,7 @@ void main() {
       final agent = _CompletableAgent(
         stepsToEmit: [const AgentStep('answer', 'Reply')],
       );
-      await tester.pumpWidget(_buildChatScreen(agent: agent));
+      await tester.pumpWidget(buildChatScreen(agent: agent));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Hello');

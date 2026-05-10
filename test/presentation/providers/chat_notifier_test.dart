@@ -1,17 +1,18 @@
 import 'dart:async';
 
+import 'package:aios/data/services/overlay_service.dart';
+import 'package:aios/domain/agent/agent_strategy.dart';
 import 'package:aios/domain/agent/conversation_context.dart';
 import 'package:aios/domain/agent/tool_preference_tracker.dart';
 import 'package:aios/domain/entities/agent_models.dart';
 import 'package:aios/domain/entities/chat_message.dart';
 import 'package:aios/domain/entities/service_state.dart';
-import 'package:aios/domain/agent/agent_strategy.dart';
-import 'package:aios/data/services/overlay_service.dart';
-import '../../helpers/mock_conversation_repository.dart';
-import '../../helpers/mock_llm_repository.dart';
 import 'package:aios/presentation/providers/chat_notifier.dart';
 import 'package:aios/presentation/providers/chat_state.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../helpers/mock_conversation_repository.dart';
+import '../../helpers/mock_llm_repository.dart';
 
 class _MockAgentStrategy implements AgentStrategy {
   AgentResult? resultToReturn;
@@ -58,8 +59,8 @@ class _MockAgentStrategy implements AgentStrategy {
     }
 
     return resultToReturn ??
-        AgentResult(
-          steps: [const AgentStep('answer', 'Default response')],
+        const AgentResult(
+          steps: [AgentStep('answer', 'Default response')],
           success: true,
         );
   }
@@ -163,8 +164,8 @@ void main() {
     });
 
     test('sendMessage_addsAssistantMessageFromAnswer', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'Hi there')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'Hi there')],
         success: true,
       );
 
@@ -184,7 +185,7 @@ void main() {
     });
 
     test('sendMessage_setsIsGeneratingFalseOnError', () async {
-      agent.resultToReturn = AgentResult(steps: const [], success: false);
+      agent.resultToReturn = const AgentResult(steps: [], success: false);
 
       await notifier.sendMessage('Hello');
 
@@ -203,17 +204,17 @@ void main() {
     });
 
     test('sendMessage_afterCompletion_clearsAgentSteps', () async {
-      agent.resultToReturn = AgentResult(
+      agent.resultToReturn = const AgentResult(
         steps: [
-          const AgentStep('thought', 'Thinking...'),
-          const AgentStep(
+          AgentStep('thought', 'Thinking...'),
+          AgentStep(
             'action',
             'Using calculator',
             toolName: 'calculator',
             toolArgs: '{"expression": "2+2"}',
           ),
-          const AgentStep('observation', '4.0000'),
-          const AgentStep('answer', 'The result is 4'),
+          AgentStep('observation', '4.0000'),
+          AgentStep('answer', 'The result is 4'),
         ],
         success: true,
       );
@@ -231,8 +232,8 @@ void main() {
     });
 
     test('clearChat_resetsState', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'Hi')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'Hi')],
         success: true,
       );
       await notifier.sendMessage('Hello');
@@ -262,8 +263,8 @@ void main() {
     });
 
     test('sendMessage_savesAssistantMessageToConversationRepo', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'Response')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'Response')],
         success: true,
       );
       await notifier.sendMessage('Hello');
@@ -277,12 +278,12 @@ void main() {
       'handleStep_confirmationRequired_setsIsConfirmingAndStepTogether',
       () async {
         final states = <ChatState>[];
-        notifier.addListener((state) => states.add(state));
+        notifier.addListener(states.add);
 
-        agent.resultToReturn = AgentResult(
+        agent.resultToReturn = const AgentResult(
           steps: [
-            const AgentStep('thought', 'I need to open YouTube'),
-            const AgentStep(
+            AgentStep('thought', 'I need to open YouTube'),
+            AgentStep(
               'confirmation_required',
               'High risk: app_launcher',
               toolName: 'app_launcher',
@@ -322,8 +323,8 @@ void main() {
     );
 
     test('handleStep_confirmationRequired_noOrphanIsConfirming', () async {
-      int confirmWithoutStepCount = 0;
-      int stepWithoutConfirmCount = 0;
+      var confirmWithoutStepCount = 0;
+      var stepWithoutConfirmCount = 0;
 
       notifier.addListener((state) {
         final hasConfirmStep = state.agentSteps.any(
@@ -337,9 +338,9 @@ void main() {
         }
       });
 
-      agent.resultToReturn = AgentResult(
+      agent.resultToReturn = const AgentResult(
         steps: [
-          const AgentStep(
+          AgentStep(
             'confirmation_required',
             'confirm',
             toolName: 'sms_sender',
@@ -370,9 +371,9 @@ void main() {
 
     test('resolveConfirmation_resetsIsConfirming', () async {
       final completer = Completer<void>();
-      agent.resultToReturn = AgentResult(
+      agent.resultToReturn = const AgentResult(
         steps: [
-          const AgentStep(
+          AgentStep(
             'confirmation_required',
             'confirm',
             toolName: 'app_launcher',
@@ -406,17 +407,17 @@ void main() {
         }
       });
 
-      agent.resultToReturn = AgentResult(
+      agent.resultToReturn = const AgentResult(
         steps: [
-          const AgentStep('thought', 'User wants to calculate'),
-          const AgentStep(
+          AgentStep('thought', 'User wants to calculate'),
+          AgentStep(
             'action',
             'calc',
             toolName: 'calculator',
             toolArgs: '{"expression": "2+2"}',
           ),
-          const AgentStep('observation', '4.0000'),
-          const AgentStep('answer', 'The result is 4'),
+          AgentStep('observation', '4.0000'),
+          AgentStep('answer', 'The result is 4'),
         ],
         success: true,
       );
@@ -432,7 +433,7 @@ void main() {
     });
 
     test('sendMessage_agentError_setsErrorMessage', () async {
-      agent.resultToReturn = AgentResult(steps: [], success: false);
+      agent.resultToReturn = const AgentResult(steps: [], success: false);
 
       await notifier.sendMessage('Hello');
 
@@ -451,8 +452,8 @@ void main() {
     test('sendMessage_concurrentCalls_bothExecute', () async {
       final completer = Completer<void>();
       agent.holdCompleter = completer;
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'First')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'First')],
         success: true,
       );
 
@@ -468,14 +469,14 @@ void main() {
     });
 
     test('sendMessage_preservesMessages_acrossMultipleCalls', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'R1')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'R1')],
         success: true,
       );
       await notifier.sendMessage('Q1');
 
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'R2')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'R2')],
         success: true,
       );
       await notifier.sendMessage('Q2');
@@ -510,8 +511,8 @@ void main() {
     });
 
     test('clearChat_clearsAgentHistory', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'Hi')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'Hi')],
         success: true,
       );
       await notifier.sendMessage('Hello');

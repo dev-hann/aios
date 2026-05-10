@@ -37,8 +37,8 @@ class _MockAgentStrategy implements AgentStrategy {
     }
 
     return resultToReturn ??
-        AgentResult(
-          steps: [const AgentStep('answer', 'Default')],
+        const AgentResult(
+          steps: [AgentStep('answer', 'Default')],
           success: true,
         );
   }
@@ -77,10 +77,9 @@ class _MockAgentStrategy implements AgentStrategy {
 }
 
 class _SpyOverlayService extends OverlayService {
+  _SpyOverlayService() : super();
   final List<String> updatedResults = [];
   OverlayMessageHandler? capturedHandler;
-
-  _SpyOverlayService() : super();
 
   @override
   set onUserMessage(OverlayMessageHandler? handler) {
@@ -169,8 +168,8 @@ void main() {
     });
 
     test('handleMessage_sendsPromptToAgent', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'Hello!')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'Hello!')],
         success: true,
       );
 
@@ -181,8 +180,8 @@ void main() {
     });
 
     test('handleMessage_updatesResultWithAnswer', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'The answer')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'The answer')],
         success: true,
       );
 
@@ -193,10 +192,10 @@ void main() {
     });
 
     test('handleMessage_onStepAnswer_updatesResultImmediately', () async {
-      agent.resultToReturn = AgentResult(
+      agent.resultToReturn = const AgentResult(
         steps: [
-          const AgentStep('action', 'calc', toolName: 'calculator'),
-          const AgentStep('answer', 'Step answer'),
+          AgentStep('action', 'calc', toolName: 'calculator'),
+          AgentStep('answer', 'Step answer'),
         ],
         success: true,
       );
@@ -223,8 +222,8 @@ void main() {
     });
 
     test('handleMessage_noAnswer_showsFallbackMessage', () async {
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('thought', 'thinking')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('thought', 'thinking')],
         success: false,
       );
 
@@ -237,8 +236,8 @@ void main() {
     test('handleMessage_preventsConcurrentProcessing', () async {
       final completer = Completer<void>();
       agent.holdCompleter = completer;
-      agent.resultToReturn = AgentResult(
-        steps: [const AgentStep('answer', 'First')],
+      agent.resultToReturn = const AgentResult(
+        steps: [AgentStep('answer', 'First')],
         success: true,
       );
 

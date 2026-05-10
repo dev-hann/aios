@@ -3,10 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Conversation', () {
-    final fixedDate = DateTime(2026, 1, 15, 10, 30, 0);
+    final fixedDate = DateTime(2026, 1, 15, 10, 30);
 
     test('constructor_withRequiredFields_createsSuccessfully', () {
-      final conv = Conversation(id: 'conv-1');
+      const conv = Conversation(id: 'conv-1');
 
       expect(conv.id, 'conv-1');
       expect(conv.title, '새 대화');
@@ -79,8 +79,8 @@ void main() {
     });
 
     test('equality_differentValues_areNotEqual', () {
-      final a = Conversation(id: 'conv-1', title: 'A');
-      final b = Conversation(id: 'conv-1', title: 'B');
+      const a = Conversation(id: 'conv-1', title: 'A');
+      const b = Conversation(id: 'conv-1', title: 'B');
 
       expect(a, isNot(equals(b)));
     });

@@ -2,6 +2,12 @@ import 'package:aios/domain/entities/update_info.dart';
 import 'package:aios/domain/repositories/update_repository.dart';
 
 class MockUpdateRepository implements UpdateRepository {
+  MockUpdateRepository({
+    UpdateResult? checkResult,
+    this.downloadPath,
+    this.installResult = true,
+    this.downloadProgressSequence = const [0.25, 0.5, 1.0],
+  }) : checkResult = checkResult ?? const UpdateResult.notAvailable();
   UpdateResult checkResult;
   String? downloadPath;
   bool installResult;
@@ -9,13 +15,6 @@ class MockUpdateRepository implements UpdateRepository {
   String? lastFileName;
   final List<double> progressReports = [];
   List<double> downloadProgressSequence;
-
-  MockUpdateRepository({
-    UpdateResult? checkResult,
-    this.downloadPath,
-    this.installResult = true,
-    this.downloadProgressSequence = const [0.25, 0.5, 1.0],
-  }) : checkResult = checkResult ?? const UpdateResult.notAvailable();
 
   @override
   Future<UpdateResult> checkForUpdate() async => checkResult;

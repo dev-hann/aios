@@ -125,7 +125,7 @@ void main() {
 
     test('execute_cancelNonExistentTimer_returnsError', () async {
       final result = await tool.execute('{"action": "cancel"}');
-      expect(result.toContent(), "Error: No timer found");
+      expect(result.toContent(), 'Error: No timer found');
     });
   });
 

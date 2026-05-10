@@ -20,7 +20,7 @@ void main() {
   });
 
   group('UpdateInfo', () {
-    final fixedDate = DateTime(2026, 3, 1, 12, 0, 0);
+    final fixedDate = DateTime(2026, 3, 1, 12);
 
     test('constructor_withAllFields_createsSuccessfully', () {
       final info = UpdateInfo(
@@ -74,7 +74,7 @@ void main() {
         downloadUrl: 'https://example.com/app.apk',
         fileSize: 50000000,
         releaseNotes: 'New features',
-        publishedAt: DateTime(2026, 3, 1),
+        publishedAt: DateTime(2026, 3),
       );
       final result = UpdateResult.success(info);
 

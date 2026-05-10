@@ -11,9 +11,9 @@ class LoopOk extends LoopCheckResult {
 }
 
 class LoopWarning extends LoopCheckResult {
+  const LoopWarning(this.count, this.toolName);
   final int count;
   final String toolName;
-  const LoopWarning(this.count, this.toolName);
 }
 
 class LoopForceBreak extends LoopCheckResult {

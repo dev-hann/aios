@@ -1,13 +1,6 @@
 import 'package:aios/domain/repositories/settings_repository.dart';
 
 class MockSettingsRepository implements SettingsRepository {
-  double _temperature;
-  int _maxTokens;
-  double _topP;
-  int _agentMaxIterations;
-  String? _providerConfig;
-  bool _onboardingCompleted;
-
   MockSettingsRepository({
     double? temperature,
     int? maxTokens,
@@ -22,6 +15,12 @@ class MockSettingsRepository implements SettingsRepository {
            agentMaxIterations ?? SettingsRepository.defaultAgentMaxIterations,
        _providerConfig = providerConfig,
        _onboardingCompleted = onboardingCompleted;
+  double _temperature;
+  int _maxTokens;
+  double _topP;
+  int _agentMaxIterations;
+  String? _providerConfig;
+  bool _onboardingCompleted;
 
   @override
   double get temperature => _temperature;

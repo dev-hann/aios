@@ -97,10 +97,9 @@ final agentProvider = Provider<AgentStrategy>((ref) {
     extendedTools: extendedTools,
   );
 
-  strategy
-    ..setPermissionChecker(_defaultPermissionChecker)
-    ..setConversationContext(conversationContext)
-    ..setToolPreferenceTracker(preferenceTracker);
+  strategy.setPermissionChecker(_defaultPermissionChecker);
+  strategy.setConversationContext(conversationContext);
+  strategy.setToolPreferenceTracker(preferenceTracker);
 
   return strategy;
 });
@@ -114,7 +113,7 @@ class _PlaceholderStrategy implements AgentStrategy {
     void Function(AgentStep)? onStep,
   }) async {
     return const AgentResult(
-      steps: [const AgentStep('answer', 'API 설정을 먼저 완료해주세요.')],
+      steps: [AgentStep('answer', 'API 설정을 먼저 완료해주세요.')],
       success: false,
     );
   }
