@@ -7,6 +7,14 @@ import { CalculatorTool } from '../tools/calculator';
 import { NotepadTool } from '../tools/notepad';
 import { TimerTool } from '../tools/timer';
 import { AppLauncherTool } from '../tools/app-launcher';
+import { DeviceInfoTool } from '../tools/device-info';
+import { ContactSearchTool } from '../tools/contact-search';
+import { NotificationReaderTool } from '../tools/notification-reader';
+import { SmsSenderTool } from '../tools/sms-sender';
+import { PhoneCallerTool } from '../tools/phone-caller';
+import { ScreenReaderTool } from '../tools/screen-reader';
+import { ScreenActionTool } from '../tools/screen-action';
+import { ScreenFindTool } from '../tools/screen-find';
 import { conversationDb, type ChatMessage, type Conversation } from '../services/conversation-db';
 import type { LlmProviderConfig, LlmModelInfo } from '../llm/types';
 import { createProviderConfig } from '../llm/types';
@@ -72,13 +80,26 @@ tools.set('calculator', new CalculatorTool());
 tools.set('notepad', new NotepadTool());
 tools.set('timer', new TimerTool());
 
-const appLauncherTool = new AppLauncherTool();
-appLauncherTool.isAvailable().then((available) => {
-  if (available) {
-    tools.set('app_launcher', appLauncherTool);
-    console.log('[AIOS-Chat] app_launcher tool registered (native bridge available)');
-  }
-});
+const bridgeTools: Array<{ name: string; tool: import('../tools/types').AgentTool & { isAvailable: () => Promise<boolean> } }> = [
+  { name: 'app_launcher', tool: new AppLauncherTool() },
+  { name: 'device_info', tool: new DeviceInfoTool() },
+  { name: 'contact_search', tool: new ContactSearchTool() },
+  { name: 'notification_reader', tool: new NotificationReaderTool() },
+  { name: 'sms_sender', tool: new SmsSenderTool() },
+  { name: 'phone_caller', tool: new PhoneCallerTool() },
+  { name: 'screen_reader', tool: new ScreenReaderTool() },
+  { name: 'screen_action', tool: new ScreenActionTool() },
+  { name: 'screen_find', tool: new ScreenFindTool() },
+];
+
+for (const entry of bridgeTools) {
+  entry.tool.isAvailable().then((available) => {
+    if (available) {
+      tools.set(entry.name, entry.tool);
+      console.log(`[AIOS-Chat] ${entry.name} tool registered (native bridge available)`);
+    }
+  });
+}
 
 const conversationContext = new ConversationContext();
 const preferenceTracker = new ToolPreferenceTracker();

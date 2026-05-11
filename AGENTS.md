@@ -140,19 +140,18 @@ console.error('[AIOS-{Component}] ERROR: message -', e);
 | `notepad` | AgentTool | `src/tools/notepad.ts` | **활성** - 메모 작성/조회/목록/삭제, validate |
 | `timer` | AgentTool | `src/tools/timer.ts` | **활성** - 타이머 설정/확인/취소/목록, validate |
 | `app_launcher` | AgentTool | `src/tools/app-launcher.ts` | **활성** - 앱 목록/실행/URL열기/검색, validate, `@gyo-framework/app-launcher` bridge |
+| `device_info` | AgentTool | `src/tools/device-info.ts` | **활성** - 기기 정보 조회, validate, `@gyo-framework/device-info` bridge |
+| `contact_search` | AgentTool | `src/tools/contact-search.ts` | **활성** - 연락처 검색, validate, `@gyo-framework/contact-search` bridge |
+| `notification_reader` | AgentTool | `src/tools/notification-reader.ts` | **활성** - 알림 목록 조회, validate, `@gyo-framework/notification-reader` bridge |
+| `sms_sender` | AgentTool | `src/tools/sms-sender.ts` | **활성** - SMS 전송/읽기, validate, `@gyo-framework/sms-sender` bridge |
+| `phone_caller` | AgentTool | `src/tools/phone-caller.ts` | **활성** - 전화 걸기/통화기록, validate, `@gyo-framework/phone-caller` bridge |
+| `screen_reader` | AgentTool | `src/tools/screen-reader.ts` | **활성** - 화면 읽기/검색, validate, `@gyo-framework/screen-reader` bridge |
+| `screen_action` | AgentTool | `src/tools/screen-action.ts` | **활성** - 탭/입력/스와이프/전역, validate, `@gyo-framework/screen-action` bridge |
+| `screen_find` | AgentTool | `src/tools/screen-find.ts` | **활성** - UI 요소 찾기, validate, `@gyo-framework/screen-find` bridge |
 
-### 비활성 Tool (Gyo Bridge 필요, 추후 구현)
+### 비활성 Tool
 
-| Tool | 타입 | 네이티브 필요 | 상태 |
-|------|------|---------------|------|
-| `screen_action` | ExtendedTool | AccessibilityService | **비활성** - Gyo Bridge 필요 |
-| `screen_reader` | ExtendedTool | AccessibilityService | **비활성** - Gyo Bridge 필요 |
-| `screen_find` | ExtendedTool | AccessibilityService | **비활성** - Gyo Bridge 필요 |
-| `notification_reader` | ExtendedTool | NotificationListenerService | **비활성** - Gyo Bridge 필요 |
-| `sms_sender` | ExtendedTool | SmsManager | **비활성** - Gyo Bridge 필요 |
-| `phone_caller` | ExtendedTool | TelephonyManager | **비활성** - Gyo Bridge 필요 |
-| `contact_search` | ExtendedTool | ContactsProvider | **비활성** - Gyo Bridge 필요 |
-| `device_info` | ExtendedTool | Build/Settings | **비활성** - Gyo Bridge 필요 |
+(모든 Tool이 활성화됨)
 
 ### ReAct Agent 구조
 
