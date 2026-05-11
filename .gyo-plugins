@@ -12,7 +12,111 @@
       },
       "hasAndroid": true,
       "hasIOS": false
+    },
+    {
+      "name": "@gyo-framework/contact-search",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/contact-search",
+      "meta": {
+        "bridgeName": "contact_search",
+        "android": {
+          "handlerClass": "gyo.plugins.contact_search.ContactSearchBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
+    },
+    {
+      "name": "@gyo-framework/device-info",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/device-info",
+      "meta": {
+        "bridgeName": "device_info",
+        "android": {
+          "handlerClass": "gyo.plugins.device_info.DeviceInfoBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
+    },
+    {
+      "name": "@gyo-framework/notification-reader",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/notification-reader",
+      "meta": {
+        "bridgeName": "notification_reader",
+        "android": {
+          "handlerClass": "gyo.plugins.notification_reader.NotificationReaderBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
+    },
+    {
+      "name": "@gyo-framework/phone-caller",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/phone-caller",
+      "meta": {
+        "bridgeName": "phone_caller",
+        "android": {
+          "handlerClass": "gyo.plugins.phone_caller.PhoneCallerBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
+    },
+    {
+      "name": "@gyo-framework/screen-action",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/screen-action",
+      "meta": {
+        "bridgeName": "screen_action",
+        "android": {
+          "handlerClass": "gyo.plugins.screen_action.ScreenActionBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
+    },
+    {
+      "name": "@gyo-framework/screen-find",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/screen-find",
+      "meta": {
+        "bridgeName": "screen_find",
+        "android": {
+          "handlerClass": "gyo.plugins.screen_find.ScreenFindBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
+    },
+    {
+      "name": "@gyo-framework/screen-reader",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/screen-reader",
+      "meta": {
+        "bridgeName": "screen_reader",
+        "android": {
+          "handlerClass": "gyo.plugins.screen_reader.ScreenReaderBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
+    },
+    {
+      "name": "@gyo-framework/sms-sender",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/sms-sender",
+      "meta": {
+        "bridgeName": "sms_sender",
+        "android": {
+          "handlerClass": "gyo.plugins.sms_sender.SmsSenderBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
     }
   ],
-  "timestamp": "2026-05-11T14:14:16.545Z"
+  "timestamp": "2026-05-11T19:12:35.212Z"
 }
