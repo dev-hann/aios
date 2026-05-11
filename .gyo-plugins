@@ -1,0 +1,18 @@
+{
+  "plugins": [
+    {
+      "name": "@gyo-framework/app-launcher",
+      "version": "0.1.0",
+      "path": "/home/hann/Documents/aios/lib/node_modules/@gyo-framework/app-launcher",
+      "meta": {
+        "bridgeName": "app_launcher",
+        "android": {
+          "handlerClass": "gyo.plugins.app_launcher.AppLauncherBridge"
+        }
+      },
+      "hasAndroid": true,
+      "hasIOS": false
+    }
+  ],
+  "timestamp": "2026-05-11T14:14:16.545Z"
+}

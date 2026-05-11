@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import gyo.plugins.bridge.AndroidBridgeInterface
 import gyo.plugins.bridge.BridgeRegistry
+import gyo.plugins.bridge.PluginRegistry
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         BridgeRegistry.initialize()
+        PluginRegistry.registerAll(this)
 
         val bridgeInterface = AndroidBridgeInterface(webView)
         webView.addJavascriptInterface(bridgeInterface, "androidBridge")

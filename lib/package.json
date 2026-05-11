@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@gyo-framework/app-launcher": "^0.1.0",
-    "@gyo-framework/bridge": "^0.1.3",
+    "@gyo-framework/bridge": "^0.1.4",
     "idb": "^8.0.0",
     "lucide-react": "^1.14.0",
     "react": "^18.2.0",
