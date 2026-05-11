@@ -1,0 +1,98 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --color-background: #0E0E10;
+  --color-surface: #18181B;
+  --color-surface-elevated: #1F1F23;
+  --color-surface-modal: #252528;
+  --color-primary: #9146FF;
+  --color-primary-hover: #A970FF;
+  --color-secondary: #BF94FF;
+  --color-text-primary: #EFEFF1;
+  --color-text-secondary: #ADADB8;
+  --color-error: #EB0400;
+  --color-success: #00C853;
+  --color-warning: #FFCA28;
+  --color-divider: #2F2F35;
+  --color-user-bubble: #9146FF;
+  --color-assistant-bubble: #1F1F23;
+
+  --color-text-on-primary: #FFFFFF;
+  --color-text-faint: rgba(173, 173, 184, 0.65);
+  --color-text-dimmed: rgba(173, 173, 184, 0.85);
+
+  --color-overlay-light: rgba(0, 0, 0, 0.5);
+  --color-overlay-medium: rgba(0, 0, 0, 0.6);
+  --color-primary-subtle: rgba(145, 70, 255, 0.1);
+  --color-success-subtle: rgba(0, 200, 83, 0.12);
+  --color-success-border: rgba(0, 200, 83, 0.3);
+  --color-error-subtle: rgba(235, 4, 0, 0.12);
+  --color-error-border: rgba(235, 4, 0, 0.3);
+  --color-error-hover: #ff1a1a;
+  --color-warning-subtle: rgba(255, 202, 40, 0.1);
+  --color-critical: #FF6D00;
+  --color-critical-subtle: rgba(255, 109, 0, 0.12);
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+  --radius-bubble: 18px;
+  --radius-pill: 24px;
+
+  --spacing-3xs: 1px;
+  --spacing-2xs: 2px;
+  --spacing-xs: 4px;
+  --spacing-s: 8px;
+  --spacing-m: 10px;
+  --spacing-l: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+  --spacing-xxxl: 32px;
+
+  --size-touch: 44px;
+  --size-icon-sm: 16px;
+  --size-icon-md: 20px;
+  --size-welcome-icon: 72px;
+  --drawer-width: 280px;
+  --input-max-height: 120px;
+
+  --z-drawer: 100;
+  --z-drawer-overlay: 99;
+  --z-confirmation: 150;
+  --z-delete-dialog: 200;
+
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+
+  --line-height-tight: 1.3;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

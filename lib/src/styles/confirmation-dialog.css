@@ -1,0 +1,102 @@
+.confirmation-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--color-overlay-light);
+  z-index: var(--z-confirmation);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in var(--duration-fast) ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirmation-dialog {
+  background-color: var(--color-surface-modal);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-l);
+  min-width: var(--drawer-width);
+  max-width: 340px;
+  animation: dialog-enter var(--duration-normal) ease-out;
+}
+
+@keyframes dialog-enter {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.confirmation-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-s);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-m);
+}
+
+.confirmation-tool {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-s);
+}
+
+.confirmation-args {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-s);
+  margin-top: var(--spacing-l);
+}
+
+.confirmation-actions button {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--spacing-s) var(--spacing-m);
+  border-radius: var(--radius-sm);
+  min-height: 36px;
+  transition: opacity var(--duration-fast);
+}
+
+.confirmation-actions button:active {
+  opacity: 0.7;
+}
+
+.btn-deny {
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-s) var(--spacing-m);
+  background: none;
+}
+
+.btn-deny:hover {
+  background-color: var(--color-surface-elevated);
+}
+
+.btn-approve {
+  color: var(--color-text-on-primary);
+  background-color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-s) var(--spacing-m);
+  border: none;
+}
+
+.btn-approve:hover {
+  background-color: var(--color-primary-hover);
+}

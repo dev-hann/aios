@@ -1,17 +1,51 @@
-# aios
+# AIOS
 
-A new Flutter project.
+On-device AI Agent for Android. Built with **Gyo Framework** (React + TypeScript + WebView).
 
-## Getting Started
+## Quick Start
 
-This project is a starting point for a Flutter application.
+```bash
+# Install dependencies
+cd lib && npm install
 
-A few resources to get you started if this is your first Flutter project:
+# Development (browser)
+npm run dev
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+# Development (device)
+bash /tmp/gyo run
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# Build for production
+bash /tmp/gyo build android
+```
+
+## Tech Stack
+
+- **Framework**: Gyo (React + Vite + TypeScript) in WebView
+- **Agent**: ReAct strategy with OpenAI-compatible tool-calling API
+- **State**: Zustand
+- **Storage**: IndexedDB (via idb)
+- **LLM**: Remote API (glm-4-flash via z.ai)
+
+## Project Structure
+
+```
+lib/src/
+├── agent/         # ReAct strategy, error recovery, loop detection
+├── components/    # React UI components
+├── llm/           # OpenAI-compatible API client (SSE streaming)
+├── services/      # IndexedDB, conversation storage
+├── stores/        # Zustand state management
+├── styles/        # CSS theme (dark mode)
+├── tools/         # Agent tools (calculator, notepad, timer)
+└── types/         # TypeScript type definitions
+
+android/           # Gyo WebView shell (Kotlin)
+gyo.config.json    # Gyo project configuration
+```
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Contributing](CONTRIBUTING.md)
+- [Testing](TESTING.md)
+- [Roadmap](ROADMAP.md)

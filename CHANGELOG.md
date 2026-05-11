@@ -7,18 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Gyo Migration**: Migrated from Flutter/Dart to Gyo Framework (React + TypeScript + WebView)
+  - React functional components + hooks replace Flutter widgets
+  - Zustand replaces Riverpod for state management
+  - IndexedDB (idb) replaces Drift (SQLite) for storage
+  - fetch + SSE replaces Dio for LLM API communication
+  - CSS Custom Properties replace Flutter ThemeData
+  - Vite replaces Flutter build toolchain
+  - Android WebView shell replaces Flutter Activity
+
 ### Added
-- Agent tool: contact_search (read contacts)
-- Agent tool: sms_sender (send SMS)
-- Agent tool: phone_caller (make calls)
-- Context window management
-- Multi-turn conversation history
-- Security sandbox for agent actions
-- User confirmation for sensitive actions
-- Settings persistence (DataStore)
-- Model download manager
-- Performance optimization (thread tuning, quantization)
-- CI/CD pipeline
+- Gyo Framework integration (WebView shell + Bridge interface)
+- OpenAI-compatible API client with SSE streaming
+- React UI: ChatScreen, MessageBubble, InputBar, SessionDrawer, SystemAnnotation
+- Agent tools (pure TS): calculator, notepad, timer
+- Native tools deferred (Gyo Bridge needed): screen_action, screen_reader, app_launcher, etc.
+
+### Removed
+- Flutter/Dart codebase (lib/, test/, integration_test/)
+- Riverpod providers and Freezed models
+- Drift database layer
+- llama_cpp_dart on-device inference
+- Flutter build system
 
 ## [0.3.0] - Phone Control
 

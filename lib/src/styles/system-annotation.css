@@ -1,0 +1,42 @@
+.system-annotation {
+  align-self: center;
+  padding: var(--spacing-2xs) var(--spacing-l);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  text-align: center;
+  animation: annotation-enter var(--duration-fast) ease-out;
+}
+
+@keyframes annotation-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.system-annotation-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.system-annotation-icon.risk-high {
+  color: var(--color-warning);
+}
+
+.system-annotation-icon.risk-critical {
+  color: var(--color-critical);
+}
+
+.system-annotation-icon.observation-error {
+  color: var(--color-error);
+}
+
+.system-annotation-text {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}

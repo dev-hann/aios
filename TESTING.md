@@ -13,92 +13,89 @@
 ## 1. Principles
 
 - 모든 **public 함수**는 최소 1개 이상의 단위 테스트를 가져야 함
-- **상태 변경** Notifier 함수는 상태 전이를 반드시 검증
+- **상태 변경** 함수는 상태 전이를 반드시 검증
 - 버그 수정 시 원본 버그를 재현하는 **회귀 테스트** 포함 필수
 - 테스트는 기능 구현 **이전에 작성** (TDD)
 
 ## 2. Current Status
 
-- **933 단위/위젯 테스트** (전체 통과)
-- **11개 통합 테스트 파일** (기기 + .env.test API key 필요)
+- **374 단위/통합 테스트** (전체 통과)
+- 테스트 프레임워크: **Vitest** + **fake-indexeddb** + **@testing-library/react**
+- 20 테스트 파일, 0 실패
 
 ## 3. Test Scope
 
-### P0: Core Logic (필수)
+### P0: Core Types (필수)
 
 | Module | File | Test 항목 |
 |--------|------|-----------|
-| LlmRepositoryImpl | `lib/data/repositories/llm_repository_impl.dart` | 모델 로드/해제, 추론 호출, 에러 처리, 세션 저장/로드 |
-| ChatNotifier | `lib/presentation/providers/chat_notifier.dart` | sendMessage, stopGeneration, loadModel, state 일관성 |
-| ReactStrategy | `lib/domain/agent/react_strategy.dart` | native tool-calling 루프, tool 실행, 빈 응답 넛지, 루프 감지, multi-tool chaining, context awareness 주입, error recovery |
-| ConversationContext | `lib/domain/agent/conversation_context.dart` | 대화 맥락 유지, 턴 기록/조회, maxTurns, toPromptContext |
-| ToolPreferenceTracker | `lib/domain/agent/tool_preference_tracker.dart` | tool 사용 빈도 추적, getMostUsed, toPromptContext |
+| ToolResult helpers | `src/types/agent.ts` | toolResultOk, toolResultErr, isToolError, toContent (all branches) |
+| Provider config | `src/llm/types.ts` | createProviderConfig, baseUrl resolution (4 providers + custom + unknown) |
 
 ### P1: Agent System (필수)
 
 | Module | File | Test 항목 |
 |--------|------|-----------|
-| RiskClassifier | `lib/domain/agent/risk_classifier.dart` | 위험도 분류 (LOW/MEDIUM/HIGH/CRITICAL) |
-| LoopDetector | `lib/domain/agent/loop_detector.dart` | 반복 감지, 넛지/강제종료 |
-| ErrorRecovery | `lib/domain/agent/error_recovery.dart` | 에러 분류, 복구 힌트, 재시도 추적, 사용자 메시지 |
-| UserMessageMapper | `lib/domain/agent/user_message_mapper.dart` | 기술적 에러 → 사용자 친화적 메시지 변환 |
-| AppLauncherTool | `lib/agent/tools/app_launcher_tool.dart` | 단일 `open` 액션, 퍼지 매칭, URL 감지 |
-| ScreenActionTool | `lib/agent/tools/screen_action_tool.dart` | tap/long_click/type/scroll/swipe/global, 에러 처리 |
-| ScreenReaderTool | `lib/agent/tools/screen_reader_tool.dart` | 화면 텍스트 읽기, UI 요소 검색, toolPrompt |
-| NotificationTool | `lib/agent/tools/notification_tool.dart` | 알림 목록/내용 읽기, 앱 필터링, toolPrompt |
-| SmsSenderTool | `lib/agent/tools/sms_sender_tool.dart` | SMS 전송/읽기, toolPrompt |
-| PhoneCallerTool | `lib/agent/tools/phone_caller_tool.dart` | 전화 걸기/다이얼, toolPrompt |
-| ContactSearchTool | `lib/agent/tools/contact_search_tool.dart` | 연락처 검색, toolPrompt |
-| NotePadTool | `lib/agent/tools/notepad_tool.dart` | 메모 작성/조회/목록/삭제, toolPrompt |
-| TimerTool | `lib/agent/tools/timer_tool.dart` | 타이머 설정/확인/취소/목록, toolPrompt |
+| Truncate | `src/agent/truncate.ts` | 경계값, 빈 문자열, 한국어 멀티바이트 |
+| ToolJsonParser | `src/agent/tool-json-parser.ts` | tryParseToolJson (12 cases), parseIntDynamic (14 cases) |
+| ToolArgInference | `src/agent/tool-arg-inference.ts` | calculator/notepad/timer 추론, 한영혼합, 32 cases |
+| RiskClassifier | `src/agent/risk-classifier.ts` | 전체 tool 위험도 분류, 민감정보 감지, 38 cases |
+| ConversationContext | `src/agent/conversation-context.ts` | addTurn, FIFO eviction, 응답 길이 제한, clear, 14 cases |
+| ToolPreferenceTracker | `src/agent/tool-preference-tracker.ts` | 빈도 추적, topN 제한, 정렬, clear, 8 cases |
+| LoopDetector | `src/agent/loop-detector.ts` | 반복 감지, override 허용, 관측 동일성, 18 cases |
+| ErrorRecovery | `src/agent/error-recovery.ts` | 8가지 에러 타입, 재시도 로직, Korean 메시지, 33 cases |
+| GenerationConfig | `src/agent/react-strategy.ts` | temperature/topP/maxTokens 설정, 기본값, 5 cases |
 
-### P2: State Management (필수)
+### P1.5: UI Components (필수)
 
 | Module | File | Test 항목 |
 |--------|------|-----------|
-| SettingsNotifier | `lib/presentation/providers/settings_notifier.dart` | 설정 읽기/쓰기, 기본값, 영속성 |
-| UpdateNotifier | `lib/presentation/providers/update_notifier.dart` | check/download/install 흐름, 에러 상태 |
+| SystemAnnotation | `src/components/SystemAnnotation.tsx` | hidden types, risk-level CSS classes, retry count, observation error detection, truncation, 16 cases |
 
-### P3: UI (필수)
+### P2: Tools (필수)
 
-| Screen | File | Test 항목 |
+| Module | File | Test 항목 |
 |--------|------|-----------|
-| ChatScreen | `lib/presentation/screens/chat/chat_screen.dart` | 메시지 전송, 정지 버튼, 입력바 가시성 |
-| SettingsScreen | `lib/presentation/screens/settings/settings_screen.dart` | 권한 설정, 테마 전환, 고급 옵션 토글 |
-| UpdateScreen | `lib/presentation/screens/update/update_screen.dart` | 상태 전이, 다운로드 진행률 |
+| CalculatorTool | `src/tools/calculator.ts` | 사칙연산, 괄호, 우선순위, sanitize, 에러, validate, 28 cases |
+| NotepadTool | `src/tools/notepad.ts` | save/get/list/delete, 덮어쓰기, case-insensitive, validate, 27 cases |
+| TimerTool | `src/tools/timer.ts` | set/check/cancel/list, 경계값, 만료, Date.now() mock, validate, 35 cases |
 
-### P4: Integration (기기 필요)
+### P3: Integration (필수)
 
-| Module | File | What to Test |
-|--------|------|--------------|
-| Remote API agent | `agent_integration_test.dart` | ReactStrategy 실행, cancel, clearHistory |
-| Chat pipeline | `chat_pipeline_test.dart` | LlmRepository sendMessage, token stream, history |
-| Tool execution E2E | `tool_execution_test.dart` | LLM이 calculator/notepad/timer/device_info 선택·실행 |
-| Screen action workflow | `screen_action_workflow_test.dart` | YouTube search: tap → type → enter |
-| User flow E2E | `user_flow_test.dart` | 채팅→정지→삭제 전체 플로우 |
-| App launch | `app_test.dart` | ChatScreen/SettingsScreen UI 네비게이션 |
-| Database | `database_integration_test.dart` | Drift SQLite CRUD |
-| Settings persistence | `settings_persistence_test.dart` | SharedPreferences 영속성 |
-| Conversation persistence | `conversation_persistence_test.dart` | 대화 저장/로드 |
+| Module | File | Test 항목 |
+|--------|------|-----------|
+| OpenAiClient | `src/llm/openai-client.ts` | convertTools 스키마, SSE 파싱 (mock fetch), 에러, 20 cases |
+| LlmRemoteSession | `src/llm/session.ts` | chat 스트림, tool call 누적, addToolResult, 7 cases |
+| ReactStrategy | `src/agent/react-strategy.ts` | text 응답, tool 호출, 취소, system prompt, error recovery wiring, 8 cases |
+| ConversationDB | `src/services/conversation-db.ts` | CRUD with fake-indexeddb, 정렬, 삭제 cascade, 16 cases |
 
 ## 4. Test Categories
 
 ```
-test/                → Unit + Widget 테스트 (호스트 머신에서 실행, 기기 불필요)
-integration_test/    → Integration 테스트 (실제 기기 + .env.test API key 필요)
+lib/src/__tests__/
+  unit/                   → 단위 테스트 (순수 함수 + 클래스, mock 불필요)
+    types/                → agent.ts, llm-types.ts
+    agent/                → truncate, json-parser, arg-inference, risk-classifier,
+                              conversation-context, tool-preference-tracker,
+                              loop-detector, error-recovery, generation-config
+    tools/                → calculator, notepad, timer
+    components/           → SystemAnnotation (jsdom environment)
+  integration/            → 통합 테스트 (mock fetch, fake-indexeddb)
+    openai-client.test.ts
+    session.test.ts
+    react-strategy.test.ts
+    conversation-db.test.ts
 ```
 
 ## 5. Naming Conventions
 
 ```
-File:     {name}_test.dart
-Function: {method}_{scenario}_expectedResult()
+File:     {name}.test.ts
+Function: describe → it pattern
 
 Examples:
-  sendMessage_whenGenerating_doesNotSend()
-  parseResponse_actionWithArgs_returnsAction()
-  buildRoutingPrompt_containsToolManifest()
-  execute_openAppWithValidPackage_opensApp()
+  describe('toolResultOk', () => { it('returns ToolResult with output only', ...) })
+  describe('RiskClassifier', () => { it('classifies open_app as high', ...) })
 ```
 
 ## 6. Coverage Requirements
@@ -125,81 +122,100 @@ Examples:
 
 | Phase | 작업 | 검증 |
 |-------|------|------|
-| RED | 테스트 케이스 작성 | `flutter test` → 실패 확인 |
-| GREEN | 최소 구현 코드 작성 | `flutter test` → 전체 통과 |
-| REFACTOR | 코드 품질 개선 | `flutter test` → 여전히 통과 |
+| RED | 테스트 케이스 작성 | `npm run test:run` → 실패 확인 |
+| GREEN | 최소 구현 코드 작성 | `npm run test:run` → 전체 통과 |
+| REFACTOR | 코드 품질 개선 | `npm run test:run` → 여전히 통과 |
 
 ### Tool 추가 시 TDD 체크리스트
 
-1. [ ] Tool 클래스 구현 (AgentTool 또는 ExtendedTool)
-2. [ ] `agent_provider.dart`의 tools 맵에 등록
+1. [ ] Tool 클래스 구현 (AgentTool 인터페이스)
+2. [ ] `react-strategy.ts`의 tools 맵에 등록
 3. [ ] `RiskClassifier`에 위험도 분류 추가
-4. [ ] Tool 동작 테스트 작성
-5. [ ] `flutter test` 통과 확인
+4. [ ] Tool 동작 테스트 작성 (`src/__tests__/unit/tools/{name}.test.ts`)
+5. [ ] `npm run verify` 통과 확인
 
 ## 9. Test Patterns
 
-### Widget Testing
+### 순수 함수 테스트 (Mock 불필요)
 
-```dart
-testWidgets('ChatScreen renders empty state', (tester) async {
-  await tester.pumpWidget(
-    const MaterialApp(home: ChatScreen()),
-  );
-  await tester.pump();
-  expect(find.text('메시지를 입력하세요'), findsOneWidget);
+```typescript
+import { describe, it, expect } from 'vitest';
+import { tryParseToolJson } from '../../agent/tool-json-parser';
+
+describe('tryParseToolJson', () => {
+  it('parses valid JSON object', () => {
+    expect(tryParseToolJson('{"a": 1}')).toEqual({ a: 1 });
+  });
 });
 ```
 
-### Riverpod Testing (ProviderScope + overrides)
+### Tool 테스트 (자체 완결형)
 
-```dart
-testWidgets('with provider override', (tester) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        chatStateProvider.overrideWith(() => MockChatNotifier()),
-      ],
-      child: const MaterialApp(home: ChatScreen()),
-    ),
-  );
-  await tester.pump();
-  expect(find.text('Hello'), findsOneWidget);
+```typescript
+import { describe, it, expect } from 'vitest';
+import { CalculatorTool } from '../../tools/calculator';
+
+describe('CalculatorTool', () => {
+  const calc = new CalculatorTool();
+  it('adds two numbers', async () => {
+    const result = await calc.execute('{"expression": "2+3"}');
+    expect(result.output).toBe('5.0000');
+  });
 });
 ```
 
-### Agent Strategy Testing (Fake LlmRepository)
+### SSE 스트리밍 테스트 (Mock fetch)
 
-```dart
-test('phase2 with empty args triggers tool prompt', () async {
-  final engine = _FakeLlamaEngine();
-  final tool = _FakeExtendedTool('app_launcher');
-  final strategy = ReactStrategy(
-    engine: engine,
-    toolContext: toolContext,
-    extendedTools: {'app_launcher': tool},
-  );
-  final result = await strategy.execute('open youtube');
-  expect(result.success, isTrue);
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { OpenAiClient } from '../../llm/openai-client';
+
+describe('OpenAiClient', () => {
+  it('yields text chunks from SSE', async () => {
+    const client = new OpenAiClient(config);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(stream, { status: 200 }),
+    );
+    // ... verify chunks
+  });
+});
+```
+
+### IndexedDB 테스트 (fake-indexeddb)
+
+```typescript
+import 'fake-indexeddb/auto';
+import { conversationDb } from '../../services/conversation-db';
+
+describe('conversationDb', () => {
+  it('creates and retrieves conversation', async () => {
+    const conv = await conversationDb.createConversation();
+    const convs = await conversationDb.getAllConversations();
+    expect(convs).toHaveLength(1);
+  });
 });
 ```
 
 ## 10. Required Dependencies
 
-```yaml
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  integration_test:
-    sdk: flutter
-  mockito: ^5.4.5
-  build_runner: ^2.4.14
+```json
+{
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "jsdom": "^24.0.0",
+    "fake-indexeddb": "^6.0.0"
+  }
+}
 ```
 
 ## 11. Local Development & Verification
 
-- 모든 단위/위젯 테스트: `flutter test`
-- 특정 파일만: `flutter test test/path/to/test.dart`
-- Integration 테스트: `flutter test integration_test/`
-- 정적 분석: `flutter analyze`
+- 전체 검증: `npm run verify` (type-check + test + build)
+- 테스트만: `npm run test:run`
+- 특정 파일만: `npx vitest run src/__tests__/unit/tools/calculator.test.ts`
+- 감시 모드: `npm run test`
+- 정적 분석: `npm run type-check`
+- 빌드: `npm run build`
 - 테스트 실패 시 작업 중단, 다음 단계로 넘어가지 않음

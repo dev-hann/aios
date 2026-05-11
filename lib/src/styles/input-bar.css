@@ -1,0 +1,69 @@
+.input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-s);
+  padding: var(--spacing-xs) var(--spacing-m);
+  padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 0px));
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-divider);
+}
+
+.input-bar textarea {
+  flex: 1;
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 11px var(--spacing-l);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  min-height: var(--size-touch);
+  max-height: var(--input-max-height);
+  line-height: 1.4;
+}
+
+.input-bar textarea:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.input-bar textarea::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.send-btn {
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border: none;
+  border-radius: 50%;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--duration-fast), transform var(--duration-fast);
+}
+
+.send-btn:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.send-btn:active {
+  transform: scale(0.92);
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stop-btn {
+  background-color: var(--color-error);
+}
+
+.stop-btn:hover {
+  background-color: var(--color-error-hover);
+}

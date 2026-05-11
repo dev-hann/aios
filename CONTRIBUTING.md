@@ -8,9 +8,10 @@
 
 ### 필수 도구
 
-- **Flutter SDK** 3.41+ (`flutter --version` 확인)
-- **Android Studio** 또는 **VS Code** + Flutter 확장
-- **Android SDK**: compileSdk 36, minSdk 26
+- **Node.js** 18.0+ (`node --version` 확인)
+- **npm** 9.0+ (`npm --version` 확인)
+- **Android Studio** 또는 **Android SDK**: API 24+, buildTools 34+
+- **JDK** 11+
 - **Git**
 
 ### Clone & Setup
@@ -18,77 +19,76 @@
 ```bash
 git clone https://github.com/dev-hann/aios.git
 cd aios
-flutter pub get
+cd lib && npm install
 ```
 
-### llama_cpp_dart AAR 설정 (온디바이스 추론 시)
-
-> **참고**: 현재 기본 구성은 Remote OpenAI-compatible API를 사용합니다.
-> 온디바이스 LLM 추론을 활성화하려면 아래 AAR이 필요합니다.
-
-1. [GitHub Releases](https://github.com/dev-hann/aios/releases)에서 최신 `llama-cpp-dart.aar` 다운로드
-2. `android/app/libs/llama-cpp-dart.aar` 에 배치
+### Gyo CLI 설치
 
 ```bash
-mkdir -p android/app/libs
-# 다운로드한 AAR 파일을 android/app/libs/ 에 복사
+# 방법 1: npm 글로벌 설치
+npm install -g @gyo-framework/cli
+
+# 방법 2: 로컬 CLI 경유
+node /path/to/gyo/cli/dist/index.js run
 ```
 
-### 환경 변수 (통합 테스트)
+### 환경 변수
 
-통합 테스트 실행 시 `.env.test` 파일이 필요합니다:
+LLM API 키는 앱 내 설정 화면에서 입력합니다. 개발/테스트용 환경변수:
 
 ```bash
-# .env.test (프로젝트 루트)
-TEST_API_KEY=your-api-key
-TEST_MODEL=glm-4.5-air
-TEST_BASE_URL=https://api.z.ai/api/coding/paas/v4
+# .env.local (lib/ 디렉토리, git 추적 제외)
+VITE_API_KEY=your-api-key
+VITE_MODEL=glm-4-flash
+VITE_BASE_URL=https://open.bigmodel.cn/api/paas
 ```
-
-### 서명 키
-
-릴리즈 빌드를 위해 `android/aios-release.jks` 가 필요합니다. 별도로 관리되므로 담당자에게 요청하세요.
 
 ---
 
 ## 2. 빌드 명령어
 
 ```bash
-flutter pub get                  # 의존성 설치
-flutter run                      # Debug 실행 (연결된 디바이스)
-flutter build apk                # Release APK
-flutter build apk --debug        # Debug APK (자율 개발 루프용)
-flutter build appbundle          # Release AAB (Play Store용)
-flutter test                     # 단위 + 위젯 테스트
-flutter test integration_test/   # 통합 테스트 (디바이스 필요)
-dart run build_runner build      # 코드 생성 (freezed, drift, mockito)
-dart format .                    # 코드 포맷팅
-flutter analyze                  # 정적 분석
+# 웹 앱 (lib/ 디렉토리에서)
+cd lib
+npm run dev              # Vite 개발 서버 (http://localhost:3000)
+npm run build            # 프로덕션 빌드 (dist/)
+npm run type-check       # TypeScript 타입 체크
+npm run test             # Vitest 테스트
+npm run verify           # type-check + test + build
+
+# Android APK
+bash /tmp/gyo build android  # 또는 gyo build android
+# APK 위치: android/app/build/outputs/apk/
+
+# 수동 Android 빌드 (Gradle 직접)
+cd android && ./gradlew assembleDebug
 ```
 
 ### Clean Build
 
 ```bash
-flutter clean
-flutter pub get
+cd lib && rm -rf node_modules dist && npm install
+cd android && ./gradlew clean
 ```
 
 ---
 
-## 3. 코드 생성
+## 3. 프로젝트 구조
 
-```bash
-# 전체 생성
-dart run build_runner build --delete-conflicting-outputs
-
-# 변경 감시 모드
-dart run build_runner watch --delete-conflicting-outputs
 ```
+lib/src/
+├── agent/         # ReactStrategy, ErrorRecovery, LoopDetector, etc.
+├── components/    # React UI (ChatScreen, MessageBubble, etc.)
+├── llm/           # OpenAI-compatible client (fetch + SSE)
+├── services/      # IndexedDB, ConversationDB
+├── stores/        # Zustand stores
+├── styles/        # theme.css (CSS Custom Properties)
+├── tools/         # Agent tools (calculator, notepad, timer)
+└── types/         # TypeScript type definitions
 
-코드 생성이 필요한 경우:
-- `@freezed` 어노테이션이 있는 모델 클래스
-- `@DriftDatabase` 어노테이션이 있는 DB 클래스
-- `@GenerateNiceMocks` 어노테이션이 있는 테스트 파일
+android/           # Gyo WebView shell (Kotlin + Gradle)
+gyo.config.json    # Gyo project configuration
+```
 
 ---
 
@@ -114,9 +114,8 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 
 ### Pull Request
 
-- PR 템플릿 작성
 - 관련 이슈 참조
-- 빌드 및 테스트 통과 확인
+- `npm run verify` 통과 확인
 - 단일 관심사에 집중
 
 ---
@@ -125,10 +124,10 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 
 | 항목 | 명령어 | 기준 |
 |------|--------|------|
-| 테스트 | `flutter test` | 전체 통과 필수 |
-| 정적 분석 | `flutter analyze` | 경고 없어야 함 |
-| 포맷팅 | `dart format . --set-exit-if-changed` | 변경 없어야 함 |
-| 코드 생성 | `dart run build_runner build` | 충돌 없이 성공 |
+| 타입 체크 | `npm run type-check` | 에러 없어야 함 |
+| 테스트 | `npm run test` | 전체 통과 필수 |
+| 빌드 | `npm run build` | 성공 |
+| 통합 검증 | `npm run verify` | type-check + test + build 전부 통과 |
 | 아키텍처 | — | [AGENTS.md](AGENTS.md) 코딩 규약 준수 |
 | TDD | — | 테스트 먼저 작성 → [TESTING.md](TESTING.md) |
 
@@ -138,17 +137,20 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 
 ### 버전 업데이트
 
-`pubspec.yaml` 의 `version` 필드를 업데이트:
-
-```yaml
-version: MAJOR.MINOR.PATCH+BUILD_NUMBER
-```
+`lib/package.json`의 `version` 필드를 업데이트.
 
 ### 빌드 & 배포
 
 ```bash
-flutter build apk --release
-flutter build appbundle --release
+cd lib && npm run build
+# dist/ 에 프로덕션 에셋 생성
+# 원격 서버에 배포 (gyo.config.json의 production serverUrl)
+```
+
+### Android APK
+
+```bash
+bash /tmp/gyo build android --release
 ```
 
 ### GitHub Release
@@ -156,26 +158,40 @@ flutter build appbundle --release
 1. 버전 태그 생성: `git tag vMAJOR.MINOR.PATCH`
 2. 태그 푸시: `git push origin vMAJOR.MINOR.PATCH`
 3. GitHub Release 생성 후 APK 업로드
-4. 자동 업데이트는 GitHub Releases 기반으로 동작
 
 ---
 
-## 7. 이슈 리포트
+## 7. 의존성 관리
+
+### 현재 의존성 (lib/package.json)
+
+| 패키지 | 용도 |
+|--------|------|
+| react, react-dom | UI 프레임워크 |
+| zustand | 상태관리 |
+| idb | IndexedDB Promise 래퍼 |
+| vite | 빌드 도구 |
+| typescript | 타입 체크 |
+
+### 의존성 추가 시 체크
+
+1. `package.json`에 존재하는지 확인
+2. 번들 사이즈 영향 검토
+3. AGENTS.md §5 문서 업데이트
+
+---
+
+## 8. 이슈 리포트
 
 - 버그: GitHub Issue 템플릿 사용
 - 기능 요청: Feature request 템플릿 사용
-- 기기 정보, Android 버전, 모델 정보 포함 필수
+- 기기 정보, Android 버전, Node.js 버전 포함 필수
 
 ---
 
 ## 참고 문서
 
 - **[AGENTS.md](AGENTS.md)** — 자율 개발 프로세스, 코딩 규약, 금지사항
-- **[docs/architecture.md](docs/architecture.md)** — 시스템 아키텍처, 2-Phase ReAct, 데이터 흐름
+- **[docs/architecture.md](docs/architecture.md)** — 시스템 아키텍처, ReAct 구조, 데이터 흐름
+- **[docs/build-guide.md](docs/build-guide.md)** — 빌드 가이드 (Gyo CLI, Vite, APK)
 - **[TESTING.md](TESTING.md)** — TDD 워크플로우, 테스트 범위, 커버리지
-
----
-
-## 라이선스
-
-기여함으로써, 귀하의 기여물이 [MIT License](LICENSE) 하에 라이선스됨에 동의하는 것으로 간주합니다.
