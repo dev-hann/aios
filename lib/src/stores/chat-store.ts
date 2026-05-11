@@ -6,6 +6,7 @@ import { ToolPreferenceTracker } from '../agent/tool-preference-tracker';
 import { CalculatorTool } from '../tools/calculator';
 import { NotepadTool } from '../tools/notepad';
 import { TimerTool } from '../tools/timer';
+import { AppLauncherTool } from '../tools/app-launcher';
 import { conversationDb, type ChatMessage, type Conversation } from '../services/conversation-db';
 import type { LlmProviderConfig, LlmModelInfo } from '../llm/types';
 import { createProviderConfig } from '../llm/types';
@@ -70,6 +71,14 @@ const tools = new Map<string, import('../tools/types').AgentTool>();
 tools.set('calculator', new CalculatorTool());
 tools.set('notepad', new NotepadTool());
 tools.set('timer', new TimerTool());
+
+const appLauncherTool = new AppLauncherTool();
+appLauncherTool.isAvailable().then((available) => {
+  if (available) {
+    tools.set('app_launcher', appLauncherTool);
+    console.log('[AIOS-Chat] app_launcher tool registered (native bridge available)');
+  }
+});
 
 const conversationContext = new ConversationContext();
 const preferenceTracker = new ToolPreferenceTracker();

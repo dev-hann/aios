@@ -139,12 +139,12 @@ console.error('[AIOS-{Component}] ERROR: message -', e);
 | `calculator` | AgentTool | `src/tools/calculator.ts` | **활성** - 사칙연산, 퍼센트, 제곱근, validate |
 | `notepad` | AgentTool | `src/tools/notepad.ts` | **활성** - 메모 작성/조회/목록/삭제, validate |
 | `timer` | AgentTool | `src/tools/timer.ts` | **활성** - 타이머 설정/확인/취소/목록, validate |
+| `app_launcher` | AgentTool | `src/tools/app-launcher.ts` | **활성** - 앱 목록/실행/URL열기/검색, validate, `@gyo-framework/app-launcher` bridge |
 
 ### 비활성 Tool (Gyo Bridge 필요, 추후 구현)
 
 | Tool | 타입 | 네이티브 필요 | 상태 |
 |------|------|---------------|------|
-| `app_launcher` | ExtendedTool | PackageManager | **비활성** - Gyo Bridge 필요 |
 | `screen_action` | ExtendedTool | AccessibilityService | **비활성** - Gyo Bridge 필요 |
 | `screen_reader` | ExtendedTool | AccessibilityService | **비활성** - Gyo Bridge 필요 |
 | `screen_find` | ExtendedTool | AccessibilityService | **비활성** - Gyo Bridge 필요 |
