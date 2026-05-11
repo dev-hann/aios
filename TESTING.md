@@ -19,9 +19,9 @@
 
 ## 2. Current Status
 
-- **333 단위/통합 테스트** (전체 통과)
+- **374 단위/통합 테스트** (전체 통과)
 - 테스트 프레임워크: **Vitest** + **fake-indexeddb** + **@testing-library/react**
-- 18 테스트 파일, 0 실패
+- 20 테스트 파일, 0 실패
 
 ## 3. Test Scope
 
@@ -44,14 +44,21 @@
 | ToolPreferenceTracker | `src/agent/tool-preference-tracker.ts` | 빈도 추적, topN 제한, 정렬, clear, 8 cases |
 | LoopDetector | `src/agent/loop-detector.ts` | 반복 감지, override 허용, 관측 동일성, 18 cases |
 | ErrorRecovery | `src/agent/error-recovery.ts` | 8가지 에러 타입, 재시도 로직, Korean 메시지, 33 cases |
+| GenerationConfig | `src/agent/react-strategy.ts` | temperature/topP/maxTokens 설정, 기본값, 5 cases |
+
+### P1.5: UI Components (필수)
+
+| Module | File | Test 항목 |
+|--------|------|-----------|
+| SystemAnnotation | `src/components/SystemAnnotation.tsx` | hidden types, risk-level CSS classes, retry count, observation error detection, truncation, 16 cases |
 
 ### P2: Tools (필수)
 
 | Module | File | Test 항목 |
 |--------|------|-----------|
-| CalculatorTool | `src/tools/calculator.ts` | 사칙연산, 괄호, 우선순위, sanitize, 에러, 23 cases |
-| NotepadTool | `src/tools/notepad.ts` | save/get/list/delete, 덮어쓰기, case-insensitive, 20 cases |
-| TimerTool | `src/tools/timer.ts` | set/check/cancel/list, 경계값, 만료, Date.now() mock, 28 cases |
+| CalculatorTool | `src/tools/calculator.ts` | 사칙연산, 괄호, 우선순위, sanitize, 에러, validate, 28 cases |
+| NotepadTool | `src/tools/notepad.ts` | save/get/list/delete, 덮어쓰기, case-insensitive, validate, 27 cases |
+| TimerTool | `src/tools/timer.ts` | set/check/cancel/list, 경계값, 만료, Date.now() mock, validate, 35 cases |
 
 ### P3: Integration (필수)
 
@@ -59,7 +66,7 @@
 |--------|------|-----------|
 | OpenAiClient | `src/llm/openai-client.ts` | convertTools 스키마, SSE 파싱 (mock fetch), 에러, 20 cases |
 | LlmRemoteSession | `src/llm/session.ts` | chat 스트림, tool call 누적, addToolResult, 7 cases |
-| ReactStrategy | `src/agent/react-strategy.ts` | text 응답, tool 호출, 취소, system prompt, 7 cases |
+| ReactStrategy | `src/agent/react-strategy.ts` | text 응답, tool 호출, 취소, system prompt, error recovery wiring, 8 cases |
 | ConversationDB | `src/services/conversation-db.ts` | CRUD with fake-indexeddb, 정렬, 삭제 cascade, 16 cases |
 
 ## 4. Test Categories
@@ -69,9 +76,10 @@ lib/src/__tests__/
   unit/                   → 단위 테스트 (순수 함수 + 클래스, mock 불필요)
     types/                → agent.ts, llm-types.ts
     agent/                → truncate, json-parser, arg-inference, risk-classifier,
-                            conversation-context, tool-preference-tracker,
-                            loop-detector, error-recovery
+                              conversation-context, tool-preference-tracker,
+                              loop-detector, error-recovery, generation-config
     tools/                → calculator, notepad, timer
+    components/           → SystemAnnotation (jsdom environment)
   integration/            → 통합 테스트 (mock fetch, fake-indexeddb)
     openai-client.test.ts
     session.test.ts

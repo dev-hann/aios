@@ -137,4 +137,34 @@ describe('NotepadTool', () => {
       expect(list2.output).toContain('y: 2');
     });
   });
+
+  describe('validate', () => {
+    it('returns null for valid save', async () => {
+      expect(await notepad.validate('{"action": "save", "key": "test", "value": "v"}')).toBeNull();
+    });
+
+    it('returns null for valid list', async () => {
+      expect(await notepad.validate('{"action": "list"}')).toBeNull();
+    });
+
+    it('returns error for empty action', async () => {
+      expect(await notepad.validate('{}')).toContain('not a valid action');
+    });
+
+    it('returns error for invalid action', async () => {
+      expect(await notepad.validate('{"action": "create"}')).toContain('not a valid action');
+    });
+
+    it('returns error for save without key', async () => {
+      expect(await notepad.validate('{"action": "save", "value": "v"}')).toBe("'key' required for save action");
+    });
+
+    it('returns error for get without key', async () => {
+      expect(await notepad.validate('{"action": "get"}')).toBe("'key' required for get action");
+    });
+
+    it('returns error for delete without key', async () => {
+      expect(await notepad.validate('{"action": "delete"}')).toBe("'key' required for delete action");
+    });
+  });
 });

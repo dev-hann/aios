@@ -15,6 +15,15 @@ export class CalculatorTool implements AgentTool {
     '- Supports +, -, *, /, parentheses\n' +
     '- Korean: "더하기" → +, "빼기" → -, "곱하기" → *, "나누기" → /';
 
+  async validate(args: string): Promise<string | null> {
+    const json = tryParseToolJson(args);
+    const expr = (json['expression'] as string) ?? '';
+    if (!expr) return "'expression' required";
+    const sanitized = expr.replace(/[^0-9+\-*/.()% ]/g, '');
+    if (!sanitized) return "'expression' must contain valid math operators";
+    return null;
+  }
+
   async execute(args: string): Promise<ToolResult> {
     try {
       const json = tryParseToolJson(args);

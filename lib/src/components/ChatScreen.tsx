@@ -26,6 +26,7 @@ export function ChatScreen() {
     isConfirming,
     pendingToolName,
     pendingToolArgs,
+    pendingToolRisk,
     providerConfig,
     errorMessage,
     currentConversationTitle,
@@ -176,9 +177,17 @@ export function ChatScreen() {
           />
         )}
 
-        {visibleSteps.map((step, i) => (
-          <SystemAnnotation key={`step-${i}`} step={step} />
-        ))}
+        {visibleSteps.map((step, i) => {
+          const isRetry = step.type.endsWith('_retry');
+          let retryCount: number | undefined;
+          if (isRetry) {
+            retryCount = 1;
+            for (let j = 0; j < i; j++) {
+              if (visibleSteps[j].type.endsWith('_retry')) retryCount++;
+            }
+          }
+          return <SystemAnnotation key={`step-${i}`} step={step} retryCount={retryCount} />;
+        })}
 
         {isThinking && (
           <div className="thinking-indicator" role="status" aria-label="AI가 생각 중입니다">
@@ -201,7 +210,16 @@ export function ChatScreen() {
         >
           <div className="confirmation-dialog">
             <div className="confirmation-title" id="confirm-title">
-              <Shield size={20} style={{ color: 'var(--color-warning)' }} />
+              <Shield
+                size={20}
+                style={{
+                  color: pendingToolRisk === 'critical'
+                    ? 'var(--color-critical)'
+                    : pendingToolRisk === 'high'
+                      ? 'var(--color-warning)'
+                      : 'var(--color-text-secondary)',
+                }}
+              />
               실행 확인
             </div>
             <div className="confirmation-tool">도구: {pendingToolName}</div>
@@ -221,7 +239,7 @@ export function ChatScreen() {
       <InputBar
         onSend={handleSend}
         onStop={cancelGeneration}
-        disabled={!providerConfig}
+        disabled={!providerConfig || isGenerating}
         isGenerating={isGenerating}
         placeholder={serviceState.label}
       />

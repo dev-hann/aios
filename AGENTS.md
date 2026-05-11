@@ -110,6 +110,7 @@ console.error('[AIOS-{Component}] ERROR: message -', e);
 | React Component | `src/components/` |
 | Service (DB 등) | `src/services/` |
 | Type 정의 | `src/types/` |
+| 상수 (Provider 목록 등) | `src/constants/` |
 | 스타일 | `src/styles/` |
 
 ---
@@ -135,9 +136,9 @@ console.error('[AIOS-{Component}] ERROR: message -', e);
 
 | Tool | 타입 | 파일 | 상태 |
 |------|------|------|------|
-| `calculator` | AgentTool | `src/tools/calculator.ts` | **활성** - 사칙연산, 퍼센트, 제곱근 |
-| `notepad` | AgentTool | `src/tools/notepad.ts` | **활성** - 메모 작성/조회/목록/삭제 |
-| `timer` | AgentTool | `src/tools/timer.ts` | **활성** - 타이머 설정/확인/취소/목록 |
+| `calculator` | AgentTool | `src/tools/calculator.ts` | **활성** - 사칙연산, 퍼센트, 제곱근, validate |
+| `notepad` | AgentTool | `src/tools/notepad.ts` | **활성** - 메모 작성/조회/목록/삭제, validate |
+| `timer` | AgentTool | `src/tools/timer.ts` | **활성** - 타이머 설정/확인/취소/목록, validate |
 
 ### 비활성 Tool (Gyo Bridge 필요, 추후 구현)
 

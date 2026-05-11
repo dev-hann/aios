@@ -19,6 +19,18 @@ export class TimerTool implements AgentTool {
 
   private timers = new Map<string, TimerEntry>();
 
+  async validate(args: string): Promise<string | null> {
+    const json = tryParseToolJson(args);
+    const action = (json['action'] as string)?.toLowerCase() ?? '';
+    if (!['set', 'check', 'cancel', 'list'].includes(action))
+      return `'${action || '(empty)'}' is not a valid action. Use set, check, cancel, or list.`;
+    if (action === 'set') {
+      const secs = parseIntDynamic(json['seconds']) ?? 0;
+      if (secs <= 0 || secs > 300) return "'seconds' must be 1-300";
+    }
+    return null;
+  }
+
   async execute(args: string): Promise<ToolResult> {
     try {
       const json = tryParseToolJson(args);

@@ -188,4 +188,34 @@ describe('TimerTool', () => {
       expect(checkB.output).toContain('expired');
     });
   });
+
+  describe('validate', () => {
+    it('returns null for valid set', async () => {
+      expect(await timer.validate('{"action": "set", "seconds": 60}')).toBeNull();
+    });
+
+    it('returns null for valid list', async () => {
+      expect(await timer.validate('{"action": "list"}')).toBeNull();
+    });
+
+    it('returns error for empty action', async () => {
+      expect(await timer.validate('{}')).toContain('not a valid action');
+    });
+
+    it('returns error for invalid action', async () => {
+      expect(await timer.validate('{"action": "start"}')).toContain('not a valid action');
+    });
+
+    it('returns error for set without seconds', async () => {
+      expect(await timer.validate('{"action": "set"}')).toBe("'seconds' must be 1-300");
+    });
+
+    it('returns error for set with seconds out of range', async () => {
+      expect(await timer.validate('{"action": "set", "seconds": 500}')).toBe("'seconds' must be 1-300");
+    });
+
+    it('returns error for set with zero seconds', async () => {
+      expect(await timer.validate('{"action": "set", "seconds": 0}')).toBe("'seconds' must be 1-300");
+    });
+  });
 });

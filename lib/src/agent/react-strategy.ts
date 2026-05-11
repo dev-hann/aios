@@ -243,7 +243,10 @@ export class ReactStrategy {
           onStep?.(steps[steps.length - 1]);
           session.addToolResult(toolName, toolContent);
 
-          this.errorRecovery.analyze(toolName, argsJson, toolResult);
+          const recovery = this.errorRecovery.analyze(toolName, argsJson, toolResult);
+          if (recovery?.shouldRetry && recovery.promptNudge) {
+            userParts = [recovery.promptNudge];
+          }
 
           const loopResult = this.loopDetector.record(toolName, argsJson, toolResult);
           if (loopResult.type === 'forceBreak') {
@@ -253,7 +256,9 @@ export class ReactStrategy {
             return { steps, success: false };
           }
         }
-        userParts = [];
+        if (!userParts.some((p) => p.startsWith('RECOVERY:'))) {
+          userParts = [];
+        }
       }
 
       if (!steps.some((s) => s.type === 'answer')) {

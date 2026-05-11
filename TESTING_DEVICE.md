@@ -93,11 +93,11 @@ adb -s {DEVICE} pull /sdcard/ui.xml /tmp/ui.xml
 - `uiautomator dump`는 WebView 컨테이너만 표시
 - 스크린샷 + 시각 검증이 주된 UI 테스트 방법
 
-## 5.5. Chrome DevTools Protocol (CDP) 화면 검증
+## 6. Chrome DevTools Protocol (CDP) 화면 검증
 
 > **참고**: CDP 원시 접근은 Playwright로 대체되었습니다. 아래 §8 참조.
 
-## 6. 주요 로그 태그
+## 7. 주요 로그 태그
 
 | 태그 | 소스 | 의미 |
 |------|------|------|

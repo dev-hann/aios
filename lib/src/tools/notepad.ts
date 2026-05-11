@@ -14,6 +14,17 @@ export class NotepadTool implements AgentTool {
 
   private notes = new Map<string, string>();
 
+  async validate(args: string): Promise<string | null> {
+    const json = tryParseToolJson(args);
+    const action = (json['action'] as string)?.toLowerCase() ?? '';
+    if (!['save', 'get', 'list', 'delete'].includes(action))
+      return `'${action || '(empty)'}' is not a valid action. Use save, get, list, or delete.`;
+    if (action === 'save' && !json['key']) return "'key' required for save action";
+    if ((action === 'get' || action === 'delete') && !json['key'])
+      return `'key' required for ${action} action`;
+    return null;
+  }
+
   async execute(args: string): Promise<ToolResult> {
     try {
       const json = tryParseToolJson(args);

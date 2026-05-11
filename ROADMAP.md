@@ -78,7 +78,7 @@ React + TypeScript (Gyo Framework) 기반 WebView 앱.
 | M1 | — | Gyo 마이그레이션 (React+TS+WebView) | **완성** |
 | M2 | F08, F09, F10 | 순수 TS Tool 3개 | **완성** |
 | M3 | F12, F13, F14 | 에이전트 지능 (ReAct 루프) | **완성** |
-| M4 | F15 | UX 마무리 | **진행중** |
+| M4 | F15 | UX 마무리 | **완성** |
 | M5 | F01 | Gyo Bridge + app_launcher | **예정** |
 | M6 | F02, F03 | Gyo Bridge + 화면 제어/읽기 | **예정** |
 | M7 | F04-F07, F11 | Gyo Bridge + 커뮤니케이션/기기 | **예정** |

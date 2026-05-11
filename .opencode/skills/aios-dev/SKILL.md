@@ -18,7 +18,7 @@ metadata:
 | `AGENTS.md` | 코딩 규약(§2-3), 활성 Tool(§4), 테스트 의무(§0), 기기 명령어(§0), 문서 업데이트(§5) |
 | `CONTRIBUTING.md` | 빌드/개발 명령어, PR 규칙, 커밋 타입, 릴리즈 프로세스 |
 | `TESTING.md` | 테스트 원칙, 스코프, TDD 워크플로우 |
-| `TESTING_DEVICE.md` | 기기 스모크/기능/심화 테스트, adb 패턴 |
+| `TESTING_DEVICE.md` | 기기 스모크/기능/심화 테스트, adb 패턴, Playwright E2E |
 | `docs/architecture.md` | 시스템 아키텍처, 모듈 구조, 데이터 흐름 |
 
 ### MAIN THREAD 프로시저
@@ -27,7 +27,8 @@ metadata:
 
 ```
 1. 서브태스크 실행 (Task 도구, subagent_type: "general")
-   - 프롬프트에 SKILL.md의 "SUB-TASK 프로시저" 전체 내용 전달
+   - 프롬프트에 이 파일(.opencode/skills/aios-dev/SKILL.md) 경로를 전달
+   - 서브태스크가 직접 파일을 읽고 숙지하도록 지시
 2. 서브태스크 종료 대기
 3. 결과 로깅: "[AIOS-Dev] 서브태스크 N 완료: {결과}"
 4. 서브태스크 결과가 "전체 완료"면 사용자에게 알림
@@ -51,6 +52,7 @@ metadata:
    d. 에러 핸들링 (빈 catch, 잘못된 에러 반환, unsafe cast)
    e. 성능 (불필요한 리렌더, O(n) 복사, 매번 새 인스턴스 생성)
    f. 미사용 의존성, dead code, TODO/FIXME/HACK 주석
+   g. 프로젝트 특화 검색 (아래 "코드 품질 검색 패턴" 참고)
    → 발견된 항목을 우선순위(HIGH > MEDIUM > LOW)로 정렬
    → 전체 항목을 작업 리스트로 작성
    - 발견된 항목이 없으면 "전체 완료" 반환 후 종료
@@ -68,21 +70,36 @@ metadata:
    - npm run type-check → 0 errors
    - npm run build → 성공
 8. 기기 연결 시 (AGENTS.md §0 기기 명령어 참고):
-   a. cd android && ./gradlew assembleDebug
+   a. bash /tmp/gyo build android
+      - 실패 시 cd android && ./gradlew assembleDebug 로 폴백
    b. adb 설치 → 실행
    c. 스크린샷 → read로 화면 확인
    d. logcat에서 [AIOS-] 로그 확인
    e. TESTING_DEVICE.md 스모크 테스트 수행
-   f. 문제 발견 시 5번부터 수정 반복
+   f. Playwright E2E 테스트: cd lib && npm run test:e2e (기기+Vite 서버 필요)
+   g. 문제 발견 시 5번부터 수정 반복
 9. git add → commit:
    - 메시지: "refactor: 변경 내용 요약" (CONTRIBUTING.md 커밋 타입 참고)
    - 문서 업데이트 포함 (AGENTS.md §5 체크리스트 참고)
-10. git push
+10. git push (main 브랜치에 직접 push 금지, feature 브랜치 사용)
 11. 결과 요약 반환:
-    "리팩토링 N개 완료: {항목 요약}, 테스트 M개 추가/수정, 전체 {count} 테스트 통과"
+     "리팩토링 N개 완료: {항목 요약}, 테스트 M개 추가/수정, 전체 {count} 테스트 통과"
 ```
 
 ### 병렬 실행 규칙
 
 - 독립적인 작업은 반드시 동시에 실행 (순차 실행 금지)
 - 예: 파일 읽기 여러 개는 병렬, 코드 수정 + 테스트는 순차
+
+### 코드 품질 검색 패턴
+
+서브태스크는 분석 단계에서 아래 패턴을 활용한다:
+
+| 검색 대상 | 명령어 | 설명 |
+|-----------|--------|------|
+| `any` 타입 | `rg '\bany\b' lib/src/ --type ts` | AGENTS.md §3 금지 |
+| unsafe cast | `rg 'as\s+[A-Z]' lib/src/ --type ts` | type guard 없는 캐스트 |
+| 빈 catch | `rg 'catch\s*\([^)]*\)\s*\{\s*\}' lib/src/ --type ts` | 최소 console.error 필요 |
+| ts-ignore | `rg '@ts-ignore\|@ts-expect-error' lib/src/ --type ts` | AGENTS.md §3 금지 |
+| TODO/FIXME | `rg 'TODO\|FIXME\|HACK' lib/src/ --type ts` | 미해결 이슈 |
+| 콘솔 로그 태그 | `rg 'console\.(log\|warn\|error)' lib/src/ --type ts` | AIOS-{Tag} 형식 확인 |

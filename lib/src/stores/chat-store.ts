@@ -30,6 +30,7 @@ interface ChatState {
   isConfirming: boolean;
   pendingToolName: string;
   pendingToolArgs: string;
+  pendingToolRisk: string;
   errorMessage: string | null;
 
   streamingContent: string;
@@ -116,6 +117,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isConfirming: false,
   pendingToolName: '',
   pendingToolArgs: '',
+  pendingToolRisk: '',
   errorMessage: null,
   streamingContent: '',
   isStreamingText: false,
@@ -250,6 +252,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             isConfirming: true,
             pendingToolName: step.toolName ?? '',
             pendingToolArgs: step.toolArgs ?? '',
+            pendingToolRisk: step.riskLevel ?? '',
           });
         }
       }, get().inferenceConfig.maxIterations);
@@ -320,7 +323,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   resolveConfirmation: (approved: boolean) => {
     strategy?.resolveConfirmation(approved);
-    set({ isConfirming: false, pendingToolName: '', pendingToolArgs: '' });
+    set({ isConfirming: false, pendingToolName: '', pendingToolArgs: '', pendingToolRisk: '' });
   },
 
   initializeSession: async () => {

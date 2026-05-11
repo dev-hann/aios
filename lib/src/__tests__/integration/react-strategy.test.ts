@@ -3,7 +3,7 @@ import { ReactStrategy } from '../../agent/react-strategy';
 import { createProviderConfig } from '../../llm/types';
 import type { AgentTool } from '../../tools/types';
 import type { ToolResult } from '../../types/agent';
-import { toolResultOk } from '../../types/agent';
+import { toolResultOk, toolResultErr } from '../../types/agent';
 
 class MockTool implements AgentTool {
   readonly name: string;
@@ -163,6 +163,29 @@ describe('ReactStrategy', () => {
       await strategy.execute('test');
 
       expect(ctx.length).toBe(1);
+    });
+  });
+
+  describe('error recovery wiring', () => {
+    it('injects recovery nudge into next iteration on tool error', async () => {
+      const failingTool = new MockTool('calculator', toolResultErr('Unknown action'));
+      tools.set('calculator', failingTool);
+
+      let capturedBodies: any[] = [];
+      vi.spyOn(globalThis, 'fetch').mockImplementation((_url: any, options: any) => {
+        capturedBodies.push(JSON.parse(options.body));
+        if (capturedBodies.length <= 2) {
+          return Promise.resolve(makeToolCallResponse('calculator', '{"expression":"2+3"}'));
+        }
+        return Promise.resolve(makeTextResponse('Let me try differently'));
+      });
+
+      const strategy = new ReactStrategy(tools, config);
+      await strategy.execute('calculate');
+
+      const lastApiCall = capturedBodies[capturedBodies.length - 1];
+      const lastUserMsg = lastApiCall.messages.filter((m: any) => m.role === 'user').pop();
+      expect(lastUserMsg?.content).toContain('RECOVERY');
     });
   });
 });

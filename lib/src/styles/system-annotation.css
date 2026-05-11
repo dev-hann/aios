@@ -18,6 +18,18 @@
   color: var(--color-text-secondary);
 }
 
+.system-annotation-icon.risk-high {
+  color: var(--color-warning);
+}
+
+.system-annotation-icon.risk-critical {
+  color: var(--color-critical);
+}
+
+.system-annotation-icon.observation-error {
+  color: var(--color-error);
+}
+
 .system-annotation-text {
   color: var(--color-text-secondary);
   font-size: 12px;

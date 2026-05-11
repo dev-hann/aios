@@ -133,4 +133,26 @@ describe('CalculatorTool', () => {
       expect(result.output).toBe('10.0000');
     });
   });
+
+  describe('validate', () => {
+    it('returns null for valid expression', async () => {
+      expect(await calc.validate('{"expression": "2+3"}')).toBeNull();
+    });
+
+    it('returns error for missing expression', async () => {
+      expect(await calc.validate('{}')).toBe("'expression' required");
+    });
+
+    it('returns error for empty expression', async () => {
+      expect(await calc.validate('{"expression": ""}')).toBe("'expression' required");
+    });
+
+    it('returns error for expression with only special chars', async () => {
+      expect(await calc.validate('{"expression": "abc"}')).toBe("'expression' must contain valid math operators");
+    });
+
+    it('returns null for expression with spaces and numbers', async () => {
+      expect(await calc.validate('{"expression": "1 + 2"}')).toBeNull();
+    });
+  });
 });
